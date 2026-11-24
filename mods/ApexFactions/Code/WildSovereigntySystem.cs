@@ -21,10 +21,38 @@ namespace ApexFactions
     {
         public static readonly List<FeralPackDomain> ActiveDomains = new List<FeralPackDomain>();
 
-        private static readonly HashSet<string> PackSpecies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> ExcludedSpecies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "wolf", "bear", "rhino", "hyena", "crocodile", "snake", "monkey", "fox", "cat"
+            "butterfly", "beetle", "fly", "grasshopper", "ant_blue", "ant_green", "ant_red", "ant_black", "bee", "piranha"
         };
+
+        private static bool IsEligibleWildAnimal(ActorAsset asset)
+        {
+            if (asset == null || asset.is_boat || asset.civ) return false;
+            if (ExcludedSpecies.Contains(asset.id)) return false;
+            return asset.default_animal;
+        }
+
+        private static string PluralizeSpecies(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return "Beasts";
+            string clean = id.Replace('_', ' ');
+            switch (id.ToLowerInvariant())
+            {
+                case "wolf": return "Wolves";
+                case "fox": return "Foxes";
+                case "sheep": return "Sheep";
+                case "deer": return "Deer";
+                case "fish": return "Fish";
+                case "mouse": return "Mice";
+                case "monkey": return "Monkeys";
+                case "butterfly": return "Butterflies";
+            }
+            string titled = char.ToUpper(clean[0]) + clean.Substring(1);
+            if (titled.EndsWith("s") || titled.EndsWith("x") || titled.EndsWith("ch") || titled.EndsWith("sh"))
+                return titled + "es";
+            return titled + "s";
+        }
 
         private static readonly MethodInfo SpeciesIdGetter =
             AccessTools.PropertyGetter(typeof(Subspecies), "species_id");
@@ -70,8 +98,11 @@ namespace ApexFactions
                 string sid = SpeciesIdGetter?.Invoke(sub, null) as string ?? "";
                 if (!string.IsNullOrEmpty(filterSpecies) && !string.Equals(sid, filterSpecies, StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (string.IsNullOrEmpty(filterSpecies) && !PackSpecies.Contains(sid))
-                    continue;
+                if (string.IsNullOrEmpty(filterSpecies))
+                {
+                    ActorAsset asset = AssetManager.actor_library?.get(sid);
+                    if (!IsEligibleWildAnimal(asset)) continue;
+                }
 
                 try
                 {
@@ -105,7 +136,7 @@ namespace ApexFactions
                 Actor u = alive[i];
                 if (u == null || !u.isAlive() || u.current_tile == null || u.asset == null) continue;
                 if (u.kingdom != null && u.kingdom.isCiv()) continue;
-                if (!PackSpecies.Contains(u.asset.id)) continue;
+                if (!IsEligibleWildAnimal(u.asset)) continue;
 
                 if (!wildBySpecies.TryGetValue(u.asset.id, out var list))
                 {
@@ -166,9 +197,7 @@ namespace ApexFactions
                     alpha.addTrait("veteran");
                     alpha.setStatsDirty();
 
-                    string prettyPlural = sp.Equals("wolf", StringComparison.OrdinalIgnoreCase)
-                        ? "Wolves"
-                        : (char.ToUpper(sp[0]) + sp.Substring(1) + "s");
+                    string prettyPlural = PluralizeSpecies(sp);
 
                     ActiveDomains.Add(new FeralPackDomain
                     {

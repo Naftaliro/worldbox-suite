@@ -189,10 +189,10 @@ namespace ApexFactions
                 _status = n > 0 ? $"Awakened {n} wolf subspecies!" : "No wild wolf subspecies found.";
             }
 
-            if (GUILayout.Button("Awaken All Pack Predators (Bears/Wolves/etc.)", _btnStyle))
+            if (GUILayout.Button("Awaken All Wild Animals (Full Sapience)", _btnStyle))
             {
                 int n = WildSovereigntySystem.AwakenWildSubspecies(null);
-                _status = $"Awakened {n} wild subspecies!";
+                _status = $"Awakened {n} wild animal subspecies!";
             }
 
             if (GUILayout.Button($"Feral Domain Borders: {(Settings.ShowFeralDomainRings ? "ON" : "OFF")}", _btnStyle))
