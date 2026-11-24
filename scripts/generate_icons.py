@@ -156,20 +156,38 @@ TEMPLATES: dict[str, list[str]] = {
         ".bbbbbbbbbbbbbb.",
         "................",
     ],
-    "Arsenal": [
+    "WorldRelics": [
         "................",
         ".bbbbbbbbbbbbbb.",
         ".bssssssssssssb.",
-        ".bs.....uuuu.sb.",
-        ".bs....uucuu.sb.",
-        ".bs...uuccuu.sb.",
-        ".bs..pppccuu.sb.",
-        ".bs.ppppcuu..sb.",
-        ".bs.pppytt...sb.",
-        ".bs..ppyttt..sb.",
-        ".bs....y.ttt.sb.",
-        ".bs.......tt.sb.",
-        ".bs........p.sb.",
+        ".bsll..ll..llsb.",
+        ".bsllllggllllsb.",
+        ".bslltgggtlllsb.",
+        ".bslttgtttttlsb.",
+        ".bsltgtt..ttlsb.",
+        ".bslggtt..ttlsb.",
+        ".bsltgtt..ttlsb.",
+        ".bsltttt..ttlsb.",
+        ".bsggttttttggsb.",
+        ".bsggggggggggsb.",
+        ".bssssssssssssb.",
+        ".bbbbbbbbbbbbbb.",
+        "................",
+    ],
+    "ModernAge": [
+        "................",
+        ".bbbbbbbbbbbbbb.",
+        ".bssssssssssssb.",
+        ".bs....cc....sb.",
+        ".bs...cccc...sb.",
+        ".bs..ccuucc..sb.",
+        ".bs.ccuuuucc.sb.",
+        ".bsccccppccccsb.",
+        ".bs..cuuuuc..sb.",
+        ".bs...cuuc...sb.",
+        ".bs..cc..cc..sb.",
+        ".bs.cc....cc.sb.",
+        ".bs..........sb.",
         ".bssssssssssssb.",
         ".bbbbbbbbbbbbbb.",
         "................",
@@ -230,11 +248,16 @@ def render_template(rows: list[str], scale: int = 4) -> bytes:
 
 
 def main() -> None:
-    for mod in ("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "Arsenal"):
+    for mod in ("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "WorldRelics"):
         out = REPO_ROOT / "mods" / mod / "icon.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(render_template(TEMPLATES[mod], scale=4))
         print(f"Wrote {out.relative_to(REPO_ROOT)}")
+
+    exp_icon = REPO_ROOT / "expansions" / "ModernAge" / "icon.png"
+    exp_icon.parent.mkdir(parents=True, exist_ok=True)
+    exp_icon.write_bytes(render_template(TEMPLATES["ModernAge"], scale=4))
+    print(f"Wrote {exp_icon.relative_to(REPO_ROOT)}")
 
     res_dir = REPO_ROOT / "mods" / "SuiteHub" / "GameResources"
     res_dir.mkdir(parents=True, exist_ok=True)
@@ -248,7 +271,8 @@ def main() -> None:
         "btn_chronicle.png": "EraChronicle",
         "btn_portal.png": "LinkedContinents",
         "btn_apex.png": "ApexFactions",
-        "btn_arsenal.png": "Arsenal",
+        "btn_relics.png": "WorldRelics",
+        "btn_modern.png": "ModernAge",
     }
     for fname, tpl in btn_map.items():
         p = res_dir / fname

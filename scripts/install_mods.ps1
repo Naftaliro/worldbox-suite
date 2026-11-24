@@ -1,5 +1,6 @@
 param(
-    [string]$WorldBoxDir = ""
+    [string]$WorldBoxDir = "",
+    [switch]$IncludeModern
 )
 
 $ErrorActionPreference = "Stop"
@@ -57,7 +58,10 @@ if (-not (Test-Path $NmlDll)) {
     Write-Host "NeoModLoader.dll already present." -ForegroundColor Green
 }
 
-$SuiteMods = @("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "Arsenal")
+$SuiteMods = @("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "WorldRelics")
+$LegacyArsenal = Join-Path $ModsDir "Arsenal"
+if (Test-Path $LegacyArsenal) { Remove-Item -Recurse -Force $LegacyArsenal }
+
 foreach ($mod in $SuiteMods) {
     $Src = Join-Path $RepoRoot "mods\$mod"
     $Dst = Join-Path $ModsDir $mod
@@ -71,6 +75,20 @@ foreach ($mod in $SuiteMods) {
         }
     }
     Write-Host "Installed $mod -> $Dst" -ForegroundColor Green
+}
+
+if ($IncludeModern) {
+    $Src = Join-Path $RepoRoot "expansions\ModernAge"
+    $Dst = Join-Path $ModsDir "ModernAge"
+    if (Test-Path $Dst) { Remove-Item -Recurse -Force $Dst }
+    New-Item -ItemType Directory -Force -Path $Dst | Out-Null
+    foreach ($item in @("mod.json", "icon.png", "Code", "Locales", "GameResources")) {
+        $SrcItem = Join-Path $Src $item
+        if (Test-Path $SrcItem) {
+            Copy-Item -Recurse -Force $SrcItem (Join-Path $Dst $item)
+        }
+    }
+    Write-Host "Installed ModernAge Expansion -> $Dst" -ForegroundColor Cyan
 }
 
 Write-Host ""

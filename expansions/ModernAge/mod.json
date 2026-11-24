@@ -1,0 +1,9 @@
+{
+  "name": "ModernAge",
+  "author": "naftaliro",
+  "version": "0.1.0",
+  "GUID": "dev.3hz.worldbox.modernage",
+  "description": "Opt-in 3-tier industrial and modern warfare expansion: Tier 1 blackpowder & counters, Tier 2 light tanks/prop fighters/early helis/flak, Tier 3 MBTs/jets/attack helis/radar SAMs, 6 government systems, highways, and international trade/lend-lease (Alt+M HUD).",
+  "RepoUrl": "https://github.com/naftaliro/worldbox-suite",
+  "iconPath": "icon.png"
+}

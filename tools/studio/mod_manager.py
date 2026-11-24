@@ -111,13 +111,15 @@ def list_mods(cfg: dict[str, Any]) -> dict[str, Any]:
                 installed.append(_read_mod_meta(entry, is_en))
 
     suite_mods: list[dict[str, Any]] = []
-    suite_root = REPO_ROOT / "mods"
-    if suite_root.exists():
-        for entry in sorted(suite_root.iterdir()):
-            if entry.is_dir() and (entry / "mod.json").exists():
-                info = _read_mod_meta(entry, enabled=False)
-                info["deployed"] = (enabled_dir / entry.name).exists() or (disabled_dir / entry.name).exists()
-                suite_mods.append(info)
+    for sub_dir, tag in (("mods", "Core"), ("expansions", "Expansion")):
+        suite_root = REPO_ROOT / sub_dir
+        if suite_root.exists():
+            for entry in sorted(suite_root.iterdir()):
+                if entry.is_dir() and (entry / "mod.json").exists():
+                    info = _read_mod_meta(entry, enabled=False)
+                    info["deployed"] = (enabled_dir / entry.name).exists() or (disabled_dir / entry.name).exists()
+                    info["tier"] = tag
+                    suite_mods.append(info)
 
     return {
         "using_local_staging": not bool(cfg.get("game_streaming_assets", "").strip()),
@@ -149,6 +151,8 @@ def deploy_suite_mod(cfg: dict[str, Any], folder_name: str) -> dict[str, Any]:
     if "/" in folder_name or "\\" in folder_name or folder_name in (".", ".."):
         raise ValueError("Invalid module name")
     src = REPO_ROOT / "mods" / folder_name
+    if not src.exists():
+        src = REPO_ROOT / "expansions" / folder_name
     if not src.exists():
         raise FileNotFoundError(f"Suite module not found: {folder_name}")
     enabled_dir, disabled_dir = _mods_dirs(cfg)

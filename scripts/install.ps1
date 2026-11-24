@@ -85,7 +85,11 @@ try {
     Expand-Archive -Path $ZipPath -DestinationPath $TmpRoot -Force
 
     $Extracted = Join-Path $TmpRoot "worldbox-suite-main"
-    $SuiteMods = @("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "Arsenal")
+    $SuiteMods = @("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "WorldRelics")
+
+    # Clean up legacy standalone Arsenal folder if present (folded into ModernAge Tier 1)
+    $LegacyArsenal = Join-Path $ModsDir "Arsenal"
+    if (Test-Path $LegacyArsenal) { Remove-Item -Recurse -Force $LegacyArsenal }
 
     foreach ($mod in $SuiteMods) {
         $Src = Join-Path $Extracted "mods\$mod"
@@ -102,6 +106,23 @@ try {
         }
         Write-Host "  + Installed $mod" -ForegroundColor Green
     }
+
+    # Opt-in ModernAge expansion (set $env:WORLDBOX_MODERN=1 before running to include)
+    if ($env:WORLDBOX_MODERN -eq "1" -or $env:WORLDBOX_MODERN -eq "true") {
+        $Src = Join-Path $Extracted "expansions\ModernAge"
+        $Dst = Join-Path $ModsDir "ModernAge"
+        if (Test-Path $Src) {
+            if (Test-Path $Dst) { Remove-Item -Recurse -Force $Dst }
+            New-Item -ItemType Directory -Force -Path $Dst | Out-Null
+            foreach ($item in @("mod.json", "icon.png", "Code", "Locales", "GameResources")) {
+                $SrcItem = Join-Path $Src $item
+                if (Test-Path $SrcItem) {
+                    Copy-Item -Recurse -Force $SrcItem (Join-Path $Dst $item)
+                }
+            }
+            Write-Host "  + Installed ModernAge Expansion (Tier 1-3)" -ForegroundColor Cyan
+        }
+    }
 } finally {
     if (Test-Path $TmpRoot) {
         Remove-Item -Recurse -Force $TmpRoot -ErrorAction SilentlyContinue
@@ -109,9 +130,15 @@ try {
 }
 
 Write-Host ""
-Write-Host "All 8 mods installed!" -ForegroundColor Cyan
+if ($env:WORLDBOX_MODERN -eq "1" -or $env:WORLDBOX_MODERN -eq "true") {
+    Write-Host "Core pack (8 mods) + ModernAge Expansion installed!" -ForegroundColor Cyan
+} else {
+    Write-Host "Classic Core pack (8 mods) installed!" -ForegroundColor Cyan
+    Write-Host "Want Tier 1-3 firearms, tanks, jets, and modern geopolitics too? Run:" -ForegroundColor DarkGray
+    Write-Host '  $env:WORLDBOX_MODERN=1; irm https://raw.githubusercontent.com/Naftaliro/worldbox-suite/main/scripts/install.ps1 | iex' -ForegroundColor Gray
+}
 Write-Host "Next steps:" -ForegroundColor White
 Write-Host "  1. Open WorldBox -> Settings -> turn ON 'Experimental Mode'" -ForegroundColor Gray
 Write-Host "  2. Restart WorldBox" -ForegroundColor Gray
-Write-Host "  3. Click the 'WorldBox Suite' tab on the bottom bar (or press F2-F12 / Alt+A)" -ForegroundColor Gray
+Write-Host "  3. Click the 'WorldBox Suite' tab on the bottom bar (or press F2-F12 / Alt+R / Alt+M)" -ForegroundColor Gray
 Write-Host ""

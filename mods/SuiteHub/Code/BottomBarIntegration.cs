@@ -105,12 +105,23 @@ namespace SuiteHub
                 );
                 tab.AddPowerButton("suite_modules", chrBtn);
 
-                PowerButton arsBtn = PowerButtonCreator.CreateSimpleButton(
-                    "suite_arsenal",
-                    () => Main.Instance?.ToggleCompanionHud("Arsenal.Main"),
-                    LoadButtonSprite(Path.Combine(resDir, "btn_arsenal.png")) ?? tabIcon
+                PowerButton relicsBtn = PowerButtonCreator.CreateSimpleButton(
+                    "suite_world_relics",
+                    () => Main.Instance?.ToggleCompanionHud("WorldRelics.Main"),
+                    LoadButtonSprite(Path.Combine(resDir, "btn_relics.png")) ?? tabIcon
                 );
-                tab.AddPowerButton("suite_modules", arsBtn);
+                tab.AddPowerButton("suite_modules", relicsBtn);
+
+                // Only add the ModernAge expansion button when the opt-in expansion is installed
+                if (Main.IsCompanionLoaded("ModernAge.Main"))
+                {
+                    PowerButton modBtn = PowerButtonCreator.CreateSimpleButton(
+                        "suite_modern_age",
+                        () => Main.Instance?.ToggleCompanionHud("ModernAge.Main"),
+                        LoadButtonSprite(Path.Combine(resDir, "btn_modern.png")) ?? tabIcon
+                    );
+                    tab.AddPowerButton("suite_modules", modBtn);
+                }
 
                 tab.UpdateLayout();
                 _initialized = true;

@@ -2,7 +2,15 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-WORLDBOX_DIR="${1:-}"
+INCLUDE_MODERN=0
+WORLDBOX_DIR=""
+for arg in "$@"; do
+  if [ "$arg" = "--modern" ]; then
+    INCLUDE_MODERN=1
+  else
+    WORLDBOX_DIR="$arg"
+  fi
+done
 
 if [ -z "$WORLDBOX_DIR" ]; then
   for c in \
@@ -37,7 +45,8 @@ else
   echo "NeoModLoader.dll already present."
 fi
 
-for mod in SuiteHub CoreScale VisualPolish GrandWarfare LinkedContinents EraChronicle ApexFactions Arsenal; do
+rm -rf "$MODS_DIR/Arsenal"
+for mod in SuiteHub CoreScale VisualPolish GrandWarfare LinkedContinents EraChronicle ApexFactions WorldRelics; do
   SRC="$ROOT_DIR/mods/$mod"
   DST="$MODS_DIR/$mod"
   rm -rf "$DST"
@@ -49,6 +58,19 @@ for mod in SuiteHub CoreScale VisualPolish GrandWarfare LinkedContinents EraChro
   done
   echo "Installed $mod -> $DST"
 done
+
+if [ "$INCLUDE_MODERN" -eq 1 ]; then
+  SRC="$ROOT_DIR/expansions/ModernAge"
+  DST="$MODS_DIR/ModernAge"
+  rm -rf "$DST"
+  mkdir -p "$DST"
+  for item in mod.json icon.png Code Locales GameResources; do
+    if [ -e "$SRC/$item" ]; then
+      cp -R "$SRC/$item" "$DST/$item"
+    fi
+  done
+  echo "Installed ModernAge Expansion -> $DST"
+fi
 
 echo ""
 echo "Done! Enable 'Experimental Mode' in WorldBox Settings, restart, and click the 'WorldBox Suite' tab on the bottom bar."

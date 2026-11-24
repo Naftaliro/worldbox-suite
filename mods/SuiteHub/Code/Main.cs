@@ -63,6 +63,11 @@ namespace SuiteHub
         public void ToggleWorldBuilder() => _showWorldBuilder = !_showWorldBuilder;
         public void ToggleBattleRadar() => BattleRadarSystem.Enabled = !BattleRadarSystem.Enabled;
 
+        public static bool IsCompanionLoaded(string mainTypeName)
+        {
+            return AccessTools.TypeByName(mainTypeName) != null;
+        }
+
         public void ToggleCompanionHud(string mainTypeName)
         {
             try
@@ -180,7 +185,11 @@ namespace SuiteHub
             if (GUILayout.Button("LinkedContinents Portal (F11)", _btnStyle)) ToggleCompanionHud("LinkedContinents.Main");
             if (GUILayout.Button("EraChronicle History (F7)", _btnStyle)) ToggleCompanionHud("EraChronicle.Main");
             if (GUILayout.Button("ApexFactions Wardens & Wild Realms (F12)", _btnStyle)) ToggleCompanionHud("ApexFactions.Main");
-            if (GUILayout.Button("Arsenal Blackpowder & Counters (Alt+A)", _btnStyle)) ToggleCompanionHud("Arsenal.Main");
+            if (GUILayout.Button("WorldRelics Walls, Bridges & Ruins (Alt+R)", _btnStyle)) ToggleCompanionHud("WorldRelics.Main");
+            if (IsCompanionLoaded("ModernAge.Main"))
+            {
+                if (GUILayout.Button("ModernAge Expansion (Alt+M)", _btnStyle)) ToggleCompanionHud("ModernAge.Main");
+            }
 
             GUI.DragWindow();
         }
