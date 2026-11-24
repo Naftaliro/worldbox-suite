@@ -8,5 +8,7 @@
   "suite_battle_radar": "Battlefield Conflict Radar",
   "suite_battle_radar_description": "Toggle pulsing on-map combat markers and live skirmish counters (Hotkey: F3).",
   "suite_world_builder": "Multi-Continent Builder",
-  "suite_world_builder_description": "Generate a brand-new pre-stitched multi-continent world with custom biomes and ocean channels (Hotkey: F2)."
+  "suite_world_builder_description": "Generate a brand-new pre-stitched multi-continent world with custom biomes and ocean channels (Hotkey: F2).",
+  "suite_apex_factions": "ApexFactions & Wild Realms",
+  "suite_apex_factions_description": "Open the Warden Sleeping Giant doctrine, Species Awakener, and Feral Pack Domains panel (Hotkey: F12)."
 }

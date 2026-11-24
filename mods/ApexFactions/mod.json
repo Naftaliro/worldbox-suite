@@ -1,0 +1,9 @@
+{
+  "name": "ApexFactions",
+  "author": "naftaliro",
+  "version": "0.1.0",
+  "GUID": "dev.3hz.worldbox.apexfactions",
+  "description": "Warden 'Sleeping Giant' peaceful-until-provoked doctrine with configurable 15% mercy ceasefires, Instant Species Awakener (Wolfkin & wild subspecies), and True Feral Pack Domains (F12 HUD).",
+  "RepoUrl": "https://github.com/naftaliro/worldbox-suite",
+  "iconPath": "icon.png"
+}

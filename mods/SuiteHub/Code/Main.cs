@@ -63,6 +63,20 @@ namespace SuiteHub
         public void ToggleWorldBuilder() => _showWorldBuilder = !_showWorldBuilder;
         public void ToggleBattleRadar() => BattleRadarSystem.Enabled = !BattleRadarSystem.Enabled;
 
+        public void ToggleApexFactionsIfLoaded()
+        {
+            try
+            {
+                Type t = AccessTools.TypeByName("ApexFactions.Main");
+                object inst = t?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+                t?.GetMethod("ToggleHud", BindingFlags.Public | BindingFlags.Instance)?.Invoke(inst, null);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SuiteHub] ApexFactions not loaded: {e.Message}");
+            }
+        }
+
         private void Update()
         {
             // Defer bottom-bar tab registration slightly so WorldBox's Canvas & PowerTabs are fully ready
@@ -166,6 +180,7 @@ namespace SuiteHub
             GUILayout.Label("• F9  VisualPolish Lighting & Zoom", _labelStyle);
             GUILayout.Label("• F10 GrandWarfare Naval & Pacts", _labelStyle);
             GUILayout.Label("• F11 LinkedContinents Ocean Portal", _labelStyle);
+            GUILayout.Label("• F12 ApexFactions Wardens & Wolves", _labelStyle);
 
             GUI.DragWindow();
         }

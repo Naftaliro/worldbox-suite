@@ -63,6 +63,13 @@ namespace SuiteHub
                 );
                 tab.AddPowerButton("suite_worlds", worldBtn);
 
+                PowerButton apexBtn = PowerButtonCreator.CreateSimpleButton(
+                    "suite_apex_factions",
+                    () => Main.Instance?.ToggleApexFactionsIfLoaded(),
+                    LoadButtonSprite(Path.Combine(resDir, "btn_apex.png")) ?? tabIcon
+                );
+                tab.AddPowerButton("suite_worlds", apexBtn);
+
                 tab.UpdateLayout();
                 _initialized = true;
                 Debug.Log("[SuiteHub] Registered native WorldBox Suite bottom power-bar tab.");

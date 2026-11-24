@@ -16,7 +16,7 @@ Open-source modding suite and standalone toolkit for **WorldBox – God Simulato
   * **Mod Manager:** Enable/disable NeoModLoader mods, switch mod profiles, one-click suite deployment, and `.zip` save backups
 
 ### In-Game NeoModLoader C# Mods (`mods/`)
-All six modules share an offline Mono build configuration (`mods/Directory.Build.props`), include custom 64×64 Catppuccin Mocha pixel icons, and compile cleanly with zero warnings:
+All seven modules share an offline Mono build configuration (`mods/Directory.Build.props`), include custom 64×64 Catppuccin Mocha pixel icons, and compile cleanly with zero warnings:
 
 | Module | Bottom Bar / Hotkey | Features |
 | :--- | :---: | :--- |
@@ -26,6 +26,7 @@ All six modules share an offline Mono build configuration (`mods/Directory.Build
 | **`GrandWarfare`** | `F10` | Ship-to-ship naval volleys and coastal bombardment, army supply-line attrition outside friendly cities, and defense-pact diplomacy that pulls allied kingdoms into defensive wars. |
 | **`LinkedContinents`** | `F11` | Ocean-edge fleet transfers connecting separate `.wbox` continent saves via a shared `portal_queue.json`, plus on-demand expedition dispatch and coastal landings. |
 | **`EraChronicle`** | `F7` | 5-tier kingdom era progression (*Dawn Age* through *High Hegemony*) with veteran milestones and automated JSON world-history snapshots readable in WorldBox Studio. |
+| **`ApexFactions`** | **Bottom Tab** / `F12` | **Warden "Sleeping Giant" Doctrine** (peaceful elite humans who never start wars, rally relentlessly if attacked, and enforce a configurable 15% Mercy Ceasefire so survivors live to tell the tale), **Instant Species Awakener** (`civ_wolf` & `makeSapient`), and **Feral Pack Domains** (*Land of the Wolves*). |
 
 ## Quick Start
 
