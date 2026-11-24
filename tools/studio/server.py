@@ -132,11 +132,15 @@ class StudioHandler(BaseHTTPRequestHandler):
                     try:
                         data = _get_cached_save(fpath)
                         summary = summarize_save(data)
+                        bucket = sid.split(":", 1)[0]
+                        slot_name = fpath.parent.name if fpath.name == "map.wbox" else ""
+                        display_name = f"{slot_name}/map.wbox" if slot_name else fpath.name
                         items.append(
                             {
                                 "id": sid,
-                                "filename": fpath.name,
-                                "bucket": sid.split(":", 1)[0],
+                                "filename": display_name,
+                                "slot_name": slot_name,
+                                "bucket": bucket,
                                 "size_bytes": fpath.stat().st_size,
                                 "summary": summary,
                             }
@@ -281,6 +285,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                 out_fname = _safe_filename(body.get("filename") or world_name.lower().replace(" ", "_"))
                 out_path = Path(cfg["output_dir"]) / out_fname
                 save_wbox(merged, out_path)
+                _SAVE_CACHE.clear()
                 sid = f"output:{out_fname}"
                 self._send_json(
                     {

@@ -289,9 +289,18 @@
   <section id="tab-stitcher" class="tab">
     <div class="grid-2">
       <div class="card">
-        <h2>Stitch Configuration</h2>
-        <p class="muted">Check 2 or more worlds to combine into one larger playable .wbox save.</p>
-        <div id="stitch-picker" class="save-list" style="margin-bottom:14px;"></div>
+        <div class="row" style="justify-content:space-between; margin-bottom:6px;">
+          <h2 style="margin:0;">Stitch Configuration</h2>
+          <button id="btn-stitch-clear" class="btn secondary" style="padding:4px 10px; font-size:12px;" title="Uncheck all selected worlds and clear the stitch preview">Clear Selection</button>
+        </div>
+        <p class="muted" style="margin-top:0;">Check 2 or more worlds to combine into one larger playable .wbox save.</p>
+        <label class="muted" style="display:block; margin-bottom:10px;" title="Previous stitched maps are hidden by default so you don't accidentally re-stitch an old combined map">
+          <input id="st-include-outputs" type="checkbox" /> Include previous stitched outputs
+        </label>
+        <div id="stitch-picker" class="save-list" style="margin-bottom:10px;"></div>
+        <div id="st-selection-summary" class="muted" style="margin-bottom:12px; padding:8px 10px; background:var(--surface0); border:1px solid var(--border); border-radius:8px;">
+          Selected (0): Check 2 or more worlds above.
+        </div>
 
         <label class="field">Merged World Name
           <input id="st-name" type="text" value="Twin Continents" />
@@ -330,7 +339,7 @@
         <label class="muted" style="display:block; margin-bottom:14px;">
           <input id="st-archipelago" type="checkbox" checked /> Scatter stepping-stone archipelago islands in ocean gap
         </label>
-        <button id="btn-stitch" class="btn green" style="width:100%;">Stitch Worlds &amp; Render Preview</button>
+        <button id="btn-stitch" class="btn green" style="width:100%;" title="Combine only the currently checked worlds above and render a brand-new preview">Stitch Worlds &amp; Render Preview</button>
       </div>
 
       <div class="card">
@@ -339,13 +348,18 @@
             <h2 id="st-res-title" style="margin:0;">Stitched Output Preview</h2>
             <div id="st-res-meta" class="muted">Pick 2+ worlds and click Stitch.</div>
           </div>
-          <a id="st-download" class="btn" style="text-decoration:none; display:none;">Download Stitched .wbox</a>
+          <a id="st-download" class="btn" style="text-decoration:none; display:none;" title="Download the stitched .wbox save file">Download Stitched .wbox</a>
         </div>
         <div class="map-wrap">
           <img id="st-img" alt="Stitched world preview" style="display:none;" />
           <div id="st-empty" class="muted" style="padding:60px;">Your combined continent map will appear here.</div>
         </div>
         <div id="st-stats" class="stats-row"></div>
+        <div class="row" id="st-slot-export" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+          <span class="muted">Export stitched world to WorldBox Slot:</span>
+          <select id="st-slot-select" title="Choose a WorldBox save slot to write this stitched world into"></select>
+          <button class="btn green" onclick="exportStitchedToSlot()" title="Write map.wbox, map.meta, and preview PNGs directly into the selected WorldBox save slot">Export to Save Slot</button>
+        </div>
       </div>
     </div>
   </section>
@@ -457,7 +471,15 @@
 <div id="toast" class="toast"></div>
 
 <script>
-const state = { saves: [], selectedId: null, stitchOrder: [], config: { profiles: {}, world_profiles: {} } };
+const state = {
+  saves: [],
+  selectedId: null,
+  stitchOrder: [],
+  lastStitchedId: null,
+  inspectorReqId: 0,
+  stitchReqId: 0,
+  config: { profiles: {}, world_profiles: {} },
+};
 
 function toast(msg) {
   const el = document.getElementById("toast");
@@ -497,42 +519,93 @@ async function loadSaves() {
   }
 }
 
+function updateStitchSummary() {
+  const el = document.getElementById("st-selection-summary");
+  if (!el) return;
+  const byId = Object.fromEntries(state.saves.map((s) => [s.id, s]));
+  const picked = state.stitchOrder.map((id) => byId[id]).filter(Boolean);
+  if (!picked.length) {
+    el.textContent = "Selected (0): Check 2 or more worlds above.";
+    return;
+  }
+  const labels = picked.map((s, idx) => {
+    const tag = s.slot_name ? `${s.slot_name} · ` : "";
+    return `#${idx + 1} ${tag}${s.summary.name} (${s.summary.width_chunks}x${s.summary.height_chunks})`;
+  });
+  el.textContent = `Selected (${picked.length}): ${labels.join("  +  ")}`;
+}
+
+function clearStitchPreview(message = "Your combined continent map will appear here.") {
+  state.stitchReqId += 1;
+  state.lastStitchedId = null;
+  const img = document.getElementById("st-img");
+  img.onload = null;
+  img.onerror = null;
+  img.removeAttribute("src");
+  img.style.display = "none";
+  const empty = document.getElementById("st-empty");
+  empty.textContent = message;
+  empty.style.display = "block";
+  document.getElementById("st-download").style.display = "none";
+  document.getElementById("st-slot-export").style.display = "none";
+  document.getElementById("st-stats").innerHTML = "";
+}
+
 function renderSaveLists() {
   const insList = document.getElementById("inspector-save-list");
   const stPicker = document.getElementById("stitch-picker");
+  const includeOutputs = Boolean(document.getElementById("st-include-outputs")?.checked);
   insList.innerHTML = "";
   stPicker.innerHTML = "";
+
+  const validIds = new Set(
+    state.saves
+      .filter((s) => includeOutputs || s.bucket !== "output")
+      .map((s) => s.id)
+  );
+  state.stitchOrder = state.stitchOrder.filter((id) => validIds.has(id));
 
   if (!state.saves.length) {
     insList.innerHTML = '<div class="muted">No .wbox files found in saves folder.</div>';
     stPicker.innerHTML = '<div class="muted">Upload or add .wbox files first.</div>';
+    updateStitchSummary();
     return;
   }
 
   state.saves.forEach((s) => {
     const sum = s.summary;
+    const slotTag = s.slot_name ? `<span class="badge">${s.slot_name}</span> ` : "";
     const item = document.createElement("div");
     item.className = "save-item" + (state.selectedId === s.id ? " selected" : "");
+    item.title = `Inspect ${sum.name} (${s.filename})`;
     item.innerHTML = `
       <div class="title">
         <span>${sum.name}</span>
-        <span class="badge ${s.bucket === "output" ? "green" : ""}">${s.bucket}</span>
+        <span>${slotTag}<span class="badge ${s.bucket === "output" ? "green" : ""}">${s.bucket}</span></span>
       </div>
-      <div class="muted">${sum.width_chunks}x${sum.height_chunks} chunks · ${sum.counts.actors} units · ${sum.counts.kingdoms} kingdoms</div>
+      <div class="muted">${s.filename} · ${sum.width_chunks}x${sum.height_chunks} chunks · ${sum.counts.actors} units · ${sum.counts.kingdoms} kingdoms</div>
     `;
     item.onclick = () => selectSave(s.id);
     insList.appendChild(item);
 
+    if (!includeOutputs && s.bucket === "output") {
+      return;
+    }
+
     const pick = document.createElement("label");
     pick.className = "save-item";
     pick.style.display = "block";
-    const checked = state.stitchOrder.includes(s.id);
+    const orderIdx = state.stitchOrder.indexOf(s.id);
+    const checked = orderIdx >= 0;
+    if (checked) pick.classList.add("selected");
+    const orderBadge = checked ? `<span class="badge green">#${orderIdx + 1}</span> ` : "";
+    pick.title = `Include ${sum.name} (${s.filename}) in stitched world`;
     pick.innerHTML = `
       <div class="title">
-        <span><input type="checkbox" ${checked ? "checked" : ""} /> ${sum.name}</span>
-        <span class="muted">${sum.width_chunks}x${sum.height_chunks}</span>
+        <span><input type="checkbox" ${checked ? "checked" : ""} /> ${orderBadge}${sum.name}</span>
+        <span>${slotTag}<span class="muted">${sum.width_chunks}x${sum.height_chunks}</span></span>
       </div>
-      <div class="muted">${s.filename} · ${sum.counts.kingdoms} kingdoms</div>
+      <div class="muted">${s.filename} · ${sum.counts.kingdoms} kingdoms · ${sum.counts.actors} units</div>
     `;
     pick.querySelector("input").onchange = (e) => {
       if (e.target.checked) {
@@ -540,19 +613,46 @@ function renderSaveLists() {
       } else {
         state.stitchOrder = state.stitchOrder.filter((x) => x !== s.id);
       }
+      renderSaveLists();
     };
     stPicker.appendChild(pick);
   });
+
+  if (!stPicker.children.length) {
+    stPicker.innerHTML = '<div class="muted">No source saves found. Upload .wbox files or enable "Include previous stitched outputs".</div>';
+  }
+  updateStitchSummary();
 }
 
 function updateInspectorImage() {
   if (!state.selectedId) return;
+  const reqId = ++state.inspectorReqId;
   const k = document.getElementById("chk-kingdoms").checked ? "1" : "0";
   const b = document.getElementById("chk-buildings").checked ? "1" : "0";
   const img = document.getElementById("ins-img");
-  img.src = `/api/saves/${encodeURIComponent(state.selectedId)}/preview.png?kingdoms=${k}&buildings=${b}&scale=2&t=${Date.now()}`;
-  img.style.display = "inline-block";
-  document.getElementById("ins-empty").style.display = "none";
+  const empty = document.getElementById("ins-empty");
+  const url = `/api/saves/${encodeURIComponent(state.selectedId)}/preview.png?kingdoms=${k}&buildings=${b}&scale=2&t=${Date.now()}`;
+
+  // Clear old image immediately so switching worlds never leaves a stale map visible
+  img.onload = null;
+  img.onerror = null;
+  img.removeAttribute("src");
+  img.style.display = "none";
+  empty.textContent = "Rendering map preview...";
+  empty.style.display = "block";
+
+  img.onload = () => {
+    if (reqId !== state.inspectorReqId) return;
+    img.style.display = "inline-block";
+    empty.style.display = "none";
+  };
+  img.onerror = () => {
+    if (reqId !== state.inspectorReqId) return;
+    img.style.display = "none";
+    empty.textContent = "Could not render map preview.";
+    empty.style.display = "block";
+  };
+  img.src = url;
 }
 
 function selectSave(id) {
@@ -627,6 +727,15 @@ document.getElementById("upload-input").onchange = async (e) => {
 };
 
 // Stitch
+document.getElementById("st-include-outputs").onchange = () => renderSaveLists();
+document.getElementById("btn-stitch-clear").onclick = () => {
+  state.stitchOrder = [];
+  renderSaveLists();
+  clearStitchPreview("Selection cleared. Pick 2+ worlds and click Stitch.");
+  document.getElementById("st-res-title").textContent = "Stitched Output Preview";
+  document.getElementById("st-res-meta").textContent = "Pick 2+ worlds and click Stitch.";
+};
+
 document.getElementById("btn-stitch").onclick = async () => {
   if (state.stitchOrder.length < 2) {
     toast("Select at least 2 worlds first.");
@@ -635,12 +744,16 @@ document.getElementById("btn-stitch").onclick = async () => {
   const btn = document.getElementById("btn-stitch");
   btn.disabled = true;
   btn.textContent = "Stitching...";
+  clearStitchPreview("Stitching selected worlds & rendering fresh preview...");
+  const reqId = ++state.stitchReqId;
+  document.getElementById("st-res-title").textContent = "Stitching...";
+  document.getElementById("st-res-meta").textContent = `Combining ${state.stitchOrder.length} selected worlds...`;
   try {
     const res = await api("/api/stitch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        save_ids: state.stitchOrder,
+        save_ids: [...state.stitchOrder],
         name: document.getElementById("st-name").value,
         layout: document.getElementById("st-layout").value,
         gap_chunks: parseInt(document.getElementById("st-gap").value, 10) || 0,
@@ -651,17 +764,33 @@ document.getElementById("btn-stitch").onclick = async () => {
         diplomacy_preset: document.getElementById("st-diplomacy").value,
       }),
     });
+    if (reqId !== state.stitchReqId) return;
     const sum = res.summary;
+    state.lastStitchedId = res.id;
     document.getElementById("st-res-title").textContent = sum.name;
     document.getElementById("st-res-meta").textContent =
       `${sum.width_chunks}x${sum.height_chunks} chunks (${sum.width_tiles}x${sum.height_tiles} tiles) · saved to ${res.path}`;
+
     const img = document.getElementById("st-img");
-    img.src = `/api/saves/${encodeURIComponent(res.id)}/preview.png?scale=2&t=${Date.now()}`;
-    img.style.display = "inline-block";
-    document.getElementById("st-empty").style.display = "none";
+    const empty = document.getElementById("st-empty");
+    const previewUrl = `/api/saves/${encodeURIComponent(res.id)}/preview.png?scale=2&t=${Date.now()}`;
+    img.onload = () => {
+      if (reqId !== state.stitchReqId) return;
+      img.style.display = "inline-block";
+      empty.style.display = "none";
+    };
+    img.onerror = () => {
+      if (reqId !== state.stitchReqId) return;
+      img.style.display = "none";
+      empty.textContent = "Preview image failed to load.";
+      empty.style.display = "block";
+    };
+    img.src = previewUrl;
+
     const dl = document.getElementById("st-download");
     dl.href = `/api/saves/${encodeURIComponent(res.id)}/download`;
     dl.style.display = "inline-block";
+    document.getElementById("st-slot-export").style.display = "flex";
     const c = sum.counts;
     document.getElementById("st-stats").innerHTML = [
       statBox("Size", `${sum.width_chunks}x${sum.height_chunks}`),
@@ -672,7 +801,11 @@ document.getElementById("btn-stitch").onclick = async () => {
     ].join("");
     toast("Stitched world ready!");
     await loadSaves();
+    await loadSlots();
   } catch (err) {
+    clearStitchPreview("Stitch failed: " + err.message);
+    document.getElementById("st-res-title").textContent = "Stitch Failed";
+    document.getElementById("st-res-meta").textContent = err.message;
     toast("Stitch failed: " + err.message);
   } finally {
     btn.disabled = false;
@@ -699,15 +832,35 @@ let lastDiagData = null;
 async function loadSlots() {
   try {
     const res = await api("/api/slots");
-    const sel = document.getElementById("slot-select");
-    if (!sel) return;
-    sel.innerHTML = (res.slots || []).map((s) =>
+    const optsHtml = (res.slots || []).map((s) =>
       `<option value="${s.slot}">Slot ${s.slot} — ${s.occupied ? `${s.name} (${s.size})` : "Empty"}</option>`
     ).join("");
     const firstEmpty = (res.slots || []).find((s) => !s.occupied);
-    if (firstEmpty) sel.value = String(firstEmpty.slot);
+    for (const id of ["slot-select", "st-slot-select"]) {
+      const sel = document.getElementById(id);
+      if (!sel) continue;
+      sel.innerHTML = optsHtml;
+      if (firstEmpty) sel.value = String(firstEmpty.slot);
+    }
   } catch (_) {}
 }
+
+window.exportStitchedToSlot = async () => {
+  if (!state.lastStitchedId) return;
+  const slot = parseInt(document.getElementById("st-slot-select").value, 10) || 1;
+  try {
+    const res = await api("/api/slots/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ save_id: state.lastStitchedId, slot }),
+    });
+    toast(`Exported "${res.world_name}" to WorldBox save${res.slot}!`);
+    await loadSlots();
+    await loadSaves();
+  } catch (err) {
+    toast("Slot export failed: " + err.message);
+  }
+};
 
 window.exportSelectedToSlot = async () => {
   if (!state.selectedId) return;
