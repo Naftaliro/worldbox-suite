@@ -54,15 +54,25 @@ def _get_cached_save(path: Path) -> dict[str, Any]:
 
 def _discover_saves(cfg: dict[str, Any]) -> dict[str, Path]:
     found: dict[str, Path] = {}
-    for bucket, key in (("saves", "saves_dir"), ("output", "output_dir")):
-        root = Path(cfg.get(key, ""))
+    seen_paths: set[str] = set()
+    for bucket, key in (("saves", "saves_dir"), ("slots", "worldbox_slots_dir"), ("output", "output_dir")):
+        raw = str(cfg.get(key, "")).strip()
+        if not raw:
+            continue
+        root = Path(raw)
         if not root.exists():
             continue
         for p in sorted(root.glob("*.wbox")):
-            found[f"{bucket}:{p.name}"] = p
+            rp = str(p.resolve())
+            if rp not in seen_paths:
+                seen_paths.add(rp)
+                found[f"{bucket}:{p.name}"] = p
         # Also detect standard WorldBox slot folders (save1/map.wbox, etc.)
         for p in sorted(root.glob("*/map.wbox")):
-            found[f"{bucket}:{p.parent.name}_map.wbox"] = p
+            rp = str(p.resolve())
+            if rp not in seen_paths:
+                seen_paths.add(rp)
+                found[f"{bucket}:{p.parent.name}_map.wbox"] = p
     return found
 
 

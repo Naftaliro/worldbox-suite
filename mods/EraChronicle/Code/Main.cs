@@ -317,6 +317,7 @@ namespace EraChronicle
             doc.Entries.Add(entry);
             try
             {
+                Directory.CreateDirectory(_chroniclesDir);
                 File.WriteAllText(filePath, JsonConvert.SerializeObject(doc, Formatting.Indented));
             }
             catch (Exception e)

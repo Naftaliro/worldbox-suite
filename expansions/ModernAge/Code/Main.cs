@@ -56,7 +56,7 @@ namespace ModernAge
 
         public void OnUnload()
         {
-            _harmony?.UnpatchAll(_declare.UID);
+            _harmony?.UnpatchSelf();
             Debug.Log("[ModernAge] Unloaded.");
         }
 

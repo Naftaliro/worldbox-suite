@@ -64,7 +64,7 @@ namespace CoreScale
 
         public void OnUnload()
         {
-            _harmony?.UnpatchAll(_declare.UID);
+            _harmony?.UnpatchSelf();
             Debug.Log("[CoreScale] Unloaded and unpatched.");
         }
 

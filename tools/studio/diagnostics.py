@@ -149,10 +149,34 @@ def export_wbox_to_slot(wbox_path: Path, slot_num: int, wb_saves_dir: str) -> di
     }
 
 
+def _match_suite_mod(line: str) -> str | None:
+    upper = line.upper()
+    for mod in SUITE_MOD_TAGS:
+        if (
+            f"[{mod}]" in line
+            or f"{mod}.cs" in line
+            or f"/{mod}/" in line
+            or f"\\{mod}\\" in line
+            or f"WORLDBOX_{mod.upper()}" in upper
+        ):
+            return mod
+    return None
+
+
 def analyze_player_log(log_path_str: str) -> dict[str, Any]:
-    """Parse WorldBox's Player.log for NeoModLoader status, Suite mod health, errors, and warnings."""
+    """Parse WorldBox's Player.log and recent NML error logs for Suite mod health and errors."""
     log_path = Path(log_path_str) if log_path_str else Path(detect_player_log_path())
-    if not log_path.exists():
+    error_logs_dir = log_path.parent / "logs"
+    prev_log = log_path.parent / "Player-prev.log"
+    prev_mtime = prev_log.stat().st_mtime if prev_log.exists() else 0.0
+    recent_error_logs: list[Path] = []
+    if error_logs_dir.exists():
+        candidates = sorted(error_logs_dir.glob("error_*.log"))
+        if prev_mtime > 0.0 and log_path.exists():
+            candidates = [p for p in candidates if p.stat().st_mtime > prev_mtime + 1.0]
+        recent_error_logs = candidates[-2:]
+
+    if not log_path.exists() and not recent_error_logs:
         return {
             "log_path": str(log_path),
             "found": False,
@@ -163,8 +187,12 @@ def analyze_player_log(log_path_str: str) -> dict[str, Any]:
             "tail": [],
         }
 
-    text = log_path.read_text(encoding="utf-8", errors="replace")
-    lines = text.splitlines()
+    lines: list[str] = []
+    size_bytes = 0
+    if log_path.exists():
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+        lines = text.splitlines()
+        size_bytes = log_path.stat().st_size
 
     mod_health: dict[str, str] = {m: "not_seen" for m in SUITE_MOD_TAGS}
     errors: list[str] = []
@@ -174,37 +202,49 @@ def analyze_player_log(log_path_str: str) -> dict[str, Any]:
     err_re = re.compile(r"(Exception|CS\d{4}|error CS|NullReferenceException|Failed to|HarmonyException|TypeLoadException)", re.IGNORECASE)
     warn_re = re.compile(r"(Warning|skipped|deferred)", re.IGNORECASE)
 
-    for idx, line in enumerate(lines):
-        stripped = line.strip()
-        if not stripped:
-            continue
+    def _scan_lines(src_lines: list[str], source_label: str = "") -> None:
+        active_mod: str | None = None
+        for idx, line in enumerate(src_lines):
+            stripped = line.strip()
+            if not stripped:
+                active_mod = None
+                continue
 
-        matched_mod = None
-        for mod in SUITE_MOD_TAGS:
-            if f"[{mod}]" in stripped or f"{mod}.cs" in stripped or f"/{mod}/" in stripped or f"\\{mod}\\" in stripped:
-                matched_mod = mod
+            matched_mod = _match_suite_mod(stripped)
+            if matched_mod:
+                active_mod = matched_mod
                 suite_lines.append(stripped)
                 if "Loaded v" in stripped or "Expansion loaded" in stripped or "Registered" in stripped:
-                    if mod_health[mod] != "error":
-                        mod_health[mod] = "ok"
-                break
+                    if mod_health[matched_mod] != "error":
+                        mod_health[matched_mod] = "ok"
 
-        if err_re.search(stripped):
-            ctx = stripped
-            if idx + 1 < len(lines) and lines[idx + 1].strip().startswith("at "):
-                ctx += "\n  " + lines[idx + 1].strip()
-            errors.append(ctx)
-            if matched_mod:
-                mod_health[matched_mod] = "error"
-        elif matched_mod and warn_re.search(stripped):
-            warnings.append(stripped)
-            if mod_health[matched_mod] == "not_seen":
-                mod_health[matched_mod] = "warning"
+            if err_re.search(stripped):
+                ctx = f"[{source_label}] {stripped}" if source_label else stripped
+                if idx + 1 < len(src_lines):
+                    nxt = src_lines[idx + 1].strip()
+                    if nxt.startswith("at ") or "error CS" in nxt:
+                        ctx += "\n  " + nxt
+                errors.append(ctx)
+                target_mod = matched_mod or active_mod
+                if target_mod:
+                    mod_health[target_mod] = "error"
+            elif matched_mod and warn_re.search(stripped):
+                warnings.append(stripped)
+                if mod_health[matched_mod] == "not_seen":
+                    mod_health[matched_mod] = "warning"
+
+    _scan_lines(lines)
+    for err_file in recent_error_logs:
+        try:
+            err_lines = err_file.read_text(encoding="utf-8", errors="replace").splitlines()
+            _scan_lines(err_lines, source_label=err_file.name)
+        except Exception:
+            pass
 
     return {
         "log_path": str(log_path),
         "found": True,
-        "size_bytes": log_path.stat().st_size,
+        "size_bytes": size_bytes,
         "total_lines": len(lines),
         "mod_health": mod_health,
         "errors": errors[-60:],

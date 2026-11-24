@@ -6,6 +6,11 @@ param(
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
+$wbProc = Get-Process -Name "worldbox" -ErrorAction SilentlyContinue
+if ($wbProc) {
+    Write-Host "Warning: WorldBox is currently running. Restart the game after install so NeoModLoader compiles the updated mods." -ForegroundColor Yellow
+}
+
 if (-not $WorldBoxDir) {
     $Candidates = [System.Collections.Generic.List[string]]::new()
     $SteamRoots = @("C:\Program Files (x86)\Steam", "C:\Program Files\Steam")

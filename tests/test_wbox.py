@@ -265,6 +265,38 @@ class TestWboxToolkit(unittest.TestCase):
             self.assertEqual(len(diag["errors"]), 1)
             self.assertIn("WardenSystem.Tick", diag["errors"][0])
 
+            # Verify NML compile errors inside logs/error_*.log are detected too
+            logs_dir = tmp_path / "logs"
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            (logs_dir / "error_2026_11_24_17_13_37.log").write_text(
+                "\n".join(
+                    [
+                        "- error[0]: [NML]: Failed to compile mod DEV_3HZ_WORLDBOX_SUITEHUB:",
+                        "Code\\Main.cs(57,22): error CS0619: obsolete",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            diag2 = analyze_player_log(str(log_file))
+            self.assertEqual(diag2["mod_health"]["SuiteHub"], "error")
+            self.assertTrue(any("CS0619" in e for e in diag2["errors"]))
+
+    def test_mod_manager_windows_mods_dir_resolution(self) -> None:
+        from tools.studio.mod_manager import _mods_dirs
+
+        with tempfile.TemporaryDirectory() as tmp:
+            wb_root = Path(tmp) / "worldbox"
+            sa_dir = wb_root / "worldbox_Data" / "StreamingAssets"
+            sa_dir.mkdir(parents=True, exist_ok=True)
+
+            # Both WorldBox root and StreamingAssets path must resolve to <WorldBoxRoot>/Mods
+            en1, dis1 = _mods_dirs({"game_streaming_assets": str(wb_root)})
+            en2, dis2 = _mods_dirs({"game_streaming_assets": str(sa_dir)})
+            self.assertEqual(en1, wb_root / "Mods")
+            self.assertEqual(en2, wb_root / "Mods")
+            self.assertEqual(dis1, wb_root / "Mods_Disabled")
+            self.assertEqual(dis2, wb_root / "Mods_Disabled")
+
 
 if __name__ == "__main__":
     unittest.main()

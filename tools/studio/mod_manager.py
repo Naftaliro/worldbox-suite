@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import webbrowser
@@ -35,16 +36,54 @@ DEFAULT_PROFILES = {
 
 
 def _detect_game_dir() -> str:
-    candidates = [
+    candidates: list[Path] = [
         # macOS Steam
-        Path.home() / "Library/Application Support/Steam/steamapps/common/worldbox/worldbox.app/Contents/Resources/Data/StreamingAssets",
-        # Windows Steam
-        Path("C:/Program Files (x86)/Steam/steamapps/common/worldbox/worldbox_Data/StreamingAssets"),
+        Path.home() / "Library/Application Support/Steam/steamapps/common/worldbox",
         # Linux Steam
-        Path.home() / ".local/share/Steam/steamapps/common/worldbox/worldbox_Data/StreamingAssets",
+        Path.home() / ".local/share/Steam/steamapps/common/worldbox",
     ]
+
+    if platform.system() == "Windows":
+        steam_roots: list[Path] = [
+            Path("C:/Program Files (x86)/Steam"),
+            Path("C:/Program Files/Steam"),
+        ]
+        try:
+            import winreg  # type: ignore[import-not-found]
+
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
+                steam_path, _ = winreg.QueryValueEx(key, "SteamPath")
+                if steam_path:
+                    steam_roots.append(Path(str(steam_path)))
+        except Exception:
+            pass
+
+        seen_roots: set[str] = set()
+        for root in steam_roots:
+            key_str = str(root).lower()
+            if key_str in seen_roots:
+                continue
+            seen_roots.add(key_str)
+            candidates.append(root / "steamapps/common/worldbox")
+            vdf = root / "steamapps/libraryfolders.vdf"
+            if vdf.exists():
+                try:
+                    for line in vdf.read_text(encoding="utf-8", errors="replace").splitlines():
+                        m = re.search(r'"path"\s+"([^"]+)"', line)
+                        if m:
+                            lib = Path(m.group(1).replace("\\\\", "\\"))
+                            candidates.append(lib / "steamapps/common/worldbox")
+                except Exception:
+                    pass
+
+        for drive in ("D", "E", "F", "G"):
+            candidates.append(Path(f"{drive}:/SteamLibrary/steamapps/common/worldbox"))
+            candidates.append(Path(f"{drive}:/Steam/steamapps/common/worldbox"))
+
     for c in candidates:
-        if c.exists():
+        if (c / "worldbox_Data" / "StreamingAssets").exists() or (
+            c / "worldbox.app" / "Contents" / "Resources" / "Data" / "StreamingAssets"
+        ).exists():
             return str(c)
     return ""
 
@@ -86,16 +125,26 @@ def _mods_dirs(cfg: dict[str, Any]) -> tuple[Path, Path]:
     base_str = cfg.get("game_streaming_assets", "").strip()
     if base_str:
         base = Path(base_str)
-        # Accept either WorldBox root, worldbox_Data, StreamingAssets, or Mods itself
-        if base.name.lower() == "mods":
+        # NeoModLoader loads user mods from <WorldBoxRoot>/Mods on Windows, macOS, and Linux.
+        # Accept WorldBox root, worldbox_Data, StreamingAssets, or Mods itself.
+        low = base.name.lower()
+        if low == "mods":
             enabled = base
             disabled = base.parent / "Mods_Disabled"
-        elif (base / "worldbox_Data" / "StreamingAssets").exists():
-            enabled = base / "worldbox_Data" / "StreamingAssets" / "Mods"
-            disabled = base / "worldbox_Data" / "StreamingAssets" / "Mods_Disabled"
-        elif (base / "StreamingAssets").exists():
-            enabled = base / "StreamingAssets" / "Mods"
-            disabled = base / "StreamingAssets" / "Mods_Disabled"
+        elif low == "streamingassets":
+            parent_low = base.parent.name.lower()
+            if parent_low == "worldbox_data":
+                wb_root = base.parent.parent
+            elif parent_low == "data" and len(base.parents) >= 5 and base.parents[3].name.lower() == "worldbox.app":
+                wb_root = base.parents[4]
+            else:
+                wb_root = base.parent
+            enabled = wb_root / "Mods"
+            disabled = wb_root / "Mods_Disabled"
+        elif low == "worldbox_data":
+            wb_root = base.parent
+            enabled = wb_root / "Mods"
+            disabled = wb_root / "Mods_Disabled"
         else:
             enabled = base / "Mods"
             disabled = base / "Mods_Disabled"

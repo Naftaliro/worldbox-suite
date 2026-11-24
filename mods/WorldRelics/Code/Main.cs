@@ -54,7 +54,7 @@ namespace WorldRelics
 
         public void OnUnload()
         {
-            _harmony?.UnpatchAll(_declare.UID);
+            _harmony?.UnpatchSelf();
             Debug.Log("[WorldRelics] Unloaded.");
         }
 

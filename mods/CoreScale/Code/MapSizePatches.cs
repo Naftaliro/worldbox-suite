@@ -30,16 +30,12 @@ namespace CoreScale
 
         [HarmonyPostfix]
         [HarmonyPatch(nameof(MapSizeLibrary.isSizeValid))]
-        private static void IsSizeValidPostfix(string pSize, ref bool __result)
+        private static void IsSizeValidPostfix(int pMapSize, ref bool __result)
         {
             if (__result) return;
-            foreach (var (id, _) in CustomSizes)
+            if (pMapSize > 0 && pMapSize <= 24)
             {
-                if (string.Equals(pSize, id, StringComparison.OrdinalIgnoreCase))
-                {
-                    __result = true;
-                    return;
-                }
+                __result = true;
             }
         }
 
