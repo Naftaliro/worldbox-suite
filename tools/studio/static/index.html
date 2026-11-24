@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WorldBox Studio & Mod Manager</title>
+<style>
+  :root {
+    --bg: #0f131a;
+    --panel: #171d27;
+    --panel-2: #1f2735;
+    --border: #2a3446;
+    --text: #e6ecf5;
+    --muted: #8b9bb4;
+    --accent: #4aa8ff;
+    --accent-2: #3ddc97;
+    --danger: #ff6b6b;
+    --warn: #f6b93b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: 0.3px; }
+  header h1 span { color: var(--accent); }
+  nav { display: flex; gap: 8px; }
+  .tab-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid transparent;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .tab-btn.active {
+    background: var(--panel-2);
+    color: var(--text);
+    border-color: var(--border);
+  }
+  main { max-width: 1320px; margin: 0 auto; padding: 20px 24px; }
+  .tab { display: none; }
+  .tab.active { display: block; }
+  .grid-2 { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .card h2, .card h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .save-list { display: flex; flex-direction: column; gap: 8px; }
+  .save-item {
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.12s;
+  }
+  .save-item:hover, .save-item.selected { border-color: var(--accent); }
+  .save-item .title { font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; }
+  .badge {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #243147;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .badge.green { background: #183a2d; color: var(--accent-2); }
+  .badge.warn { background: #3d3118; color: var(--warn); }
+  .map-wrap {
+    background: #0a0d12;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+    overflow: auto;
+  }
+  .map-wrap img {
+    max-width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    border-radius: 6px;
+  }
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .stat {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .stat .val { font-size: 18px; font-weight: 700; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; }
+  .btn {
+    background: var(--accent);
+    color: #08121e;
+    border: none;
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn.secondary {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn.green { background: var(--accent-2); color: #072015; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  input[type="text"], input[type="number"], select {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--panel-2);
+    border: 1px solid var(--accent);
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    display: none;
+  }
+  .mod-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>WorldBox <span>Studio</span></h1>
+  <nav>
+    <button class="tab-btn active" data-tab="inspector">World Inspector</button>
+    <button class="tab-btn" data-tab="stitcher">World Stitcher</button>
+    <button class="tab-btn" data-tab="mods">Mod Manager</button>
+  </nav>
+</header>
+
+<main>
+  <!-- INSPECTOR TAB -->
+  <section id="tab-inspector" class="tab active">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between; margin-bottom:10px;">
+            <h2 style="margin:0;">Worlds</h2>
+            <label class="btn secondary" style="padding:5px 10px; font-size:12px;">
+              + Upload .wbox
+              <input id="upload-input" type="file" accept=".wbox,.wbax,.json" hidden />
+            </label>
+          </div>
+          <div id="inspector-save-list" class="save-list"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between; margin-bottom:10px;">
+            <div>
+              <h2 id="ins-title" style="margin:0;">Select a world</h2>
+              <div id="ins-subtitle" class="muted"></div>
+            </div>
+            <div class="row">
+              <label class="muted"><input id="chk-kingdoms" type="checkbox" checked /> Borders</label>
+              <label class="muted"><input id="chk-buildings" type="checkbox" checked /> Buildings</label>
+              <a id="ins-download" class="btn secondary" style="text-decoration:none; display:none;">Download .wbox</a>
+            </div>
+          </div>
+          <div class="map-wrap">
+            <img id="ins-img" alt="World preview" style="display:none;" />
+            <div id="ins-empty" class="muted" style="padding:40px;">Choose a save from the left to inspect it.</div>
+          </div>
+          <div id="ins-stats" class="stats-row"></div>
+        </div>
+
+        <div class="card" id="ins-kingdoms-card" style="display:none;">
+          <h3>Kingdoms</h3>
+          <table>
+            <thead><tr><th>Kingdom</th><th>Species</th><th>Pop</th><th>Cities</th><th>Kills</th><th>Renown</th></tr></thead>
+            <tbody id="ins-kingdoms"></tbody>
+          </table>
+        </div>
+
+        <div class="card" id="ins-wars-card" style="display:none;">
+          <h3>War Chronicle</h3>
+          <table>
+            <thead><tr><th>War</th><th>Started By</th><th>Status</th><th>Casualties</th></tr></thead>
+            <tbody id="ins-wars"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STITCHER TAB -->
+  <section id="tab-stitcher" class="tab">
+    <div class="grid-2">
+      <div class="card">
+        <h2>Stitch Configuration</h2>
+        <p class="muted">Check 2 or more worlds to combine into one larger playable .wbox save.</p>
+        <div id="stitch-picker" class="save-list" style="margin-bottom:14px;"></div>
+
+        <label class="field">Merged World Name
+          <input id="st-name" type="text" value="Twin Continents" />
+        </label>
+        <label class="field">Layout
+          <select id="st-layout">
+            <option value="row">Side-by-Side (Row)</option>
+            <option value="column">Top-to-Bottom (Column)</option>
+            <option value="grid">2D Grid (e.g. 2x2)</option>
+          </select>
+        </label>
+        <div class="row">
+          <label class="field" style="flex:1;">Ocean Gap (chunks)
+            <input id="st-gap" type="number" min="0" max="8" value="2" />
+          </label>
+          <label class="field" style="flex:1;">Outer Border (chunks)
+            <input id="st-border" type="number" min="0" max="4" value="0" />
+          </label>
+        </div>
+        <label class="field">Entity Mode
+          <select id="st-mode">
+            <option value="full">Full Civilizations (keep all kingdoms, cities &amp; units)</option>
+            <option value="terrain_only">Terrain Only (blank canvas)</option>
+          </select>
+        </label>
+        <label class="muted" style="display:block; margin-bottom:14px;">
+          <input id="st-blend" type="checkbox" checked /> Soften coastal edges into the ocean channel
+        </label>
+        <button id="btn-stitch" class="btn green" style="width:100%;">Stitch Worlds &amp; Render Preview</button>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between; margin-bottom:10px;">
+          <div>
+            <h2 id="st-res-title" style="margin:0;">Stitched Output Preview</h2>
+            <div id="st-res-meta" class="muted">Pick 2+ worlds and click Stitch.</div>
+          </div>
+          <a id="st-download" class="btn" style="text-decoration:none; display:none;">Download Stitched .wbox</a>
+        </div>
+        <div class="map-wrap">
+          <img id="st-img" alt="Stitched world preview" style="display:none;" />
+          <div id="st-empty" class="muted" style="padding:60px;">Your combined continent map will appear here.</div>
+        </div>
+        <div id="st-stats" class="stats-row"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOD MANAGER TAB -->
+  <section id="tab-mods" class="tab">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <h2>Paths &amp; Backups</h2>
+          <label class="field">WorldBox Install / StreamingAssets Folder
+            <input id="cfg-game" type="text" placeholder="Leave blank for local staging mode" />
+          </label>
+          <label class="field">Saves Folder
+            <input id="cfg-saves" type="text" />
+          </label>
+          <div class="row">
+            <button id="btn-save-cfg" class="btn">Save Paths</button>
+            <button id="btn-backup" class="btn secondary">Backup Saves (.zip)</button>
+          </div>
+          <p id="mod-dir-note" class="muted" style="margin-top:10px;"></p>
+        </div>
+
+        <div class="card">
+          <h2>Mod Profiles</h2>
+          <div class="row" style="margin-bottom:10px;">
+            <input id="prof-name" type="text" placeholder="e.g. Twin Continents War" style="flex:1;" />
+            <button id="btn-save-prof" class="btn secondary">Save Current</button>
+          </div>
+          <div id="profiles-list"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Installed NeoModLoader Mods</h2>
+          <div id="installed-mods"></div>
+        </div>
+
+        <div class="card">
+          <h2>WorldBox Suite Modules (One-Click Deploy)</h2>
+          <div id="suite-mods"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const state = { saves: [], selectedId: null, stitchOrder: [] };
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(el._t);
+  el._t = setTimeout(() => (el.style.display = "none"), 3500);
+}
+
+async function api(url, opts) {
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+// Tabs
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+function statBox(label, val) {
+  return `<div class="stat"><div class="label">${label}</div><div class="val">${val}</div></div>`;
+}
+
+async function loadSaves() {
+  const data = await api("/api/saves");
+  state.saves = data.saves.filter((s) => !s.error);
+  renderSaveLists();
+  if (!state.selectedId && state.saves.length) {
+    selectSave(state.saves[0].id);
+  }
+}
+
+function renderSaveLists() {
+  const insList = document.getElementById("inspector-save-list");
+  const stPicker = document.getElementById("stitch-picker");
+  insList.innerHTML = "";
+  stPicker.innerHTML = "";
+
+  if (!state.saves.length) {
+    insList.innerHTML = '<div class="muted">No .wbox files found in saves folder.</div>';
+    stPicker.innerHTML = '<div class="muted">Upload or add .wbox files first.</div>';
+    return;
+  }
+
+  state.saves.forEach((s) => {
+    const sum = s.summary;
+    const item = document.createElement("div");
+    item.className = "save-item" + (state.selectedId === s.id ? " selected" : "");
+    item.innerHTML = `
+      <div class="title">
+        <span>${sum.name}</span>
+        <span class="badge ${s.bucket === "output" ? "green" : ""}">${s.bucket}</span>
+      </div>
+      <div class="muted">${sum.width_chunks}x${sum.height_chunks} chunks · ${sum.counts.actors} units · ${sum.counts.kingdoms} kingdoms</div>
+    `;
+    item.onclick = () => selectSave(s.id);
+    insList.appendChild(item);
+
+    const pick = document.createElement("label");
+    pick.className = "save-item";
+    pick.style.display = "block";
+    const checked = state.stitchOrder.includes(s.id);
+    pick.innerHTML = `
+      <div class="title">
+        <span><input type="checkbox" ${checked ? "checked" : ""} /> ${sum.name}</span>
+        <span class="muted">${sum.width_chunks}x${sum.height_chunks}</span>
+      </div>
+      <div class="muted">${s.filename} · ${sum.counts.kingdoms} kingdoms</div>
+    `;
+    pick.querySelector("input").onchange = (e) => {
+      if (e.target.checked) {
+        if (!state.stitchOrder.includes(s.id)) state.stitchOrder.push(s.id);
+      } else {
+        state.stitchOrder = state.stitchOrder.filter((x) => x !== s.id);
+      }
+    };
+    stPicker.appendChild(pick);
+  });
+}
+
+function updateInspectorImage() {
+  if (!state.selectedId) return;
+  const k = document.getElementById("chk-kingdoms").checked ? "1" : "0";
+  const b = document.getElementById("chk-buildings").checked ? "1" : "0";
+  const img = document.getElementById("ins-img");
+  img.src = `/api/saves/${encodeURIComponent(state.selectedId)}/preview.png?kingdoms=${k}&buildings=${b}&scale=2&t=${Date.now()}`;
+  img.style.display = "inline-block";
+  document.getElementById("ins-empty").style.display = "none";
+}
+
+function selectSave(id) {
+  state.selectedId = id;
+  renderSaveLists();
+  const s = state.saves.find((x) => x.id === id);
+  if (!s) return;
+  const sum = s.summary;
+  document.getElementById("ins-title").textContent = sum.name;
+  document.getElementById("ins-subtitle").textContent =
+    `${s.filename} · ${sum.width_chunks}x${sum.height_chunks} chunks (${sum.width_tiles}x${sum.height_tiles} tiles) · Year ${sum.year} · ${sum.land_percent}% land`;
+
+  const dl = document.getElementById("ins-download");
+  dl.href = `/api/saves/${encodeURIComponent(id)}/download`;
+  dl.style.display = "inline-block";
+
+  updateInspectorImage();
+
+  const c = sum.counts;
+  document.getElementById("ins-stats").innerHTML = [
+    statBox("Units", c.actors),
+    statBox("Kingdoms", c.kingdoms),
+    statBox("Cities", c.cities),
+    statBox("Armies", c.armies),
+    statBox("Buildings", c.buildings),
+    statBox("Wars", c.wars),
+  ].join("");
+
+  const kCard = document.getElementById("ins-kingdoms-card");
+  kCard.style.display = sum.kingdoms.length ? "block" : "none";
+  document.getElementById("ins-kingdoms").innerHTML = sum.kingdoms
+    .map((k) => `<tr><td><strong>${k.name}</strong></td><td>${k.species}</td><td>${k.population}</td><td>${k.cities}</td><td>${k.kills}</td><td>${k.renown}</td></tr>`)
+    .join("");
+
+  const wCard = document.getElementById("ins-wars-card");
+  wCard.style.display = sum.wars.length ? "block" : "none";
+  document.getElementById("ins-wars").innerHTML = sum.wars
+    .map((w) => `<tr><td>${w.name}</td><td>${w.started_by || "-"}</td><td><span class="badge ${w.active ? "warn" : ""}">${w.active ? "Active" : "Ended"}</span></td><td>${w.total_deaths}</td></tr>`)
+    .join("");
+}
+
+document.getElementById("chk-kingdoms").onchange = updateInspectorImage;
+document.getElementById("chk-buildings").onchange = updateInspectorImage;
+
+// Upload .wbox
+document.getElementById("upload-input").onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  try {
+    const res = await api("/api/saves/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: file.name, content_base64: btoa(bin) }),
+    });
+    toast("Uploaded " + file.name);
+    await loadSaves();
+    selectSave(res.id);
+  } catch (err) {
+    toast("Upload error: " + err.message);
+  }
+};
+
+// Stitch
+document.getElementById("btn-stitch").onclick = async () => {
+  if (state.stitchOrder.length < 2) {
+    toast("Select at least 2 worlds first.");
+    return;
+  }
+  const btn = document.getElementById("btn-stitch");
+  btn.disabled = true;
+  btn.textContent = "Stitching...";
+  try {
+    const res = await api("/api/stitch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        save_ids: state.stitchOrder,
+        name: document.getElementById("st-name").value,
+        layout: document.getElementById("st-layout").value,
+        gap_chunks: parseInt(document.getElementById("st-gap").value, 10) || 0,
+        border_chunks: parseInt(document.getElementById("st-border").value, 10) || 0,
+        mode: document.getElementById("st-mode").value,
+        coast_blend: document.getElementById("st-blend").checked,
+      }),
+    });
+    const sum = res.summary;
+    document.getElementById("st-res-title").textContent = sum.name;
+    document.getElementById("st-res-meta").textContent =
+      `${sum.width_chunks}x${sum.height_chunks} chunks (${sum.width_tiles}x${sum.height_tiles} tiles) · saved to ${res.path}`;
+    const img = document.getElementById("st-img");
+    img.src = `/api/saves/${encodeURIComponent(res.id)}/preview.png?scale=2&t=${Date.now()}`;
+    img.style.display = "inline-block";
+    document.getElementById("st-empty").style.display = "none";
+    const dl = document.getElementById("st-download");
+    dl.href = `/api/saves/${encodeURIComponent(res.id)}/download`;
+    dl.style.display = "inline-block";
+    const c = sum.counts;
+    document.getElementById("st-stats").innerHTML = [
+      statBox("Size", `${sum.width_chunks}x${sum.height_chunks}`),
+      statBox("Units", c.actors),
+      statBox("Kingdoms", c.kingdoms),
+      statBox("Cities", c.cities),
+      statBox("Buildings", c.buildings),
+    ].join("");
+    toast("Stitched world ready!");
+    await loadSaves();
+  } catch (err) {
+    toast("Stitch failed: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Stitch Worlds & Render Preview";
+  }
+};
+
+// Mod manager
+async function loadModManager() {
+  const cfg = await api("/api/config");
+  document.getElementById("cfg-game").value = cfg.game_streaming_assets || "";
+  document.getElementById("cfg-saves").value = cfg.saves_dir || "";
+  renderMods(await api("/api/mods"));
+}
+
+function renderMods(data) {
+  document.getElementById("mod-dir-note").textContent = data.using_local_staging
+    ? `Staging mode (no WorldBox install set): ${data.enabled_dir}`
+    : `Active Mods folder: ${data.enabled_dir}`;
+
+  const inst = document.getElementById("installed-mods");
+  inst.innerHTML = data.installed.length
+    ? data.installed.map((m) => `
+      <div class="mod-row">
+        <div>
+          <strong>${m.name}</strong> <span class="muted">v${m.version} by ${m.author}</span>
+          <div class="muted">${m.description || m.folder}</div>
+        </div>
+        <button class="btn ${m.enabled ? "green" : "secondary"}" onclick="toggleMod('${m.folder}', ${!m.enabled})">
+          ${m.enabled ? "Enabled" : "Disabled"}
+        </button>
+      </div>`).join("")
+    : '<div class="muted">No mods installed yet. Deploy a Suite Module below or point to your game folder.</div>';
+
+  const suite = document.getElementById("suite-mods");
+  suite.innerHTML = data.suite_modules.length
+    ? data.suite_modules.map((m) => `
+      <div class="mod-row">
+        <div>
+          <strong>${m.name}</strong> <span class="muted">v${m.version}</span>
+          <div class="muted">${m.description}</div>
+        </div>
+        <button class="btn secondary" onclick="deploySuite('${m.folder}')">
+          ${m.deployed ? "Re-deploy" : "Deploy"}
+        </button>
+      </div>`).join("")
+    : '<div class="muted">No suite modules found in mods/.</div>';
+
+  const profs = document.getElementById("profiles-list");
+  const keys = Object.keys(data.profiles || {});
+  profs.innerHTML = keys.length
+    ? keys.map((k) => `
+      <div class="mod-row">
+        <div><strong>${k}</strong> <span class="muted">(${data.profiles[k].length} mods)</span></div>
+        <button class="btn secondary" onclick="applyProfile('${k}')">Apply</button>
+      </div>`).join("")
+    : '<div class="muted">No saved profiles yet.</div>';
+}
+
+window.toggleMod = async (folder, enable) => {
+  renderMods(await api("/api/mods/toggle", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folder, enable }),
+  }));
+  toast(`${enable ? "Enabled" : "Disabled"} ${folder}`);
+};
+
+window.deploySuite = async (folder) => {
+  renderMods(await api("/api/mods/deploy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folder }),
+  }));
+  toast(`Deployed ${folder}`);
+};
+
+window.applyProfile = async (name) => {
+  renderMods(await api("/api/profiles/apply", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  }));
+  toast(`Applied profile "${name}"`);
+};
+
+document.getElementById("btn-save-cfg").onclick = async () => {
+  await api("/api/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      game_streaming_assets: document.getElementById("cfg-game").value,
+      saves_dir: document.getElementById("cfg-saves").value,
+    }),
+  });
+  toast("Saved paths");
+  await loadSaves();
+  await loadModManager();
+};
+
+document.getElementById("btn-save-prof").onclick = async () => {
+  const name = document.getElementById("prof-name").value.trim();
+  if (!name) return;
+  renderMods(await api("/api/profiles/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  }));
+  document.getElementById("prof-name").value = "";
+  toast(`Saved profile "${name}"`);
+};
+
+document.getElementById("btn-backup").onclick = async () => {
+  try {
+    const res = await api("/api/backup", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    toast(`Backed up ${res.files_backed_up} files to ${res.archive}`);
+  } catch (err) {
+    toast("Backup failed: " + err.message);
+  }
+};
+
+loadSaves();
+loadModManager();
+</script>
+</body>
+</html>

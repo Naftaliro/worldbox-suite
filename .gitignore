@@ -1,0 +1,24 @@
+# Local game assemblies, saves, and generated outputs (never push proprietary game DLLs)
+local/
+*.dll
+*.pdb
+*.wbox
+*.wbax
+*.meta
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Build / IDE
+bin/
+obj/
+.vs/
+.vscode/
+.idea/
+.DS_Store
+node_modules/
+dist/

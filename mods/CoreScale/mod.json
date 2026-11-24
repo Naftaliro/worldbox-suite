@@ -1,0 +1,7 @@
+{
+  "name": "CoreScale",
+  "author": "WorldBox Suite Contributors",
+  "version": "0.1.0",
+  "description": "Custom world dimensions, off-screen simulation LOD throttling, strategic zoom, and battalion consolidation for large-scale worlds.",
+  "iconPath": "icon.png"
+}
