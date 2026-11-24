@@ -105,6 +105,13 @@ namespace SuiteHub
                 );
                 tab.AddPowerButton("suite_modules", chrBtn);
 
+                PowerButton arsBtn = PowerButtonCreator.CreateSimpleButton(
+                    "suite_arsenal",
+                    () => Main.Instance?.ToggleCompanionHud("Arsenal.Main"),
+                    LoadButtonSprite(Path.Combine(resDir, "btn_arsenal.png")) ?? tabIcon
+                );
+                tab.AddPowerButton("suite_modules", arsBtn);
+
                 tab.UpdateLayout();
                 _initialized = true;
                 Debug.Log("[SuiteHub] Registered native WorldBox Suite bottom power-bar tab.");

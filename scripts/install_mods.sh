@@ -37,7 +37,7 @@ else
   echo "NeoModLoader.dll already present."
 fi
 
-for mod in SuiteHub CoreScale VisualPolish GrandWarfare LinkedContinents EraChronicle ApexFactions; do
+for mod in SuiteHub CoreScale VisualPolish GrandWarfare LinkedContinents EraChronicle ApexFactions Arsenal; do
   SRC="$ROOT_DIR/mods/$mod"
   DST="$MODS_DIR/$mod"
   rm -rf "$DST"

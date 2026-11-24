@@ -21,7 +21,7 @@ namespace SuiteHub
         private float _initDelay = 0f;
         private float _pruneTimer = 0f;
 
-        private Rect _hubRect = new Rect(20, 76, 310, 395);
+        private Rect _hubRect = new Rect(20, 76, 310, 425);
 
         private Texture2D _bgTex;
         private Texture2D _btnTex;
@@ -179,7 +179,8 @@ namespace SuiteHub
             if (GUILayout.Button("GrandWarfare War Room (F10)", _btnStyle)) ToggleCompanionHud("GrandWarfare.Main");
             if (GUILayout.Button("LinkedContinents Portal (F11)", _btnStyle)) ToggleCompanionHud("LinkedContinents.Main");
             if (GUILayout.Button("EraChronicle History (F7)", _btnStyle)) ToggleCompanionHud("EraChronicle.Main");
-            if (GUILayout.Button("ApexFactions Wardens & Wolves (F12)", _btnStyle)) ToggleCompanionHud("ApexFactions.Main");
+            if (GUILayout.Button("ApexFactions Wardens & Wild Realms (F12)", _btnStyle)) ToggleCompanionHud("ApexFactions.Main");
+            if (GUILayout.Button("Arsenal Blackpowder & Counters (Alt+A)", _btnStyle)) ToggleCompanionHud("Arsenal.Main");
 
             GUI.DragWindow();
         }

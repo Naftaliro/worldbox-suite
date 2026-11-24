@@ -1,0 +1,9 @@
+{
+  "name": "Arsenal",
+  "author": "naftaliro",
+  "version": "0.1.0",
+  "GUID": "dev.3hz.worldbox.arsenal",
+  "description": "Balanced blackpowder firearms (flintlock, rifled musket, blunderbuss, hand culverin) paired with real anti-firearm counters (Bastion bulletproof plate, Aegis ward amulet, shock halberd, composite warbow).",
+  "RepoUrl": "https://github.com/naftaliro/worldbox-suite",
+  "iconPath": "icon.png"
+}

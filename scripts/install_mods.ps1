@@ -40,7 +40,7 @@ if (-not (Test-Path $NmlDll)) {
     Write-Host "NeoModLoader.dll already present." -ForegroundColor Green
 }
 
-$SuiteMods = @("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions")
+$SuiteMods = @("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "Arsenal")
 foreach ($mod in $SuiteMods) {
     $Src = Join-Path $RepoRoot "mods\$mod"
     $Dst = Join-Path $ModsDir $mod

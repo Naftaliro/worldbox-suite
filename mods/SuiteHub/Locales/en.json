@@ -20,5 +20,7 @@
   "suite_era_chronicle": "EraChronicle History",
   "suite_era_chronicle_description": "Open kingdom eras and automated world chronicle recorder (Hotkey: F7).",
   "suite_apex_factions": "ApexFactions & Wild Realms",
-  "suite_apex_factions_description": "Open the Warden Sleeping Giant doctrine, Species Awakener, and Feral Pack Domains panel (Hotkey: F12)."
+  "suite_apex_factions_description": "Open the Warden Sleeping Giant doctrine, Species Awakener, and Feral Pack Domains panel (Hotkey: F12).",
+  "suite_arsenal": "Arsenal: Blackpowder & Counters",
+  "suite_arsenal_description": "Open grounded firearms and anti-firearm counter gear controls (Hotkey: Alt+A)."
 }
