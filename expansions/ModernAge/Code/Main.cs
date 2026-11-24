@@ -20,14 +20,7 @@ namespace ModernAge
         private float _tickTimer = 0f;
         private string _status = "";
         private Vector2 _scroll;
-        private Rect _windowRect = new Rect(340, 86, 370, 440);
-
-        private Texture2D _bgTex;
-        private Texture2D _btnTex;
-        private GUIStyle _boxStyle;
-        private GUIStyle _headerStyle;
-        private GUIStyle _labelStyle;
-        private GUIStyle _btnStyle;
+        private Rect _windowRect = new Rect(340, 86, 380, 460);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -82,76 +75,56 @@ namespace ModernAge
             }
         }
 
-        private void EnsureStyles()
-        {
-            if (_boxStyle != null) return;
-
-            _bgTex = MakeTex(new Color(0.094f, 0.094f, 0.145f, 0.94f));
-            _btnTex = MakeTex(new Color(0.192f, 0.196f, 0.267f, 0.96f));
-
-            _boxStyle = new GUIStyle(GUI.skin.window) { padding = new RectOffset(12, 12, 24, 12) };
-            _boxStyle.normal.background = _bgTex;
-            _boxStyle.onNormal.background = _bgTex;
-            _boxStyle.normal.textColor = new Color(0.455f, 0.780f, 0.925f); // Catppuccin Sapphire
-
-            _headerStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            _headerStyle.normal.textColor = new Color(0.980f, 0.702f, 0.529f); // Catppuccin Peach
-
-            _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _labelStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-            _btnStyle.normal.background = _btnTex;
-            _btnStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-        }
-
-        private static Texture2D MakeTex(Color col)
-        {
-            var t = new Texture2D(1, 1);
-            t.SetPixel(0, 0, col);
-            t.Apply();
-            return t;
-        }
-
         private void OnGUI()
         {
             GeopoliticsAndTradeSystem.DrawRadarUmbrellas();
 
             if (!_showHud || Settings == null) return;
-            EnsureStyles();
-            _windowRect = GUI.Window(941215, _windowRect, DrawHud, "ModernAge Expansion (Alt+M)", _boxStyle);
+            GameUiStyle.BeginFrame();
+            _windowRect = GUI.Window(941215, _windowRect, DrawHud, "ModernAge Expansion (Alt+M)", GameUiStyle.WindowStyle);
+            GameUiStyle.DrawTooltip(949010);
         }
 
         private void DrawHud(int id)
         {
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(390));
+            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(410));
 
-            GUILayout.Label(
+            GameUiStyle.Label(
                 $"Vehicles: {GeopoliticsAndTradeSystem.VehiclesDeployed}  |  SAM Shots: {GeopoliticsAndTradeSystem.RadarSamShots}  |  Highways: {GeopoliticsAndTradeSystem.HighwaysBuilt}",
-                _headerStyle
+                "Modern Warfare Telemetry|Total armored vehicles and aircraft deployed, radar SAM interceptions fired, and inter-city highways paved.",
+                isHeader: true
             );
-            GUILayout.Label(
+            GameUiStyle.Label(
                 $"Counter-Play — Deflected: {ModernCombatPatches.BulletsDeflected} | AT Hits: {ModernCombatPatches.ArmorKillsCountered} | AA Hits: {ModernCombatPatches.AirIntercepts}",
-                _labelStyle
+                "Rock-Paper-Scissors Counters|Bullets deflected by Bastion plate/Aegis wards, armor countered by AT rifles/launchers, and aircraft hit by Flak/SAMs."
             );
             GUILayout.Space(6);
 
-            if (GUILayout.Button($"Auto Tier 1-3 Progression: {(Settings.EnableAutoProgression ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Auto Tier 1-3 Progression: {(Settings.EnableAutoProgression ? "ON" : "OFF")}",
+                Settings.EnableAutoProgression,
+                "Automatic Tech Eras|Kingdoms naturally advance from Tier 1 blackpowder to Tier 2 industrial armor/props and Tier 3 modern MBTs, jets, and radar SAMs.|Saved automatically"))
             {
                 Settings.EnableAutoProgression = !Settings.EnableAutoProgression;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Radar SAM Umbrellas: {(Settings.ShowRadarRings ? "VISIBLE" : "HIDDEN")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Radar SAM Umbrellas: {(Settings.ShowRadarRings ? "VISIBLE" : "HIDDEN")}",
+                Settings.ShowRadarRings,
+                "Capital Air-Defense Rings|Shows glowing radar coverage domes around Tier 3 capitals that intercept incoming enemy jets and helicopters.|Saved automatically"))
             {
                 Settings.ShowRadarRings = !Settings.ShowRadarRings;
                 Settings.Save(_declare.FolderPath);
             }
 
             GUILayout.Space(6);
-            GUILayout.Label("Quick Sandbox Deployment (#1 Kingdom):", _headerStyle);
+            GameUiStyle.Label("Quick Sandbox Deployment (#1 Kingdom):", "Sandbox Controls|Test modern armies immediately by advancing or equipping the largest kingdom in your world.", isHeader: true);
 
-            if (GUILayout.Button("Advance #1 Kingdom +1 Tech Tier (T1->T2->T3)", _btnStyle))
+            if (GameUiStyle.Button(
+                "Advance #1 Kingdom +1 Tech Tier (T1->T2->T3)",
+                "Upgrade Tech Tier|Promotes the largest kingdom by one technology tier and issues tier-appropriate weapons and counters to 15 soldiers."))
             {
                 Kingdom top = GetTopKingdom();
                 if (top != null)
@@ -163,7 +136,9 @@ namespace ModernAge
                 }
             }
 
-            if (GUILayout.Button("Deploy Armored Column (2 MBTs + 2 Light Tanks)", _btnStyle))
+            if (GameUiStyle.Button(
+                "Deploy Armored Column (2 MBTs + 2 Light Tanks)",
+                "Spawn Armored Division|Deploys 2 Main Battle Tanks and 2 Light Tanks at the largest kingdom's capital."))
             {
                 Kingdom top = GetTopKingdom();
                 WorldTile cap = top?.capital?.getTile();
@@ -178,7 +153,9 @@ namespace ModernAge
                 }
             }
 
-            if (GUILayout.Button("Scramble Air Wing (2 Jets + 2 Attack Helis)", _btnStyle))
+            if (GameUiStyle.Button(
+                "Scramble Air Wing (2 Jets + 2 Attack Helis)",
+                "Spawn Air Squadron|Scrambles 2 Supersonic Jets and 2 Attack Helicopters over the largest kingdom's capital."))
             {
                 Kingdom top = GetTopKingdom();
                 WorldTile cap = top?.capital?.getTile();
@@ -194,7 +171,7 @@ namespace ModernAge
             }
 
             GUILayout.Space(8);
-            GUILayout.Label("World Governments & Trade Blocs:", _headerStyle);
+            GameUiStyle.Label("World Governments & Trade Blocs:", "Geopolitics Overview|Shows each empire's tech tier, government system, and trade specialty. Click Gov to cycle a kingdom's regime.", isHeader: true);
             if (MapBox.instance?.kingdoms != null)
             {
                 int shown = 0;
@@ -203,8 +180,10 @@ namespace ModernAge
                     if (k == null || !k.isCiv() || !k.isAlive() || shown >= 8) continue;
                     var st = GeopoliticsAndTradeSystem.GetOrCreateState(k);
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label($"• {k.name} [T{st.TechTier}] {st.Government} · {st.Specialty}", _labelStyle);
-                    if (GUILayout.Button("Gov", _btnStyle, GUILayout.Width(38)))
+                    GameUiStyle.Label(
+                        $"• {k.name} [T{st.TechTier}] {st.Government} · {st.Specialty}",
+                        $"{k.name}|Tech Tier {st.TechTier} · Government: {st.Government} · Trade Specialty: {st.Specialty}.");
+                    if (GameUiStyle.Button("Gov", $"Switch {k.name} Government|Cycle between Monarchy, Republic, Collectivist, Merchant League, Military Junta, and Technocracy.", GUILayout.Width(42)))
                     {
                         int n = Enum.GetValues(typeof(GovernmentType)).Length;
                         st.Government = (GovernmentType)(((int)st.Government + 1) % n);
@@ -217,10 +196,11 @@ namespace ModernAge
             if (!string.IsNullOrEmpty(_status))
             {
                 GUILayout.Space(6);
-                GUILayout.Label(_status, _headerStyle);
+                GameUiStyle.Label(_status, null, isHeader: true);
             }
 
             GUILayout.EndScrollView();
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
 

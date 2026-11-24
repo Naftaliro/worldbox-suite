@@ -18,16 +18,9 @@ namespace ApexFactions
         private bool _showHud = false;
         private float _wardenTimer = 0f;
         private float _wildTimer = 0f;
-        private Rect _windowRect = new Rect(695, 320, 355, 420);
+        private Rect _windowRect = new Rect(695, 320, 365, 440);
         private Vector2 _scroll;
         private string _status = "";
-
-        private Texture2D _bgTex;
-        private Texture2D _btnTex;
-        private GUIStyle _boxStyle;
-        private GUIStyle _headerStyle;
-        private GUIStyle _labelStyle;
-        private GUIStyle _btnStyle;
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -87,71 +80,48 @@ namespace ApexFactions
             }
         }
 
-        private void EnsureStyles()
-        {
-            if (_boxStyle != null) return;
-
-            _bgTex = MakeTex(new Color(0.094f, 0.094f, 0.145f, 0.94f));
-            _btnTex = MakeTex(new Color(0.192f, 0.196f, 0.267f, 0.96f));
-
-            _boxStyle = new GUIStyle(GUI.skin.window) { padding = new RectOffset(12, 12, 24, 12) };
-            _boxStyle.normal.background = _bgTex;
-            _boxStyle.onNormal.background = _bgTex;
-            _boxStyle.normal.textColor = new Color(0.651f, 0.890f, 0.631f); // Catppuccin Green
-
-            _headerStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            _headerStyle.normal.textColor = new Color(0.796f, 0.651f, 0.969f); // Catppuccin Mauve
-
-            _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _labelStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-            _btnStyle.normal.background = _btnTex;
-            _btnStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-        }
-
-        private static Texture2D MakeTex(Color col)
-        {
-            var t = new Texture2D(1, 1);
-            t.SetPixel(0, 0, col);
-            t.Apply();
-            return t;
-        }
-
         private void OnGUI()
         {
             WildSovereigntySystem.DrawDomainOverlays();
 
             if (!_showHud || Settings == null) return;
-            EnsureStyles();
-            _windowRect = GUI.Window(941212, _windowRect, DrawHud, "ApexFactions (F12)", _boxStyle);
+            GameUiStyle.BeginFrame();
+            _windowRect = GUI.Window(941212, _windowRect, DrawHud, "ApexFactions (F12)", GameUiStyle.WindowStyle);
+            GameUiStyle.DrawTooltip(949007);
         }
 
         private void DrawHud(int id)
         {
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(365));
+            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(390));
 
-            GUILayout.Label($"Warden Doctrine ({WardenSystem.WardenKingdomIds.Count} kingdoms)", _headerStyle);
-            GUILayout.Label(
-                Settings.MercyThresholdPercent > 0f
-                    ? $"Mercy Ceasefire: stop retaliation at {Settings.MercyThresholdPercent:0}% pop"
-                    : "Mercy Ceasefire: OFF (total elimination)",
-                _labelStyle
-            );
-            float newPct = GUILayout.HorizontalSlider(Settings.MercyThresholdPercent, 0f, 50f);
+            GameUiStyle.Label($"Warden Doctrine ({WardenSystem.WardenKingdomIds.Count} kingdoms)", "Sleeping Giant Wardens|Peaceful powerhouse kingdoms that never start wars, rally fiercely when attacked, and track a 3-strikes grudge per aggressor.", isHeader: true);
+            string mercyDesc = Settings.MercyThresholdPercent > 0f
+                ? $"Mercy Ceasefire: stop retaliation at {Settings.MercyThresholdPercent:0}% pop"
+                : "Mercy Ceasefire: OFF (total elimination)";
+            float newPct = GameUiStyle.SliderRow(
+                mercyDesc,
+                Settings.MercyThresholdPercent,
+                0f,
+                50f,
+                "Mercy Ceasefire Threshold|On Strike #1, Wardens force peace once an aggressor drops to this % of its war-start pop (5% on Strike #2, zero mercy on Strike #3+).");
             if (Mathf.Abs(newPct - Settings.MercyThresholdPercent) >= 1f)
             {
                 Settings.MercyThresholdPercent = Mathf.Round(newPct);
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button("Spawn Warden Colony (14 Enhanced Humans)", _btnStyle))
+            if (GameUiStyle.Button(
+                "Spawn Warden Colony (14 Enhanced Humans)",
+                "Spawn Warden Settlers|Drops 14 elite human colonists at your camera center and marks their new kingdom with the peaceful Warden doctrine."))
             {
                 WardenSystem.SpawnWardenColonyAtCamera();
                 _status = "Spawned Warden colony at camera!";
             }
 
-            if (GUILayout.Button("Anoint Largest Kingdom as Wardens", _btnStyle))
+            if (GameUiStyle.Button(
+                "Anoint Largest Kingdom as Wardens",
+                "Anoint Existing Empire|Bestows the Warden Sleeping Giant doctrine onto the largest non-Warden civilized kingdom in the world."))
             {
                 Kingdom top = FindLargestNonWardenKingdom();
                 if (top != null)
@@ -164,41 +134,49 @@ namespace ApexFactions
             if (WardenSystem.ActiveRetaliations.Count > 0)
             {
                 GUILayout.Space(4);
-                GUILayout.Label("Active Sleeping Giant Retaliations:", _headerStyle);
+                GameUiStyle.Label("Active Sleeping Giant Retaliations:", "Active Warden Wars|Tracks each aggressor's strike count and live population toward the mercy ceasefire threshold.", isHeader: true);
                 foreach (var tr in WardenSystem.ActiveRetaliations.Values)
                 {
                     string mercyTxt = tr.EffectiveMercyPercent > 0f
                         ? $"ceasefire @ {tr.MercyTargetPop} ({tr.EffectiveMercyPercent:0}%)"
                         : "NO MERCY";
-                    GUILayout.Label(
+                    GameUiStyle.Label(
                         $"• [Strike #{tr.StrikeNumber}] {tr.WardenName} -> {tr.AggressorName}: {tr.CurrentAggressorPop}/{tr.BaselinePop} ({mercyTxt})",
-                        _labelStyle
-                    );
+                        $"Grudge Tracker|{tr.AggressorName} provoked {tr.WardenName} (Strike #{tr.StrikeNumber}). Current pop: {tr.CurrentAggressorPop} of {tr.BaselinePop} war-start pop.");
                 }
             }
 
             GUILayout.Space(8);
-            GUILayout.Label($"Wild Sovereignty ({WildSovereigntySystem.ActiveDomains.Count} Feral Domains)", _headerStyle);
+            GameUiStyle.Label($"Wild Sovereignty ({WildSovereigntySystem.ActiveDomains.Count} Feral Domains)", "Wild Realms|Awaken wild animal subspecies into sapient civilizations or monitor feral hunting territories ruled by giant Alphas.", isHeader: true);
 
-            if (GUILayout.Button("Spawn Wolfkin Kingdom (12 civ_wolf)", _btnStyle))
+            if (GameUiStyle.Button(
+                "Spawn Wolfkin Kingdom (12 civ_wolf)",
+                "Spawn Wolfkin Settlers|Places 12 sapient Wolfkin settlers at your camera center so they found their own civilization."))
             {
                 int n = WildSovereigntySystem.SpawnWolfkinKingdomAtCamera(12);
                 _status = $"Spawned {n} Wolfkin settlers!";
             }
 
-            if (GUILayout.Button("Awaken All Wild Wolves (Instant Sapience)", _btnStyle))
+            if (GameUiStyle.Button(
+                "Awaken All Wild Wolves (Instant Sapience)",
+                "Awaken Wild Wolves|Grants instant sapience (makeSapient) to every wild wolf subspecies on the map so they can build kingdoms."))
             {
                 int n = WildSovereigntySystem.AwakenWildSubspecies("wolf");
                 _status = n > 0 ? $"Awakened {n} wolf subspecies!" : "No wild wolf subspecies found.";
             }
 
-            if (GUILayout.Button("Awaken All Wild Animals (Full Sapience)", _btnStyle))
+            if (GameUiStyle.Button(
+                "Awaken All Wild Animals (Full Sapience)",
+                "Awaken Every Wild Species|Grants instant sapience to all wild animal subspecies across the entire world."))
             {
                 int n = WildSovereigntySystem.AwakenWildSubspecies(null);
                 _status = $"Awakened {n} wild animal subspecies!";
             }
 
-            if (GUILayout.Button($"Feral Domain Borders: {(Settings.ShowFeralDomainRings ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Feral Domain Borders: {(Settings.ShowFeralDomainRings ? "ON" : "OFF")}",
+                Settings.ShowFeralDomainRings,
+                "Feral Domain Rings|Draws territory rings and labels on the map over large wild pack hunting grounds (Land of the Wolves, Bears, etc.)."))
             {
                 Settings.ShowFeralDomainRings = !Settings.ShowFeralDomainRings;
                 Settings.Save(_declare.FolderPath);
@@ -207,8 +185,8 @@ namespace ApexFactions
             foreach (var d in WildSovereigntySystem.ActiveDomains)
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label($"• {d.DomainTitle} ({d.PackCount})", _labelStyle);
-                if (GUILayout.Button("Go", _btnStyle, GUILayout.Width(40)))
+                GameUiStyle.Label($"• {d.DomainTitle} ({d.PackCount})", $"Feral Territory|{d.DomainTitle} holds a pack of {d.PackCount} wild animals led by an Alpha.");
+                if (GameUiStyle.Button("Go", $"Inspect {d.DomainTitle}|Center the camera on this feral hunting ground.", GUILayout.Width(42)))
                 {
                     Camera cam = Camera.main;
                     if (cam != null) cam.transform.position = new Vector3(d.CenterX, d.CenterY, cam.transform.position.z);
@@ -219,10 +197,11 @@ namespace ApexFactions
             if (!string.IsNullOrEmpty(_status))
             {
                 GUILayout.Space(6);
-                GUILayout.Label(_status, _headerStyle);
+                GameUiStyle.Label(_status, null, isHeader: true);
             }
 
             GUILayout.EndScrollView();
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
 

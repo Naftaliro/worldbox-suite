@@ -46,14 +46,8 @@ namespace CoopHost
         private float _guestY = -1f;
         private float _guestLastSeen = -99f;
 
-        private Rect _windowRect = new Rect(695, 86, 355, 360);
-        private Texture2D _bgTex;
-        private Texture2D _btnTex;
+        private Rect _windowRect = new Rect(695, 86, 365, 385);
         private Texture2D _cursorTex;
-        private GUIStyle _boxStyle;
-        private GUIStyle _headerStyle;
-        private GUIStyle _labelStyle;
-        private GUIStyle _btnStyle;
         private GUIStyle _cursorLabelStyle;
 
         public ModDeclare GetDeclaration() => _declare;
@@ -492,11 +486,9 @@ namespace CoopHost
             _cachedStateJson = JsonConvert.SerializeObject(payload);
         }
 
-        private void EnsureStyles()
+        private void EnsureCursorStyles()
         {
-            if (_boxStyle != null) return;
-            _bgTex = MakeTex(new Color(0.094f, 0.094f, 0.145f, 0.94f));
-            _btnTex = MakeTex(new Color(0.192f, 0.196f, 0.267f, 0.96f));
+            if (_cursorTex != null) return;
 
             const int sz = 32;
             _cursorTex = new Texture2D(sz, sz, TextureFormat.RGBA32, false);
@@ -506,35 +498,12 @@ namespace CoopHost
                 {
                     float d = Mathf.Sqrt((x - half) * (x - half) + (y - half) * (y - half)) / half;
                     float a = (d >= 0.65f && d <= 0.96f) ? 0.95f : (d < 0.25f ? 0.95f : 0f);
-                    _cursorTex.SetPixel(x, y, new Color(0.455f, 0.780f, 0.925f, a));
+                    _cursorTex.SetPixel(x, y, new Color(1.0f, 0.875f, 0.45f, a));
                 }
             _cursorTex.Apply();
 
-            _boxStyle = new GUIStyle(GUI.skin.window) { padding = new RectOffset(12, 12, 24, 12) };
-            _boxStyle.normal.background = _bgTex;
-            _boxStyle.onNormal.background = _bgTex;
-            _boxStyle.normal.textColor = new Color(0.455f, 0.780f, 0.925f);
-
-            _headerStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            _headerStyle.normal.textColor = new Color(0.796f, 0.651f, 0.969f);
-
-            _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _labelStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-            _btnStyle.normal.background = _btnTex;
-            _btnStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
             _cursorLabelStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 11, fontStyle = FontStyle.Bold };
-            _cursorLabelStyle.normal.textColor = new Color(0.455f, 0.780f, 0.925f);
-        }
-
-        private static Texture2D MakeTex(Color col)
-        {
-            var t = new Texture2D(1, 1);
-            t.SetPixel(0, 0, col);
-            t.Apply();
-            return t;
+            _cursorLabelStyle.normal.textColor = new Color(1.0f, 0.875f, 0.45f);
         }
 
         private void OnGUI()
@@ -547,7 +516,7 @@ namespace CoopHost
                 Camera cam = Camera.main;
                 if (cam != null)
                 {
-                    EnsureStyles();
+                    EnsureCursorStyles();
                     Vector3 scr = cam.WorldToScreenPoint(new Vector3(_guestX, _guestY, 0f));
                     if (scr.z >= 0f)
                     {
@@ -560,24 +529,29 @@ namespace CoopHost
             }
 
             if (!_showHud) return;
-            EnsureStyles();
-            _windowRect = GUI.Window(941216, _windowRect, DrawHud, "CoopHost: Shared God Mode (Alt+C)", _boxStyle);
+            GameUiStyle.BeginFrame();
+            _windowRect = GUI.Window(941216, _windowRect, DrawHud, "CoopHost: Shared God Mode (Alt+C)", GameUiStyle.WindowStyle);
+            GameUiStyle.DrawTooltip(949009);
         }
 
         private void DrawHud(int id)
         {
+            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
             bool running = _server != null && _server.IsRunning;
-            GUILayout.Label($"Status: {(running ? "HOSTING LIVE" : "STOPPED")}", _headerStyle);
-            GUILayout.Label($"LAN URL: http://{_lanIp}:{Settings.Port}", _labelStyle);
-            GUILayout.Label($"Join PIN: {Settings.JoinPin}   (works with Tailscale / playit.gg)", _headerStyle);
+            GameUiStyle.Label($"Status: {(running ? "HOSTING LIVE" : "STOPPED")}", "Co-Op Server Status|When HOSTING LIVE, a second player can open your URL in any browser and share god powers with you.", isHeader: true);
+            GameUiStyle.Label($"LAN URL: http://{_lanIp}:{Settings.Port}", "Join Address|Have your friend open this URL in their browser on the same Wi-Fi/LAN, or forward port " + Settings.Port + " with Tailscale or playit.gg.");
+            GameUiStyle.Label($"Join PIN: {Settings.JoinPin}   (LAN / Tailscale / playit.gg)", "4-Digit Security PIN|Your guest enters this PIN in the browser console before they can spawn units, paint terrain, or cast powers.", isHeader: true);
 
             if (!string.IsNullOrEmpty(_server?.LastError))
             {
-                GUILayout.Label("Error: " + _server.LastError, _labelStyle);
+                GameUiStyle.Subtle("Error: " + _server.LastError);
             }
 
             GUILayout.Space(6);
-            if (GUILayout.Button(running ? "Stop Co-Op Server" : "Start Co-Op Server", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                running ? "Co-Op Server: RUNNING (Click to Stop)" : "Start Co-Op Server",
+                running,
+                "Toggle Co-Op HTTP Server|Starts or stops the zero-admin browser server on port " + Settings.Port + " without closing your WorldBox game."))
             {
                 if (running) _server.Stop();
                 else
@@ -587,31 +561,39 @@ namespace CoopHost
                 }
             }
 
-            if (GUILayout.Button("Generate New 4-Digit PIN", _btnStyle))
+            if (GameUiStyle.Button(
+                "Generate New 4-Digit PIN",
+                "Rotate Join PIN|Creates a fresh random 4-digit PIN and saves it immediately so older guest sessions must re-enter the new code."))
             {
                 Settings.JoinPin = new System.Random().Next(1000, 9999).ToString();
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Show Guest Cursor In-Game: {(Settings.ShowGuestCursorInGame ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Show Guest Cursor In-Game: {(Settings.ShowGuestCursorInGame ? "ON" : "OFF")}",
+                Settings.ShowGuestCursorInGame,
+                "In-Game Guest Reticle|Draws a live golden crosshair and nametag inside your WorldBox view showing where your co-op partner is pointing."))
             {
                 Settings.ShowGuestCursorInGame = !Settings.ShowGuestCursorInGame;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button("Force Resync Terrain to Guest", _btnStyle))
+            if (GameUiStyle.Button(
+                "Force Resync Terrain to Guest",
+                "Resend Full Terrain Map|Rebuilds the terrain raster snapshot and pushes it to the guest browser console if you painted major terrain changes."))
             {
                 _terrainRevision++;
             }
 
             GUILayout.Space(8);
-            GUILayout.Label("Recent Co-Op Activity:", _headerStyle);
+            GameUiStyle.Label("Recent Co-Op Activity:", "Guest Action Log|Live feed of units spawned, terrain painted, and god powers triggered by your co-op guest.", isHeader: true);
             int shown = 0;
             for (int i = _activityLog.Count - 1; i >= 0 && shown < 5; i--, shown++)
             {
-                GUILayout.Label("• " + _activityLog[i], _labelStyle);
+                GameUiStyle.Subtle("• " + _activityLog[i]);
             }
 
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
     }

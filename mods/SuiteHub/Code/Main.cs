@@ -21,14 +21,7 @@ namespace SuiteHub
         private float _initDelay = 0f;
         private float _pruneTimer = 0f;
 
-        private Rect _hubRect = new Rect(20, 76, 310, 425);
-
-        private Texture2D _bgTex;
-        private Texture2D _btnTex;
-        private GUIStyle _boxStyle;
-        private GUIStyle _headerStyle;
-        private GUIStyle _labelStyle;
-        private GUIStyle _btnStyle;
+        private Rect _hubRect = new Rect(20, 76, 325, 465);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -108,90 +101,90 @@ namespace SuiteHub
             }
         }
 
-        private void EnsureStyles()
-        {
-            if (_boxStyle != null) return;
-
-            // Catppuccin Mocha: Mantle (#181825), Surface0 (#313244), Mauve (#cba6f7), Lavender (#b4befe), Text (#cdd6f4)
-            _bgTex = MakeTex(new Color(0.094f, 0.094f, 0.145f, 0.94f));
-            _btnTex = MakeTex(new Color(0.192f, 0.196f, 0.267f, 0.96f));
-
-            _boxStyle = new GUIStyle(GUI.skin.window) { padding = new RectOffset(12, 12, 24, 12) };
-            _boxStyle.normal.background = _bgTex;
-            _boxStyle.onNormal.background = _bgTex;
-            _boxStyle.normal.textColor = new Color(0.796f, 0.651f, 0.969f);
-
-            _headerStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            _headerStyle.normal.textColor = new Color(0.706f, 0.745f, 0.996f);
-
-            _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _labelStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-            _btnStyle.normal.background = _btnTex;
-            _btnStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-        }
-
-        private static Texture2D MakeTex(Color col)
-        {
-            var t = new Texture2D(1, 1);
-            t.SetPixel(0, 0, col);
-            t.Apply();
-            return t;
-        }
-
         private void OnGUI()
         {
             // Render live conflict rings behind windows
             BattleRadarSystem.DrawBattleMarkers();
 
             if (!_showHub && !_showWarMatrix && !_showWorldBuilder) return;
-            EnsureStyles();
+            GameUiStyle.BeginFrame();
 
             if (_showHub)
             {
-                _hubRect = GUI.Window(941209, _hubRect, DrawHubWindow, "WorldBox Suite Hub (F5)", _boxStyle);
+                _hubRect = GUI.Window(941209, _hubRect, DrawHubWindow, "WorldBox Suite Hub (F5)", GameUiStyle.WindowStyle);
             }
             if (_showWarMatrix)
             {
-                DiplomacyWarOverlay.Draw(_boxStyle, _headerStyle, _labelStyle, _btnStyle);
+                DiplomacyWarOverlay.Draw(() => _showWarMatrix = false);
             }
             if (_showWorldBuilder)
             {
-                MultiContinentGenerator.Draw(_boxStyle, _headerStyle, _labelStyle, _btnStyle);
+                MultiContinentGenerator.Draw(() => _showWorldBuilder = false);
             }
+
+            GameUiStyle.DrawTooltip(949001);
         }
 
         private void DrawHubWindow(int id)
         {
-            GUILayout.Label("Suite Controls & Tools", _headerStyle);
-            GUILayout.Label("Accessible from the bottom bar tab or hotkeys.", _labelStyle);
+            GameUiStyle.DrawCloseButton(_hubRect, () => _showHub = false);
+
+            GameUiStyle.Label("Suite Controls & Tools", "Master Controls|Quick toggles for SuiteHub's built-in world builder, war monitor, and battle radar.", isHeader: true);
+            GameUiStyle.Subtle("Hover any button for details. Drag the title bar to move.");
             GUILayout.Space(6);
 
-            if (GUILayout.Button($"War & Diplomacy Monitor (F4): {(_showWarMatrix ? "OPEN" : "CLOSED")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"War & Diplomacy Monitor (F4): {(_showWarMatrix ? "OPEN" : "CLOSED")}",
+                _showWarMatrix,
+                "War & Diplomacy Monitor|View all active wars, casualties, live skirmishes, and kingdom opinion scores with 1-click camera jumps.|Hotkey: F4"))
                 ToggleWarMatrix();
 
-            if (GUILayout.Button($"Battlefield Conflict Radar (F3): {(BattleRadarSystem.Enabled ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Battlefield Conflict Radar (F3): {(BattleRadarSystem.Enabled ? "ON" : "OFF")}",
+                BattleRadarSystem.Enabled,
+                "Battlefield Conflict Radar|Draws pulsing clash rings directly over live combat hotspots on the map so big fights stand out immediately.|Hotkey: F3"))
                 ToggleBattleRadar();
 
-            if (GUILayout.Button($"Multi-Continent World Builder (F2): {(_showWorldBuilder ? "OPEN" : "CLOSED")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Multi-Continent World Builder (F2): {(_showWorldBuilder ? "OPEN" : "CLOSED")}",
+                _showWorldBuilder,
+                "Multi-Continent World Builder|Sculpt a brand-new multi-continent world right in-game with custom sizes, biomes, ocean channels, and stepping-stone islands.|Hotkey: F2"))
                 ToggleWorldBuilder();
 
             GUILayout.Space(8);
-            GUILayout.Label("Suite Module Panels:", _headerStyle);
-            if (GUILayout.Button("CoreScale Perf & Battalions (F8)", _btnStyle)) ToggleCompanionHud("CoreScale.Main");
-            if (GUILayout.Button("VisualPolish Lighting & Zoom (F9)", _btnStyle)) ToggleCompanionHud("VisualPolish.Main");
-            if (GUILayout.Button("GrandWarfare War Room (F10)", _btnStyle)) ToggleCompanionHud("GrandWarfare.Main");
-            if (GUILayout.Button("LinkedContinents Portal (F11)", _btnStyle)) ToggleCompanionHud("LinkedContinents.Main");
-            if (GUILayout.Button("EraChronicle History (F7)", _btnStyle)) ToggleCompanionHud("EraChronicle.Main");
-            if (GUILayout.Button("ApexFactions Wardens & Wild Realms (F12)", _btnStyle)) ToggleCompanionHud("ApexFactions.Main");
-            if (GUILayout.Button("WorldRelics Walls, Bridges & Ruins (Alt+R)", _btnStyle)) ToggleCompanionHud("WorldRelics.Main");
-            if (GUILayout.Button("CoopHost Shared God Mode (Alt+C)", _btnStyle)) ToggleCompanionHud("CoopHost.Main");
+            GameUiStyle.Label("Suite Module Panels:", "Module Panels|Open or close each companion mod's dedicated control panel.", isHeader: true);
+
+            if (GameUiStyle.Button("CoreScale Perf & Battalions (F8)", "CoreScale Performance|Giant map presets up to 24x24 chunks, adaptive simulation LOD, shadow culling, and mega-army battalion compression.|Hotkey: F8"))
+                ToggleCompanionHud("CoreScale.Main");
+
+            if (GameUiStyle.Button("VisualPolish Lighting & Zoom (F9)", "VisualPolish Lighting|Switch atmospheric lighting presets, dynamic day/night cycles, vignette strength, and F6 photo mode.|Hotkey: F9"))
+                ToggleCompanionHud("VisualPolish.Main");
+
+            if (GameUiStyle.Button("GrandWarfare War Room (F10)", "GrandWarfare War Room|Toggle naval ship-to-ship broadsides, coastal bombardment, port blockades, supply-line attrition, and defense pacts.|Hotkey: F10"))
+                ToggleCompanionHud("GrandWarfare.Main");
+
+            if (GameUiStyle.Button("LinkedContinents Portal (F11)", "LinkedContinents Portal|Connect separate continent saves across ocean edges so fleets and armies sail from one save file into another.|Hotkey: F11"))
+                ToggleCompanionHud("LinkedContinents.Main");
+
+            if (GameUiStyle.Button("EraChronicle History (F7)", "EraChronicle History|Track 5-tier kingdom eras with veteran milestones and export JSON history timelines for WorldBox Studio.|Hotkey: F7"))
+                ToggleCompanionHud("EraChronicle.Main");
+
+            if (GameUiStyle.Button("ApexFactions Wardens & Wild Realms (F12)", "ApexFactions & Wild Realms|Warden Sleeping Giant doctrine with 3-strikes mercy ceasefires, instant species awakener, and feral animal pack domains.|Hotkey: F12"))
+                ToggleCompanionHud("ApexFactions.Main");
+
+            if (GameUiStyle.Button("WorldRelics Walls, Bridges & Ruins (Alt+R)", "WorldRelics Infrastructure|Large cities build gated perimeter walls, connect narrow straits with stone bridges, and weather into mossy ruins after falling.|Hotkey: Alt+R"))
+                ToggleCompanionHud("WorldRelics.Main");
+
+            if (GameUiStyle.Button("CoopHost Shared God Mode (Alt+C)", "Co-Op God Mode Host|Start a browser Co-Op God Console over LAN, Tailscale, or playit.gg so a second player can paint terrain and cast powers with you.|Hotkey: Alt+C"))
+                ToggleCompanionHud("CoopHost.Main");
+
             if (IsCompanionLoaded("ModernAge.Main"))
             {
-                if (GUILayout.Button("ModernAge Expansion (Alt+M)", _btnStyle)) ToggleCompanionHud("ModernAge.Main");
+                if (GameUiStyle.Button("ModernAge Expansion (Alt+M)", "ModernAge Expansion|Tier 1-3 firearms, tanks, helicopters, supersonic jets, capital radar SAM domes, 6 governments, and international trade.|Hotkey: Alt+M"))
+                    ToggleCompanionHud("ModernAge.Main");
             }
 
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
     }

@@ -46,62 +46,74 @@ namespace SuiteHub
         private static bool _seedCivilizations = true;
         private static string _statusMsg = "Ready to sculpt a fresh multi-continent world.";
 
-        public static void Draw(GUIStyle box, GUIStyle header, GUIStyle label, GUIStyle btn)
+        public static void Draw(System.Action onClose)
         {
-            _rect = GUI.Window(941211, _rect, id => DrawContent(header, label, btn), "Multi-Continent World Builder (F2)", box);
+            _rect = GUI.Window(941211, _rect, id => DrawContent(onClose), "Multi-Continent World Builder (F2)", GameUiStyle.WindowStyle);
         }
 
-        private static void DrawContent(GUIStyle header, GUIStyle label, GUIStyle btn)
+        private static void DrawContent(System.Action onClose)
         {
+            GameUiStyle.DrawCloseButton(_rect, onClose);
             var preset = SizePresets[_sizeIdx];
-            GUILayout.Label("Generate a pre-stitched multi-continent map right in-game.", label);
+            GameUiStyle.Subtle("Sculpt a fresh pre-stitched multi-continent map right in-game.");
             GUILayout.Space(4);
 
-            if (GUILayout.Button($"Map Size: {preset.label}", btn))
+            if (GameUiStyle.Button($"Map Size: {preset.label}", "World Dimensions|Click to cycle map presets from Twin Standard (8x4 chunks) up to Ultra Twin (20x10 chunks).|1 chunk = 64x64 tiles"))
             {
                 _sizeIdx = (_sizeIdx + 1) % SizePresets.Length;
             }
 
-            if (GUILayout.Button($"Layout: {_layout}", btn))
+            if (GameUiStyle.Button($"Layout: {_layout}", "Continent Layout|Choose how landmasses are divided: East/West twins, Four Quadrants, North/South divide, or Super Archipelago."))
             {
                 int count = Enum.GetValues(typeof(ContinentLayout)).Length;
                 _layout = (ContinentLayout)(((int)_layout + 1) % count);
             }
 
-            if (GUILayout.Button($"Continent A Biome: {_biomeA}", btn))
+            if (GameUiStyle.Button($"Continent A Biome: {_biomeA}", "Primary Continent Biome|Click to cycle the dominant biome painted across Continent A (grass, jungle, savanna, enchanted, permafrost, infernal, swamp)."))
             {
                 int count = Enum.GetValues(typeof(BiomeTheme)).Length;
                 _biomeA = (BiomeTheme)(((int)_biomeA + 1) % count);
             }
 
-            if (GUILayout.Button($"Continent B Biome: {_biomeB}", btn))
+            if (GameUiStyle.Button($"Continent B Biome: {_biomeB}", "Secondary Continent Biome|Click to cycle the dominant biome painted across Continent B for contrasting civilizations."))
             {
                 int count = Enum.GetValues(typeof(BiomeTheme)).Length;
                 _biomeB = (BiomeTheme)(((int)_biomeB + 1) % count);
             }
 
             GUILayout.Space(4);
-            GUILayout.Label($"Ocean Divide Width: {(int)(_channelWidthFrac * 100)}%", label);
-            _channelWidthFrac = GUILayout.HorizontalSlider(_channelWidthFrac, 0.06f, 0.30f);
+            _channelWidthFrac = GameUiStyle.SliderRow(
+                $"Ocean Divide Width: {(int)(_channelWidthFrac * 100)}%",
+                _channelWidthFrac,
+                0.06f,
+                0.30f,
+                "Ocean Channel Width|Controls how wide the sea separating the continents will be. Narrower channels encourage early sea bridges and raids.");
 
-            if (GUILayout.Button($"Stepping-Stone Islands: {(_steppingStoneIslands ? "ON" : "OFF")}", btn))
+            if (GameUiStyle.ToggleButton(
+                $"Stepping-Stone Islands: {(_steppingStoneIslands ? "ON" : "OFF")}",
+                _steppingStoneIslands,
+                "Stepping-Stone Archipelago|Scatters small contestable islands inside the central ocean divide as naval staging points."))
             {
                 _steppingStoneIslands = !_steppingStoneIslands;
             }
 
-            if (GUILayout.Button($"Seed Starting Settlers on Each Continent: {(_seedCivilizations ? "ON" : "OFF")}", btn))
+            if (GameUiStyle.ToggleButton(
+                $"Seed Starting Settlers: {(_seedCivilizations ? "ON" : "OFF")}",
+                _seedCivilizations,
+                "Seed Starting Settlers|Automatically drops 12 human settlers onto each continent so rival empires start building immediately."))
             {
                 _seedCivilizations = !_seedCivilizations;
             }
 
             GUILayout.Space(8);
-            if (GUILayout.Button("Generate Multi-Continent World Now", btn))
+            if (GameUiStyle.Button("Generate Multi-Continent World Now", "Generate New World|Replaces the current map with a freshly generated multi-continent world using the settings above.|Save your current world first if you want to keep it!"))
             {
                 GenerateNow();
             }
 
             GUILayout.Space(4);
-            GUILayout.Label(_statusMsg, header);
+            GameUiStyle.Label(_statusMsg, null, isHeader: true);
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
 

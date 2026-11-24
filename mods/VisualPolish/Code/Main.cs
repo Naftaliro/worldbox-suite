@@ -17,16 +17,10 @@ namespace VisualPolish
 
         private bool _showPanel = false;
         private float _cycleTime = 0f;
-        private Rect _windowRect = new Rect(305, 86, 290, 290);
+        private Rect _windowRect = new Rect(305, 86, 305, 325);
 
         private Texture2D _vignetteTex;
         private Texture2D _pixelTex;
-        private Texture2D _bgTex;
-        private Texture2D _btnTex;
-        private GUIStyle _boxStyle;
-        private GUIStyle _headerStyle;
-        private GUIStyle _labelStyle;
-        private GUIStyle _btnStyle;
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -143,37 +137,6 @@ namespace VisualPolish
             }
         }
 
-        private void EnsureStyles()
-        {
-            if (_boxStyle != null) return;
-
-            _bgTex = MakeTex(new Color(0.094f, 0.094f, 0.145f, 0.94f));
-            _btnTex = MakeTex(new Color(0.192f, 0.196f, 0.267f, 0.96f));
-
-            _boxStyle = new GUIStyle(GUI.skin.window) { padding = new RectOffset(12, 12, 24, 12) };
-            _boxStyle.normal.background = _bgTex;
-            _boxStyle.onNormal.background = _bgTex;
-            _boxStyle.normal.textColor = new Color(0.796f, 0.651f, 0.969f);
-
-            _headerStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            _headerStyle.normal.textColor = new Color(0.706f, 0.745f, 0.996f);
-
-            _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _labelStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-            _btnStyle.normal.background = _btnTex;
-            _btnStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-        }
-
-        private static Texture2D MakeTex(Color col)
-        {
-            var t = new Texture2D(1, 1);
-            t.SetPixel(0, 0, col);
-            t.Apply();
-            return t;
-        }
-
         private void OnGUI()
         {
             if (Settings == null) return;
@@ -202,16 +165,20 @@ namespace VisualPolish
 
             if (_showPanel)
             {
-                EnsureStyles();
-                _windowRect = GUI.Window(941204, _windowRect, DrawWindow, "VisualPolish (F9)", _boxStyle);
+                GameUiStyle.BeginFrame();
+                _windowRect = GUI.Window(941204, _windowRect, DrawWindow, "VisualPolish (F9)", GameUiStyle.WindowStyle);
+                GameUiStyle.DrawTooltip(949003);
             }
         }
 
         private void DrawWindow(int id)
         {
-            GUILayout.Label($"Preset: {Settings.Preset}", _headerStyle);
+            GameUiStyle.DrawCloseButton(_windowRect, () => _showPanel = false);
+            GameUiStyle.Label($"Preset: {Settings.Preset}", "Active Lighting Preset|Current atmospheric color grade applied across the map.", isHeader: true);
 
-            if (GUILayout.Button("Cycle Visual Preset", _btnStyle))
+            if (GameUiStyle.Button(
+                "Cycle Visual Preset",
+                "Cycle Lighting Preset|Switch between Vanilla, Crisp Vibrant, Golden Hour, Moonlit Night, Parchment Atlas, and Mocha Twilight.|Turns off Dynamic Day/Night"))
             {
                 int count = Enum.GetValues(typeof(VisualPreset)).Length;
                 Settings.Preset = (VisualPreset)(((int)Settings.Preset + 1) % count);
@@ -219,38 +186,55 @@ namespace VisualPolish
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Dynamic Day/Night: {(Settings.DynamicDayNightCycle ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Dynamic Day/Night: {(Settings.DynamicDayNightCycle ? "ON" : "OFF")}",
+                Settings.DynamicDayNightCycle,
+                "Dynamic Day/Night Cycle|Smoothly shifts lighting from golden dawn to bright noon, warm dusk, and cool moonlit night."))
             {
                 Settings.DynamicDayNightCycle = !Settings.DynamicDayNightCycle;
                 Settings.Save(_declare.FolderPath);
             }
 
             GUILayout.Space(6);
-            GUILayout.Label($"Vignette: {Settings.VignetteStrength:0.00}", _labelStyle);
-            float newVig = GUILayout.HorizontalSlider(Settings.VignetteStrength, 0f, 0.65f);
+            float newVig = GameUiStyle.SliderRow(
+                $"Vignette: {Settings.VignetteStrength:0.00}",
+                Settings.VignetteStrength,
+                0f,
+                0.65f,
+                "Screen Vignette|Adjusts the soft darkened edge framing around the screen. Set to 0.00 to disable.");
             if (Mathf.Abs(newVig - Settings.VignetteStrength) > 0.005f)
             {
                 Settings.VignetteStrength = newVig;
             }
 
-            GUILayout.Label($"Atmosphere Intensity: {Settings.TintStrength:0.00}", _labelStyle);
-            float newTint = GUILayout.HorizontalSlider(Settings.TintStrength, 0f, 0.35f);
+            float newTint = GameUiStyle.SliderRow(
+                $"Atmosphere Intensity: {Settings.TintStrength:0.00}",
+                Settings.TintStrength,
+                0f,
+                0.35f,
+                "Atmosphere Strength|Controls how strong the lighting preset or day/night color tint appears over the world.");
             if (Mathf.Abs(newTint - Settings.TintStrength) > 0.005f)
             {
                 Settings.TintStrength = newTint;
             }
 
             GUILayout.Space(6);
-            if (GUILayout.Button($"Photo Mode (F6): {(Config.ui_main_hidden ? "HUD HIDDEN" : "NORMAL")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Photo Mode (F6): {(Config.ui_main_hidden ? "HUD HIDDEN" : "NORMAL")}",
+                Config.ui_main_hidden,
+                "Photo Mode|Hides WorldBox's main interface for clean map screenshots.|Press F6 anytime to toggle back"))
             {
                 Config.ui_main_hidden = !Config.ui_main_hidden;
             }
 
-            if (GUILayout.Button("Save Settings", _btnStyle))
+            if (GameUiStyle.Button(
+                "Save Settings",
+                "Save Visual Config|Writes your current slider values and lighting preset to visualpolish_config.json."))
             {
                 Settings.Save(_declare.FolderPath);
             }
 
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
     }

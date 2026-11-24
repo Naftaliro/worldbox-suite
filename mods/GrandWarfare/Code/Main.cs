@@ -27,14 +27,7 @@ namespace GrandWarfare
         private bool _showWarRoom = false;
         private float _supplyTimer = 0f;
         private float _navalTimer = 0f;
-        private Rect _windowRect = new Rect(610, 86, 310, 290);
-
-        private Texture2D _bgTex;
-        private Texture2D _btnTex;
-        private GUIStyle _boxStyle;
-        private GUIStyle _headerStyle;
-        private GUIStyle _labelStyle;
-        private GUIStyle _btnStyle;
+        private Rect _windowRect = new Rect(610, 86, 325, 325);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -104,89 +97,78 @@ namespace GrandWarfare
             }
         }
 
-        private void EnsureStyles()
-        {
-            if (_boxStyle != null) return;
-
-            _bgTex = MakeTex(new Color(0.094f, 0.094f, 0.145f, 0.94f));
-            _btnTex = MakeTex(new Color(0.192f, 0.196f, 0.267f, 0.96f));
-
-            _boxStyle = new GUIStyle(GUI.skin.window) { padding = new RectOffset(12, 12, 24, 12) };
-            _boxStyle.normal.background = _bgTex;
-            _boxStyle.onNormal.background = _bgTex;
-            _boxStyle.normal.textColor = new Color(0.953f, 0.545f, 0.659f); // Catppuccin Red
-
-            _headerStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            _headerStyle.normal.textColor = new Color(0.980f, 0.702f, 0.529f); // Catppuccin Peach
-
-            _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _labelStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-            _btnStyle.normal.background = _btnTex;
-            _btnStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-        }
-
-        private static Texture2D MakeTex(Color col)
-        {
-            var t = new Texture2D(1, 1);
-            t.SetPixel(0, 0, col);
-            t.Apply();
-            return t;
-        }
-
         private void OnGUI()
         {
             if (!_showWarRoom || Settings == null) return;
-            EnsureStyles();
-            _windowRect = GUI.Window(941205, _windowRect, DrawWarRoom, "GrandWarfare War Room (F10)", _boxStyle);
+            GameUiStyle.BeginFrame();
+            _windowRect = GUI.Window(941205, _windowRect, DrawWarRoom, "GrandWarfare War Room (F10)", GameUiStyle.WindowStyle);
+            GameUiStyle.DrawTooltip(949004);
         }
 
         private void DrawWarRoom(int id)
         {
+            GameUiStyle.DrawCloseButton(_windowRect, () => _showWarRoom = false);
             var world = MapBox.instance;
             long activeWars = world?.wars != null ? world.wars.countActiveWars() : 0;
 
-            GUILayout.Label($"Active Wars: {activeWars}  |  Pacts: {DefensePacts.Count}", _headerStyle);
-            GUILayout.Label($"Naval Volleys: {NavalVolleysFired}  |  Ships Sunk: {ShipsSunk}", _labelStyle);
-            GUILayout.Label($"Supply Attrition: {AttritionTicksApplied}  |  Blockades: {ActiveBlockades.Count}", _labelStyle);
+            GameUiStyle.Label($"Active Wars: {activeWars}  |  Pacts: {DefensePacts.Count}", "War Room Overview|Ongoing world wars and mutual defense treaties currently enforced by GrandWarfare.", isHeader: true);
+            GameUiStyle.Label($"Naval Volleys: {NavalVolleysFired}  |  Ships Sunk: {ShipsSunk}", "Naval Combat Stats|Broadside volleys exchanged and enemy vessels sunk during this session.");
+            GameUiStyle.Label($"Supply Attrition: {AttritionTicksApplied}  |  Blockades: {ActiveBlockades.Count}", "Logistics & Blockades|Attrition ticks dealt to overextended armies and enemy ports currently under naval blockade.");
             GUILayout.Space(6);
 
-            if (GUILayout.Button($"Naval Combat: {(Settings.EnableNavalCombat ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Naval Combat: {(Settings.EnableNavalCombat ? "ON" : "OFF")}",
+                Settings.EnableNavalCombat,
+                "Ship-to-Ship Broadsides|Allows warships of warring kingdoms to fire volleys and sink enemy boats at sea.|Saved automatically"))
             {
                 Settings.EnableNavalCombat = !Settings.EnableNavalCombat;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Coastal Bombardment: {(Settings.EnableCoastalBombardment ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Coastal Bombardment: {(Settings.EnableCoastalBombardment ? "ON" : "OFF")}",
+                Settings.EnableCoastalBombardment,
+                "Coastal Bombardment|Warships fire upon hostile land soldiers marching near coastlines when no enemy vessels are in range.|Saved automatically"))
             {
                 Settings.EnableCoastalBombardment = !Settings.EnableCoastalBombardment;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Naval Blockades: {(Settings.EnableNavalBlockades ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Naval Blockades: {(Settings.EnableNavalBlockades ? "ON" : "OFF")}",
+                Settings.EnableNavalBlockades,
+                "Port Blockades|Enemy ships holding within 24 tiles of a hostile coastal city drain nutrition from its defending garrison.|Saved automatically"))
             {
                 Settings.EnableNavalBlockades = !Settings.EnableNavalBlockades;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Supply Line Attrition: {(Settings.EnableSupplyAttrition ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Supply Line Attrition: {(Settings.EnableSupplyAttrition ? "ON" : "OFF")}",
+                Settings.EnableSupplyAttrition,
+                "Supply-Line Attrition|Campaigning armies marching far beyond friendly city supply range gradually lose nutrition and health.|Saved automatically"))
             {
                 Settings.EnableSupplyAttrition = !Settings.EnableSupplyAttrition;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Defense Pacts: {(Settings.EnableDefensePacts ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Defense Pacts: {(Settings.EnableDefensePacts ? "ON" : "OFF")}",
+                Settings.EnableDefensePacts,
+                "Mutual Defense Pacts|Automatically pulls allied pact partners into defensive wars whenever a member kingdom is attacked.|Saved automatically"))
             {
                 Settings.EnableDefensePacts = !Settings.EnableDefensePacts;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button("Form Pact: Top 2 Peaceful Kingdoms", _btnStyle))
+            if (GameUiStyle.Button(
+                "Form Pact: Top 2 Peaceful Kingdoms",
+                "Forge Defense Pact|Links the two largest non-hostile kingdoms into a mutual defense treaty so they defend each other if invaded."))
             {
                 DiplomacyPactSystem.TryLinkTopPeacefulKingdoms();
             }
 
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
     }

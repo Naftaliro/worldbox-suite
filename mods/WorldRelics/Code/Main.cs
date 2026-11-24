@@ -20,14 +20,7 @@ namespace WorldRelics
         private float _decayTimer = 0f;
         private string _status = "";
         private Vector2 _scroll;
-        private Rect _windowRect = new Rect(340, 290, 355, 385);
-
-        private Texture2D _bgTex;
-        private Texture2D _btnTex;
-        private GUIStyle _boxStyle;
-        private GUIStyle _headerStyle;
-        private GUIStyle _labelStyle;
-        private GUIStyle _btnStyle;
+        private Rect _windowRect = new Rect(340, 290, 365, 410);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -88,84 +81,70 @@ namespace WorldRelics
             }
         }
 
-        private void EnsureStyles()
-        {
-            if (_boxStyle != null) return;
-
-            _bgTex = MakeTex(new Color(0.094f, 0.094f, 0.145f, 0.94f));
-            _btnTex = MakeTex(new Color(0.192f, 0.196f, 0.267f, 0.96f));
-
-            _boxStyle = new GUIStyle(GUI.skin.window) { padding = new RectOffset(12, 12, 24, 12) };
-            _boxStyle.normal.background = _bgTex;
-            _boxStyle.onNormal.background = _bgTex;
-            _boxStyle.normal.textColor = new Color(0.651f, 0.890f, 0.631f); // Catppuccin Green
-
-            _headerStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            _headerStyle.normal.textColor = new Color(0.580f, 0.886f, 0.835f); // Catppuccin Teal
-
-            _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _labelStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-            _btnStyle.normal.background = _btnTex;
-            _btnStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-        }
-
-        private static Texture2D MakeTex(Color col)
-        {
-            var t = new Texture2D(1, 1);
-            t.SetPixel(0, 0, col);
-            t.Apply();
-            return t;
-        }
-
         private void OnGUI()
         {
             if (!_showHud || Settings == null) return;
-            EnsureStyles();
-            _windowRect = GUI.Window(941214, _windowRect, DrawHud, "WorldRelics: Walls, Bridges & Ruins (Alt+R)", _boxStyle);
+            GameUiStyle.BeginFrame();
+            _windowRect = GUI.Window(941214, _windowRect, DrawHud, "WorldRelics: Walls & Ruins (Alt+R)", GameUiStyle.WindowStyle);
+            GameUiStyle.DrawTooltip(949008);
         }
 
         private void DrawHud(int id)
         {
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(335));
+            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(360));
 
-            GUILayout.Label($"Walls Built: {InfrastructureBuilder.WallsBuilt}  |  Bridges: {InfrastructureBuilder.BridgesBuilt}", _headerStyle);
-            GUILayout.Label($"Tracked Ruin Sites: {RuinsDecaySystem.RuinSites.Count}", _labelStyle);
+            GameUiStyle.Label($"Walls Built: {InfrastructureBuilder.WallsBuilt}  |  Bridges: {InfrastructureBuilder.BridgesBuilt}", "Infrastructure Built|Total city perimeter wall tiles and stone sea bridges constructed in this session.", isHeader: true);
+            GameUiStyle.Label($"Tracked Ruin Sites: {RuinsDecaySystem.RuinSites.Count}", "Fallen Empires|Ruined cities whose abandoned walls and roads are slowly weathering over centuries.");
             GUILayout.Space(6);
 
-            if (GUILayout.Button($"Auto City Walls (85+ pop): {(Settings.EnableCityWalls ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Auto City Walls (85+ pop): {(Settings.EnableCityWalls ? "ON" : "OFF")}",
+                Settings.EnableCityWalls,
+                "Automatic City Fortifications|Prosperous cities (85+ pop) automatically construct gated stone/iron perimeter walls along their borders.|Saved automatically"))
             {
                 Settings.EnableCityWalls = !Settings.EnableCityWalls;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Auto Sea Strait Bridges: {(Settings.EnableSeaBridges ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Auto Sea Strait Bridges: {(Settings.EnableSeaBridges ? "ON" : "OFF")}",
+                Settings.EnableSeaBridges,
+                "Automatic Sea Bridges|Friendly coastal cities separated by narrow ocean straits automatically build stone causeways so armies and villagers can cross.|Saved automatically"))
             {
                 Settings.EnableSeaBridges = !Settings.EnableSeaBridges;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Centuries Ruin Decay: {(Settings.EnableRuinDecay ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Centuries Ruin Decay: {(Settings.EnableRuinDecay ? "ON" : "OFF")}",
+                Settings.EnableRuinDecay,
+                "Centuries-Long Ruin Decay|When a fortified city falls, its walls weather over 100-300+ years into ancient stone, mossy walls, and wild overgrown ruins.|Saved automatically"))
             {
                 Settings.EnableRuinDecay = !Settings.EnableRuinDecay;
                 Settings.Save(_declare.FolderPath);
             }
 
             GUILayout.Space(4);
-            if (GUILayout.Button("Fortify Large Cities Now", _btnStyle))
+            if (GameUiStyle.Button(
+                "Fortify Large Cities Now",
+                "Build City Walls Immediately|Scans all eligible large cities and places gated defensive perimeter walls right now."))
             {
                 int n = InfrastructureBuilder.FortifyLargeCities(force: true);
                 _status = $"Placed {n} gated perimeter wall tiles.";
             }
 
-            if (GUILayout.Button("Build Narrow Sea Bridges Now", _btnStyle))
+            if (GameUiStyle.Button(
+                "Build Narrow Sea Bridges Now",
+                "Construct Strait Bridges Immediately|Connects nearby friendly shorelines across narrow water channels with stone bridges right now."))
             {
                 int n = InfrastructureBuilder.BuildNarrowSeaBridges(force: true);
                 _status = n > 0 ? $"Built {n} new sea bridge(s)!" : "No narrow friendly straits found.";
             }
 
-            if (GUILayout.Button("Age All Ruins +60 Years (Weather & Moss)", _btnStyle))
+            if (GameUiStyle.Button(
+                "Age All Ruins +60 Years (Weather & Moss)",
+                "Fast-Forward Ruin Weathering|Advances every tracked ruin site by 60 years so you can watch ancient walls turn mossy and wild immediately."))
             {
                 int n = RuinsDecaySystem.WeatherAllRuins(60);
                 _status = $"Weathered {n} ruin tiles.";
@@ -174,12 +153,12 @@ namespace WorldRelics
             if (RuinsDecaySystem.RuinSites.Count > 0)
             {
                 GUILayout.Space(8);
-                GUILayout.Label("Fallen Empire Ruins:", _headerStyle);
+                GameUiStyle.Label("Fallen Empire Ruins:", "Historical Ruin Sites|Click Go to pan the camera directly to any fallen city's overgrown remains.", isHeader: true);
                 foreach (var site in RuinsDecaySystem.RuinSites)
                 {
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label($"• {site.CityName} ({RuinsDecaySystem.StageLabel(site)})", _labelStyle);
-                    if (GUILayout.Button("Go", _btnStyle, GUILayout.Width(40)))
+                    GameUiStyle.Label($"• {site.CityName} ({RuinsDecaySystem.StageLabel(site)})", $"Ruin Site|{site.CityName} is currently in the {RuinsDecaySystem.StageLabel(site)} decay stage.");
+                    if (GameUiStyle.Button("Go", $"Visit {site.CityName}|Center the camera on the ruins of {site.CityName}.", GUILayout.Width(42)))
                     {
                         Camera cam = Camera.main;
                         if (cam != null) cam.transform.position = new Vector3(site.CenterX, site.CenterY, cam.transform.position.z);
@@ -191,10 +170,11 @@ namespace WorldRelics
             if (!string.IsNullOrEmpty(_status))
             {
                 GUILayout.Space(6);
-                GUILayout.Label(_status, _headerStyle);
+                GameUiStyle.Label(_status, null, isHeader: true);
             }
 
             GUILayout.EndScrollView();
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
     }

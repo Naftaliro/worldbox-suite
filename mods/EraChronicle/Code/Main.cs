@@ -115,14 +115,7 @@ namespace EraChronicle
         private float _pollTimer = 0f;
         private readonly Dictionary<long, int> _kingdomEraTier = new Dictionary<long, int>();
         private readonly List<string> _recentEvents = new List<string>();
-        private Rect _windowRect = new Rect(360, 320, 320, 290);
-
-        private Texture2D _bgTex;
-        private Texture2D _btnTex;
-        private GUIStyle _boxStyle;
-        private GUIStyle _headerStyle;
-        private GUIStyle _labelStyle;
-        private GUIStyle _btnStyle;
+        private Rect _windowRect = new Rect(360, 320, 330, 315);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -335,78 +328,59 @@ namespace EraChronicle
             return name.Replace(' ', '_');
         }
 
-        private void EnsureStyles()
-        {
-            if (_boxStyle != null) return;
-            _bgTex = MakeTex(new Color(0.094f, 0.094f, 0.145f, 0.94f));
-            _btnTex = MakeTex(new Color(0.192f, 0.196f, 0.267f, 0.96f));
-
-            _boxStyle = new GUIStyle(GUI.skin.window) { padding = new RectOffset(12, 12, 24, 12) };
-            _boxStyle.normal.background = _bgTex;
-            _boxStyle.onNormal.background = _bgTex;
-            _boxStyle.normal.textColor = new Color(0.976f, 0.886f, 0.686f); // Catppuccin Yellow
-
-            _headerStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            _headerStyle.normal.textColor = new Color(0.706f, 0.745f, 0.996f);
-
-            _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _labelStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-            _btnStyle.normal.background = _btnTex;
-            _btnStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-        }
-
-        private static Texture2D MakeTex(Color col)
-        {
-            var t = new Texture2D(1, 1);
-            t.SetPixel(0, 0, col);
-            t.Apply();
-            return t;
-        }
-
         private void OnGUI()
         {
             if (!_showHud || Settings == null) return;
-            EnsureStyles();
-            _windowRect = GUI.Window(941207, _windowRect, DrawHud, "EraChronicle (F7)", _boxStyle);
+            GameUiStyle.BeginFrame();
+            _windowRect = GUI.Window(941207, _windowRect, DrawHud, "EraChronicle (F7)", GameUiStyle.WindowStyle);
+            GameUiStyle.DrawTooltip(949006);
         }
 
         private void DrawHud(int id)
         {
+            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
             var stats = GetMapStats();
             int year = stats != null ? stats.history_current_year : 0;
 
-            GUILayout.Label($"Year {year}  |  Tracked Kingdoms: {_kingdomEraTier.Count}", _headerStyle);
-            GUILayout.Label($"Last Snapshot Year: {(_lastSnapshotYear < 0 ? "None" : _lastSnapshotYear.ToString())}", _labelStyle);
+            GameUiStyle.Label($"Year {year}  |  Tracked Kingdoms: {_kingdomEraTier.Count}", "Chronicle Status|Current world year and how many kingdoms have unlocked era milestones so far.", isHeader: true);
+            GameUiStyle.Label($"Last Snapshot Year: {(_lastSnapshotYear < 0 ? "None" : _lastSnapshotYear.ToString())}", "Snapshot History|Most recent year saved to JSON for population and war charts in WorldBox Studio.");
             GUILayout.Space(6);
 
-            if (GUILayout.Button($"Era Progression: {(Settings.EnableEraProgression ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Era Progression: {(Settings.EnableEraProgression ? "ON" : "OFF")}",
+                Settings.EnableEraProgression,
+                "5-Tier Kingdom Eras|Advances kingdoms from Dawn Age up to High Hegemony based on population and cities, granting kings and soldiers milestone traits."))
             {
                 Settings.EnableEraProgression = !Settings.EnableEraProgression;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Auto Snapshots (every {Settings.SnapshotIntervalYears}y): {(Settings.EnableAutoSnapshots ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Auto Snapshots (every {Settings.SnapshotIntervalYears}y): {(Settings.EnableAutoSnapshots ? "ON" : "OFF")}",
+                Settings.EnableAutoSnapshots,
+                "Automated World Chronicle|Periodically writes kingdom populations, eras, and war casualties to JSON files readable in WorldBox Studio."))
             {
                 Settings.EnableAutoSnapshots = !Settings.EnableAutoSnapshots;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button("Record Chronicle Snapshot Now", _btnStyle) && stats != null)
+            if (GameUiStyle.Button(
+                "Record Chronicle Snapshot Now",
+                "Save Snapshot Immediately|Captures a fresh history entry for the current year and saves it to EraChronicle/chronicles/.") && stats != null)
             {
                 RecordSnapshot(stats);
                 _lastSnapshotYear = year;
             }
 
             GUILayout.Space(6);
-            GUILayout.Label("Recent Milestones:", _headerStyle);
+            GameUiStyle.Label("Recent Milestones:", "Recent Era Events|Latest kingdoms to ascend to a higher historical era.", isHeader: true);
             int shown = 0;
             for (int i = _recentEvents.Count - 1; i >= 0 && shown < 4; i--, shown++)
             {
-                GUILayout.Label("• " + _recentEvents[i], _labelStyle);
+                GameUiStyle.Subtle("• " + _recentEvents[i]);
             }
 
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
     }

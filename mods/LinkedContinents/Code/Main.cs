@@ -28,14 +28,7 @@ namespace LinkedContinents
         private bool _showHud = false;
         private float _scanTimer = 0f;
         private int _pendingIncoming = 0;
-        private Rect _windowRect = new Rect(18, 320, 320, 305);
-
-        private Texture2D _bgTex;
-        private Texture2D _btnTex;
-        private GUIStyle _boxStyle;
-        private GUIStyle _headerStyle;
-        private GUIStyle _labelStyle;
-        private GUIStyle _btnStyle;
+        private Rect _windowRect = new Rect(18, 320, 330, 330);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -444,75 +437,57 @@ namespace LinkedContinents
             return world.GetTile(w / 2, h / 2);
         }
 
-        private void EnsureStyles()
-        {
-            if (_boxStyle != null) return;
-            _bgTex = MakeTex(new Color(0.094f, 0.094f, 0.145f, 0.94f));
-            _btnTex = MakeTex(new Color(0.192f, 0.196f, 0.267f, 0.96f));
-
-            _boxStyle = new GUIStyle(GUI.skin.window) { padding = new RectOffset(12, 12, 24, 12) };
-            _boxStyle.normal.background = _bgTex;
-            _boxStyle.onNormal.background = _bgTex;
-            _boxStyle.normal.textColor = new Color(0.580f, 0.886f, 0.835f); // Catppuccin Teal
-
-            _headerStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            _headerStyle.normal.textColor = new Color(0.537f, 0.706f, 0.980f); // Catppuccin Blue
-
-            _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _labelStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-            _btnStyle.normal.background = _btnTex;
-            _btnStyle.normal.textColor = new Color(0.804f, 0.839f, 0.957f);
-        }
-
-        private static Texture2D MakeTex(Color col)
-        {
-            var t = new Texture2D(1, 1);
-            t.SetPixel(0, 0, col);
-            t.Apply();
-            return t;
-        }
-
         private void OnGUI()
         {
             if (!_showHud || Settings == null) return;
-            EnsureStyles();
-            _windowRect = GUI.Window(941206, _windowRect, DrawHud, "LinkedContinents Portal (F11)", _boxStyle);
+            GameUiStyle.BeginFrame();
+            _windowRect = GUI.Window(941206, _windowRect, DrawHud, "LinkedContinents Portal (F11)", GameUiStyle.WindowStyle);
+            GameUiStyle.DrawTooltip(949005);
         }
 
         private void DrawHud(int id)
         {
-            GUILayout.Label($"World: {CurrentWorldName()}", _headerStyle);
-            GUILayout.Label($"Sent: {FleetsSent}  |  Landed: {FleetsReceived}  |  Incoming: {_pendingIncoming}", _labelStyle);
+            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            GameUiStyle.Label($"World: {CurrentWorldName()}", "Current Save World|The name of your currently loaded WorldBox save used to route incoming cross-world fleets.", isHeader: true);
+            GameUiStyle.Label($"Sent: {FleetsSent}  |  Landed: {FleetsReceived}  |  Incoming: {_pendingIncoming}", "Portal Traffic|Expedition fleets dispatched from this world, landed here, and currently waiting in portal_queue.json.");
             GUILayout.Space(6);
 
-            GUILayout.Label("Target Linked Continent Name:", _labelStyle);
-            Settings.LinkedTargetWorld = GUILayout.TextField(Settings.LinkedTargetWorld ?? "");
+            GameUiStyle.Label("Target Linked Continent Name:", "Destination World Name|Type the exact world name of another WorldBox save (or leave blank to land in the next save you open).");
+            Settings.LinkedTargetWorld = GUILayout.TextField(Settings.LinkedTargetWorld ?? "", GameUiStyle.TextFieldStyle);
 
-            if (GUILayout.Button($"Outbound Ocean Edge: {Settings.OutboundEdge}", _btnStyle))
+            if (GameUiStyle.Button(
+                $"Outbound Ocean Edge: {Settings.OutboundEdge}",
+                "Outbound Map Edge|Boats carrying troops that sail past this map border are queued and arrive on the opposite coast of the linked world."))
             {
                 Settings.OutboundEdge = (OceanEdge)(((int)Settings.OutboundEdge + 1) % 4);
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button($"Auto Edge Transfers: {(Settings.AutoEdgeTransfers ? "ON" : "OFF")}", _btnStyle))
+            if (GameUiStyle.ToggleButton(
+                $"Auto Edge Transfers: {(Settings.AutoEdgeTransfers ? "ON" : "OFF")}",
+                Settings.AutoEdgeTransfers,
+                "Automatic Ocean Portal|Automatically scans the configured outbound map edge and transfers departing passenger ships into portal_queue.json."))
             {
                 Settings.AutoEdgeTransfers = !Settings.AutoEdgeTransfers;
                 Settings.Save(_declare.FolderPath);
             }
 
-            if (GUILayout.Button("Dispatch Expedition Force (12 Soldiers)", _btnStyle))
+            if (GameUiStyle.Button(
+                "Dispatch Expedition Force (12 Soldiers)",
+                "Send Manual Expedition|Immediately selects up to 12 soldiers from your strongest kingdom and queues them to invade or reinforce the target save."))
             {
                 Settings.Save(_declare.FolderPath);
                 LaunchManualExpedition();
             }
 
-            if (GUILayout.Button($"Land Incoming Fleets ({_pendingIncoming} waiting)", _btnStyle))
+            if (GameUiStyle.Button(
+                $"Land Incoming Fleets ({_pendingIncoming} waiting)",
+                "Receive Waiting Fleets|Spawns all queued expedition units targeting this world along the matching arrival coastline."))
             {
                 ReceiveIncomingFleets();
             }
 
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
     }

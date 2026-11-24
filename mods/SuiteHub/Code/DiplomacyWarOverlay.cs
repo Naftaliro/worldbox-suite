@@ -15,48 +15,53 @@ namespace SuiteHub
         private static Vector2 _scroll;
         private static int _subTab = 0; // 0 = Active Wars & Battles, 1 = Diplomacy Matrix
 
-        public static void Draw(GUIStyle box, GUIStyle header, GUIStyle label, GUIStyle btn)
+        public static void Draw(System.Action onClose)
         {
             if (!_rectInitialized)
             {
                 _rectInitialized = true;
-                _rect = new Rect(Screen.width > 420 ? Screen.width - 375 : 20, 76, 355, 390);
+                _rect = new Rect(Screen.width > 420 ? Screen.width - 375 : 20, 76, 365, 405);
             }
-            _rect = GUI.Window(941210, _rect, id => DrawContent(header, label, btn), "War & Diplomacy Monitor (F4)", box);
+            _rect = GUI.Window(941210, _rect, id => DrawContent(onClose), "War & Diplomacy Monitor (F4)", GameUiStyle.WindowStyle);
         }
 
-        private static void DrawContent(GUIStyle header, GUIStyle label, GUIStyle btn)
+        private static void DrawContent(System.Action onClose)
         {
+            GameUiStyle.DrawCloseButton(_rect, onClose);
             var world = MapBox.instance;
             if (world == null)
             {
-                GUILayout.Label("Load a world to view diplomacy.", label);
+                GameUiStyle.Label("Load a world to view diplomacy.");
+                GameUiStyle.CaptureTooltip();
                 GUI.DragWindow();
                 return;
             }
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button(_subTab == 0 ? "[Wars & Battles]" : "Wars & Battles", btn)) _subTab = 0;
-            if (GUILayout.Button(_subTab == 1 ? "[Relations Matrix]" : "Relations Matrix", btn)) _subTab = 1;
+            if (GameUiStyle.ToggleButton("Wars & Battles", _subTab == 0, "Wars & Live Battles|Show ongoing wars, total casualties, and active skirmish hotspots with 1-click camera jump buttons."))
+                _subTab = 0;
+            if (GameUiStyle.ToggleButton("Relations Matrix", _subTab == 1, "Kingdom Relations Matrix|Inspect pairwise opinion scores and war status between the top civilized kingdoms."))
+                _subTab = 1;
             GUILayout.EndHorizontal();
 
             GUILayout.Space(6);
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(305));
+            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(315));
 
             if (_subTab == 0)
             {
-                DrawWarsAndHotspots(world, header, label, btn);
+                DrawWarsAndHotspots(world);
             }
             else
             {
-                DrawRelationsMatrix(world, header, label, btn);
+                DrawRelationsMatrix(world);
             }
 
             GUILayout.EndScrollView();
+            GameUiStyle.CaptureTooltip();
             GUI.DragWindow();
         }
 
-        private static void DrawWarsAndHotspots(MapBox world, GUIStyle header, GUIStyle label, GUIStyle btn)
+        private static void DrawWarsAndHotspots(MapBox world)
         {
             var wars = new List<War>();
             if (world.wars != null)
@@ -67,10 +72,10 @@ namespace SuiteHub
                 }
             }
 
-            GUILayout.Label($"Active Wars ({wars.Count})", header);
+            GameUiStyle.Label($"Active Wars ({wars.Count})", "Active Wars|All wars currently underway in this world, along with combined casualties.", isHeader: true);
             if (wars.Count == 0)
             {
-                GUILayout.Label("The world is currently at peace.", label);
+                GameUiStyle.Subtle("The world is currently at peace.");
             }
             else
             {
@@ -81,21 +86,21 @@ namespace SuiteHub
                     long dead = w.getDeadAttackers() + w.getDeadDefenders();
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label($"{w.name} ({dead} dead)", label);
-                    if (def?.capital?.getTile() != null && GUILayout.Button("Jump", btn, GUILayout.Width(52)))
+                    GameUiStyle.Label($"{w.name} ({dead} dead)", $"War Details|{atk?.name ?? "?"} vs {def?.name ?? "?"} — {dead} total casualties so far.");
+                    if (def?.capital?.getTile() != null && GameUiStyle.Button("Jump", $"Jump to Capital|Pan the camera straight to {def.name}'s capital.", GUILayout.Width(54)))
                     {
                         JumpCameraToTile(def.capital.getTile());
                     }
                     GUILayout.EndHorizontal();
-                    GUILayout.Label($"   {atk?.name ?? "?"}  vs  {def?.name ?? "?"}", label);
+                    GameUiStyle.Subtle($"   {atk?.name ?? "?"}  vs  {def?.name ?? "?"}");
                 }
             }
 
             GUILayout.Space(8);
-            GUILayout.Label($"Live Battle Hotspots ({BattleRadarSystem.Hotspots.Count})", header);
+            GameUiStyle.Label($"Live Battle Hotspots ({BattleRadarSystem.Hotspots.Count})", "Battle Hotspots|Recent clusters of combat hits detected by the Battlefield Conflict Radar.", isHeader: true);
             if (BattleRadarSystem.Hotspots.Count == 0)
             {
-                GUILayout.Label("No active skirmishes detected right now.", label);
+                GameUiStyle.Subtle("No active skirmishes detected right now.");
             }
             else
             {
@@ -104,8 +109,8 @@ namespace SuiteHub
                     var h = BattleRadarSystem.Hotspots[i];
                     if (h.Hits < 2) continue;
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label($"{h.SideA} vs {h.SideB} ({h.Hits} hits)", label);
-                    if (GUILayout.Button("Go", btn, GUILayout.Width(42)))
+                    GameUiStyle.Label($"{h.SideA} vs {h.SideB} ({h.Hits} hits)", $"Active Skirmish|{h.Hits} recent combat strikes between {h.SideA} and {h.SideB} at ({(int)h.X}, {(int)h.Y}).");
+                    if (GameUiStyle.Button("Go", "Jump to Battle|Pan the camera directly to this active skirmish.", GUILayout.Width(44)))
                     {
                         JumpCameraToCoords(h.X, h.Y);
                     }
@@ -114,7 +119,7 @@ namespace SuiteHub
             }
         }
 
-        private static void DrawRelationsMatrix(MapBox world, GUIStyle header, GUIStyle label, GUIStyle btn)
+        private static void DrawRelationsMatrix(MapBox world)
         {
             var civs = new List<Kingdom>();
             if (world.kingdoms != null)
@@ -126,10 +131,10 @@ namespace SuiteHub
             }
             civs.Sort((a, b) => b.getPopulationPeople().CompareTo(a.getPopulationPeople()));
 
-            GUILayout.Label($"Civilized Kingdoms ({civs.Count})", header);
+            GameUiStyle.Label($"Civilized Kingdoms ({civs.Count})", "Top Kingdoms|Sorted by population. Hover or click Find to jump straight to a kingdom's capital.", isHeader: true);
             if (civs.Count == 0)
             {
-                GUILayout.Label("No active kingdoms yet.", label);
+                GameUiStyle.Subtle("No active kingdoms yet.");
                 return;
             }
 
@@ -138,8 +143,8 @@ namespace SuiteHub
             {
                 Kingdom k = civs[i];
                 GUILayout.BeginHorizontal();
-                GUILayout.Label($"{k.name} ({k.getPopulationPeople()} pop, {k.cities?.Count ?? 0} cities)", header);
-                if (k.capital?.getTile() != null && GUILayout.Button("Find", btn, GUILayout.Width(46)))
+                GameUiStyle.Label($"{k.name} ({k.getPopulationPeople()} pop, {k.cities?.Count ?? 0} cities)", $"Kingdom Overview|{k.name} controls {k.cities?.Count ?? 0} cities with {k.getPopulationPeople()} citizens.", isHeader: true);
+                if (k.capital?.getTile() != null && GameUiStyle.Button("Find", $"Find {k.name}|Center the camera on {k.name}'s capital city.", GUILayout.Width(48)))
                 {
                     JumpCameraToTile(k.capital.getTile());
                 }
@@ -168,7 +173,7 @@ namespace SuiteHub
                         }
                         status = op <= -30 ? $"Hostile ({op})" : (op >= 30 ? $"Friendly (+{op})" : $"Neutral ({op})");
                     }
-                    GUILayout.Label($"   ↔ {other.name}: {status}", label);
+                    GameUiStyle.Label($"   ↔ {other.name}: {status}", $"Diplomatic Standing|Average bilateral opinion between {k.name} and {other.name}: {status}.");
                 }
                 GUILayout.Space(4);
             }
