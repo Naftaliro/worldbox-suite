@@ -6,21 +6,20 @@ catppuccin mocha everywhere.
 
 ## install
 
-clone the repo, then run the installer for your OS. it finds your Steam WorldBox folder, grabs `NeoModLoader.dll` if you don't have it yet, and copies all 8 mods into `Mods/`.
-
-**windows (powershell):**
+**windows (one-liner in powershell — no git needed):**
 ```powershell
-.\scripts\install_mods.ps1
+irm https://raw.githubusercontent.com/Naftaliro/worldbox-suite/main/scripts/install.ps1 | iex
 ```
 
-**mac / linux:**
-```bash
-./scripts/install_mods.sh
-```
+that auto-detects your Steam WorldBox install across drives, downloads `NeoModLoader.dll` if you don't have it yet, and installs all 8 mods into `Mods/`.
 
-if WorldBox is on another drive, pass the path directly:
+if you already cloned the repo:
+* **windows:** double-click `install.bat` (or run `powershell -ExecutionPolicy Bypass -File .\scripts\install_mods.ps1`)
+* **mac / linux:** run `./scripts/install_mods.sh`
+
+if WorldBox is on a custom path:
 ```powershell
-.\scripts\install_mods.ps1 -WorldBoxDir "D:\SteamLibrary\steamapps\common\worldbox"
+powershell -ExecutionPolicy Bypass -File .\scripts\install_mods.ps1 -WorldBoxDir "D:\SteamLibrary\steamapps\common\worldbox"
 ```
 
 open WorldBox, go to settings, turn on **Experimental Mode**, and restart. NeoModLoader compiles the `Code/*.cs` files on startup so you don't need `.NET` installed just to play. once you're in a world, click the **WorldBox Suite** tab on the bottom power bar (or use `F2`–`F12`).

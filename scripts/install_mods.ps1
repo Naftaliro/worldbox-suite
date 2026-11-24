@@ -6,13 +6,30 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 if (-not $WorldBoxDir) {
-    $Candidates = @(
-        "C:\Program Files (x86)\Steam\steamapps\common\worldbox",
-        "C:\Program Files\Steam\steamapps\common\worldbox",
-        "D:\SteamLibrary\steamapps\common\worldbox",
-        "E:\SteamLibrary\steamapps\common\worldbox"
-    )
-    foreach ($c in $Candidates) {
+    $Candidates = [System.Collections.Generic.List[string]]::new()
+    $SteamRoots = @("C:\Program Files (x86)\Steam", "C:\Program Files\Steam")
+    try {
+        $regPath = (Get-ItemProperty -Path "HKCU:\Software\Valve\Steam" -Name "SteamPath" -ErrorAction SilentlyContinue).SteamPath
+        if ($regPath) { $SteamRoots += ($regPath -replace "/", "\") }
+    } catch {}
+
+    foreach ($steam in ($SteamRoots | Select-Object -Unique)) {
+        $Candidates.Add((Join-Path $steam "steamapps\common\worldbox"))
+        $vdf = Join-Path $steam "steamapps\libraryfolders.vdf"
+        if (Test-Path $vdf) {
+            foreach ($line in (Get-Content $vdf -ErrorAction SilentlyContinue)) {
+                if ($line -match '"path"\s+"([^"]+)"') {
+                    $lib = $Matches[1] -replace '\\\\', '\'
+                    $Candidates.Add((Join-Path $lib "steamapps\common\worldbox"))
+                }
+            }
+        }
+    }
+    foreach ($d in @("D", "E", "F", "G")) {
+        $Candidates.Add("${d}:\SteamLibrary\steamapps\common\worldbox")
+        $Candidates.Add("${d}:\Steam\steamapps\common\worldbox")
+    }
+    foreach ($c in ($Candidates | Select-Object -Unique)) {
         if (Test-Path (Join-Path $c "worldbox_Data\StreamingAssets")) {
             $WorldBoxDir = $c
             break
