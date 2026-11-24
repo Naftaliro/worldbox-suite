@@ -85,7 +85,7 @@ try {
     Expand-Archive -Path $ZipPath -DestinationPath $TmpRoot -Force
 
     $Extracted = Join-Path $TmpRoot "worldbox-suite-main"
-    $SuiteMods = @("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "WorldRelics")
+    $SuiteMods = @("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "WorldRelics", "CoopHost")
 
     # Clean up legacy standalone Arsenal folder if present (folded into ModernAge Tier 1)
     $LegacyArsenal = Join-Path $ModsDir "Arsenal"
@@ -98,7 +98,7 @@ try {
         if (Test-Path $Dst) { Remove-Item -Recurse -Force $Dst }
         New-Item -ItemType Directory -Force -Path $Dst | Out-Null
 
-        foreach ($item in @("mod.json", "icon.png", "Code", "Locales", "GameResources")) {
+        foreach ($item in @("mod.json", "icon.png", "Code", "Locales", "GameResources", "WebClient")) {
             $SrcItem = Join-Path $Src $item
             if (Test-Path $SrcItem) {
                 Copy-Item -Recurse -Force $SrcItem (Join-Path $Dst $item)

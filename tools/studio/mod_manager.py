@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import shutil
+import subprocess
+import webbrowser
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +15,23 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = REPO_ROOT / "local" / "studio_config.json"
+
+CORE_MOD_NAMES = [
+    "SuiteHub",
+    "CoreScale",
+    "VisualPolish",
+    "GrandWarfare",
+    "LinkedContinents",
+    "EraChronicle",
+    "ApexFactions",
+    "WorldRelics",
+    "CoopHost",
+]
+
+DEFAULT_PROFILES = {
+    "Classic Medieval": CORE_MOD_NAMES,
+    "Modern Warfare": CORE_MOD_NAMES + ["ModernAge"],
+}
 
 
 def _detect_game_dir() -> str:
@@ -34,7 +54,8 @@ def load_config() -> dict[str, Any]:
         "saves_dir": str(REPO_ROOT / "local" / "saves"),
         "output_dir": str(REPO_ROOT / "local" / "output"),
         "game_streaming_assets": _detect_game_dir(),
-        "profiles": {},
+        "profiles": dict(DEFAULT_PROFILES),
+        "world_profiles": {},
     }
     if CONFIG_PATH.exists():
         try:
@@ -42,6 +63,11 @@ def load_config() -> dict[str, Any]:
             defaults.update(saved)
         except Exception:
             pass
+    # Always ensure built-in starter profiles exist
+    profs = defaults.setdefault("profiles", {})
+    for pname, pmods in DEFAULT_PROFILES.items():
+        profs.setdefault(pname, list(pmods))
+    defaults.setdefault("world_profiles", {})
     return defaults
 
 
@@ -161,8 +187,61 @@ def deploy_suite_mod(cfg: dict[str, Any], folder_name: str) -> dict[str, Any]:
         shutil.rmtree(dst)
     if (disabled_dir / folder_name).exists():
         shutil.rmtree(disabled_dir / folder_name)
-    shutil.copytree(src, dst)
+    dst.mkdir(parents=True, exist_ok=True)
+    for item in ("mod.json", "icon.png", "Code", "Locales", "GameResources", "WebClient"):
+        s_item = src / item
+        if s_item.is_dir():
+            shutil.copytree(s_item, dst / item)
+        elif s_item.is_file():
+            shutil.copy2(s_item, dst / item)
     return list_mods(cfg)
+
+
+def bind_world_profile(cfg: dict[str, Any], save_id: str, profile_name: str) -> dict[str, Any]:
+    cfg.setdefault("world_profiles", {})[save_id] = profile_name
+    save_config(cfg)
+    return cfg
+
+
+def launch_worldbox(cfg: dict[str, Any], profile_name: str | None = None) -> dict[str, Any]:
+    """Optionally deploy + switch to a mod profile, then launch Steam WorldBox."""
+    applied = None
+    if profile_name:
+        profiles = cfg.get("profiles", {})
+        if profile_name in profiles:
+            # Ensure every suite/expansion module listed in the profile is deployed
+            state = list_mods(cfg)
+            installed_names = {m["folder"] for m in state["installed"]}
+            for mod_name in profiles[profile_name]:
+                if mod_name not in installed_names:
+                    if (REPO_ROOT / "mods" / mod_name).exists() or (REPO_ROOT / "expansions" / mod_name).exists():
+                        deploy_suite_mod(cfg, mod_name)
+            apply_profile(cfg, profile_name)
+            applied = profile_name
+
+    # Trigger Steam WorldBox launch (AppID 1206560)
+    steam_uri = "steam://rungameid/1206560"
+    launched = False
+    system = platform.system()
+    try:
+        if system == "Windows":
+            os.startfile(steam_uri)  # type: ignore[attr-defined]
+            launched = True
+        elif system == "Darwin":
+            subprocess.Popen(["open", steam_uri])
+            launched = True
+        else:
+            webbrowser.open(steam_uri)
+            launched = True
+    except Exception:
+        launched = False
+
+    return {
+        "applied_profile": applied,
+        "launched": launched,
+        "steam_uri": steam_uri,
+        "mods": list_mods(cfg),
+    }
 
 
 def save_profile(cfg: dict[str, Any], profile_name: str) -> dict[str, Any]:

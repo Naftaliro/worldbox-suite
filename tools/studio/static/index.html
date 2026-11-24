@@ -238,6 +238,14 @@
               <a id="ins-download" class="btn secondary" style="text-decoration:none; display:none;">Download .wbox</a>
             </div>
           </div>
+          <div class="row" id="ins-launcher" style="display:none; margin-bottom:12px; padding:10px 12px; background:var(--surface0); border:1px solid var(--border); border-radius:10px; justify-content:space-between;">
+            <div class="row">
+              <span class="muted">World Mod Profile:</span>
+              <select id="world-prof-select"></select>
+              <button class="btn secondary" onclick="saveWorldProfile()">Bind Profile</button>
+            </div>
+            <button class="btn green" onclick="launchBoundWorld()">Switch Mods &amp; Launch WorldBox</button>
+          </div>
           <div class="map-wrap">
             <img id="ins-img" alt="World preview" style="display:none;" />
             <div id="ins-empty" class="muted" style="padding:40px;">Choose a save from the left to inspect it.</div>
@@ -379,9 +387,13 @@
         </div>
 
         <div class="card">
-          <h2>Mod Profiles</h2>
+          <h2>Mod Profiles &amp; Quick Launch</h2>
           <div class="row" style="margin-bottom:10px;">
-            <input id="prof-name" type="text" placeholder="e.g. Twin Continents War" style="flex:1;" />
+            <button class="btn green" style="flex:1;" onclick="launchProfile('Classic Medieval')">Play Classic Medieval</button>
+            <button class="btn" style="flex:1;" onclick="launchProfile('Modern Warfare')">Play Modern Warfare</button>
+          </div>
+          <div class="row" style="margin-bottom:10px;">
+            <input id="prof-name" type="text" placeholder="Save custom profile..." style="flex:1;" />
             <button id="btn-save-prof" class="btn secondary">Save Current</button>
           </div>
           <div id="profiles-list"></div>
@@ -406,7 +418,7 @@
 <div id="toast" class="toast"></div>
 
 <script>
-const state = { saves: [], selectedId: null, stitchOrder: [] };
+const state = { saves: [], selectedId: null, stitchOrder: [], config: { profiles: {}, world_profiles: {} } };
 
 function toast(msg) {
   const el = document.getElementById("toast");
@@ -518,7 +530,9 @@ function selectSave(id) {
   dl.href = `/api/saves/${encodeURIComponent(id)}/download`;
   dl.style.display = "inline-block";
   document.getElementById("ins-tweaks").style.display = "flex";
+  document.getElementById("ins-launcher").style.display = "flex";
   document.getElementById("twk-world-name").value = sum.name;
+  refreshWorldProfileSelect();
 
   updateInspectorImage();
 
@@ -629,10 +643,53 @@ document.getElementById("btn-stitch").onclick = async () => {
 // Mod manager
 async function loadModManager() {
   const cfg = await api("/api/config");
+  state.config = cfg;
   document.getElementById("cfg-game").value = cfg.game_streaming_assets || "";
   document.getElementById("cfg-saves").value = cfg.saves_dir || "";
   renderMods(await api("/api/mods"));
+  refreshWorldProfileSelect();
 }
+
+function refreshWorldProfileSelect() {
+  const sel = document.getElementById("world-prof-select");
+  if (!sel) return;
+  const profs = Object.keys((state.config && state.config.profiles) || {});
+  const bound = (state.config && state.config.world_profiles && state.selectedId)
+    ? state.config.world_profiles[state.selectedId]
+    : (profs[0] || "Classic Medieval");
+  sel.innerHTML = profs.map((p) => `<option value="${p}" ${p === bound ? "selected" : ""}>${p}</option>`).join("");
+}
+
+window.saveWorldProfile = async () => {
+  if (!state.selectedId) return;
+  const profile_name = document.getElementById("world-prof-select").value;
+  state.config = await api("/api/worlds/profile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ save_id: state.selectedId, profile_name }),
+  });
+  toast(`Bound world to "${profile_name}" profile`);
+};
+
+window.launchProfile = async (profile_name) => {
+  try {
+    const res = await api("/api/launch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile_name }),
+    });
+    if (res.mods) renderMods(res.mods);
+    toast(`Switched to "${profile_name}" & launching WorldBox!`);
+  } catch (err) {
+    toast("Launch error: " + err.message);
+  }
+};
+
+window.launchBoundWorld = async () => {
+  const profile_name = document.getElementById("world-prof-select").value;
+  await window.saveWorldProfile();
+  await window.launchProfile(profile_name);
+};
 
 function renderMods(data) {
   document.getElementById("mod-dir-note").textContent = data.using_local_staging

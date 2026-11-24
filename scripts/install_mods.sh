@@ -46,12 +46,12 @@ else
 fi
 
 rm -rf "$MODS_DIR/Arsenal"
-for mod in SuiteHub CoreScale VisualPolish GrandWarfare LinkedContinents EraChronicle ApexFactions WorldRelics; do
+for mod in SuiteHub CoreScale VisualPolish GrandWarfare LinkedContinents EraChronicle ApexFactions WorldRelics CoopHost; do
   SRC="$ROOT_DIR/mods/$mod"
   DST="$MODS_DIR/$mod"
   rm -rf "$DST"
   mkdir -p "$DST"
-  for item in mod.json icon.png Code Locales GameResources; do
+  for item in mod.json icon.png Code Locales GameResources WebClient; do
     if [ -e "$SRC/$item" ]; then
       cp -R "$SRC/$item" "$DST/$item"
     fi

@@ -38,6 +38,7 @@ open WorldBox, go to settings, turn on **Experimental Mode**, and restart. NeoMo
 * **EraChronicle** (`F7`): 5-tier kingdom era progression (*Dawn Age* through *High Hegemony*) with milestone buffs and JSON history snapshots readable in WorldBox Studio.
 * **ApexFactions** (`F12`): the **Warden** "Sleeping Giant" doctrine (strong, peaceful humans who never start wars, rally relentlessly if attacked, and force a ceasefire once the attacker drops to 15% of its war-start pop), instant species awakener (`civ_wolf` + `makeSapient` for all wild animals), and feral pack domains (*Land of the Wolves*, *Land of the Bears*, etc.).
 * **WorldRelics** (`Alt+R`): large cities fortify their borders with gated walls, friendly cities across narrow ocean straits build stone sea bridges, and fallen empires leave behind walls and roadworks that slowly weather over 100–300+ years (`wall_order`/`wall_iron` -> `wall_ancient` -> mossy `wall_green` -> vine-covered `wall_wild`) while younger tribes settle inside the ruins.
+* **CoopHost** (`Alt+C`): host-authoritative co-op god mode. starts a zero-admin HTTP server on port `27777` (works over LAN, Tailscale, or `playit.gg` with a 4-digit join PIN) and serves a live interactive browser **Co-Op God Console** — independent pan/zoom camera, live units/cities/wars, simultaneous terrain brushes, unit/animal/tank/jet spawners, disasters, and a live guest cursor drawn right inside the host's WorldBox game.
 
 ### opt-in expansion (`expansions/ModernAge/` — `Alt+M`)
 
@@ -48,15 +49,18 @@ kept separate from the classic pack so melee playthroughs stay pure unless you o
 * **tier 3 (modern warfare):** main battle tanks (MBTs), attack helicopters, supersonic jets, and automated capital **Radar & SAM defense domes** **vs.** guided anti-armor launchers and radar-guided SAM infantry.
 * **governments & international trade:** 6 government types (*Monarchy, Republic, Collectivist, Merchant League, Military Junta, Technocracy*) and trade specialties (*Breadbasket, Armory State lend-lease, Maritime Hub, Research Hub*).
 
-### worldbox studio & cli (`tools/`)
+### worldbox studio & per-world launcher (`tools/`)
 
-pure python 3 (no pip installs needed):
+pure python 3 (no pip installs needed). double-click **`WorldBox Studio.bat`** on Windows (opens as a clean desktop-style app window) or **`WorldBox Studio.command`** on macOS, or run:
 
 ```bash
 python3 -m tools.studio.server
 ```
 
-open `http://127.0.0.1:8765` for the **World Inspector**, **World Stitcher** (merge 2+ `.wbox` saves with ocean channels, stepping-stone archipelagos, and instant war/peace presets), **Chronicle Viewer**, and **Mod Manager** (deploys both core mods and the `ModernAge` expansion).
+open `http://127.0.0.1:8765` for:
+* **per-world mod profiles & 1-click launch:** bind any save to **Classic Medieval** (zero guns) or **Modern Warfare** (enables `ModernAge`), then hit *Switch Mods & Launch WorldBox* — no digging through folders or `.dll` files.
+* **world inspector & stitcher:** render `.wbox` maps, merge 2+ worlds with stepping-stone archipelagos and war/peace presets, or tweak saves.
+* **chronicle viewer & mod manager:** SVG population timelines, custom mod profiles, and `.zip` save backups.
 
 ## building it
 

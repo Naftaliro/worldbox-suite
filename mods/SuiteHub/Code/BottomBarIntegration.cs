@@ -112,6 +112,13 @@ namespace SuiteHub
                 );
                 tab.AddPowerButton("suite_modules", relicsBtn);
 
+                PowerButton coopBtn = PowerButtonCreator.CreateSimpleButton(
+                    "suite_coop_host",
+                    () => Main.Instance?.ToggleCompanionHud("CoopHost.Main"),
+                    LoadButtonSprite(Path.Combine(resDir, "btn_coop.png")) ?? tabIcon
+                );
+                tab.AddPowerButton("suite_modules", coopBtn);
+
                 // Only add the ModernAge expansion button when the opt-in expansion is installed
                 if (Main.IsCompanionLoaded("ModernAge.Main"))
                 {

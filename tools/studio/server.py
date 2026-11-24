@@ -25,7 +25,9 @@ from tools.wbox import (
 from .mod_manager import (
     apply_profile,
     backup_saves,
+    bind_world_profile,
     deploy_suite_mod,
+    launch_worldbox,
     list_mods,
     load_config,
     save_config,
@@ -345,6 +347,17 @@ class StudioHandler(BaseHTTPRequestHandler):
 
             if path == "/api/profiles/apply":
                 res = apply_profile(cfg, str(body["name"]))
+                self._send_json(res)
+                return
+
+            if path == "/api/worlds/profile":
+                res = bind_world_profile(cfg, str(body["save_id"]), str(body["profile_name"]))
+                self._send_json(res)
+                return
+
+            if path == "/api/launch":
+                prof = body.get("profile_name")
+                res = launch_worldbox(cfg, str(prof) if prof else None)
                 self._send_json(res)
                 return
 

@@ -23,6 +23,8 @@
   "suite_apex_factions_description": "Open the Warden Sleeping Giant doctrine, Species Awakener, and Feral Pack Domains panel (Hotkey: F12).",
   "suite_world_relics": "WorldRelics: Walls, Bridges & Ruins",
   "suite_world_relics_description": "Manage city perimeter walls, narrow sea bridges, and centuries-long decaying mossy ruins (Hotkey: Alt+R).",
+  "suite_coop_host": "Co-Op God Mode Host",
+  "suite_coop_host_description": "Host a live browser Co-Op God Console over LAN / Tailscale / playit.gg (Hotkey: Alt+C).",
   "suite_modern_age": "ModernAge Expansion",
   "suite_modern_age_description": "Open the opt-in Tier 1-3 modern warfare, governments, trade, and radar panel (Hotkey: Alt+M)."
 }

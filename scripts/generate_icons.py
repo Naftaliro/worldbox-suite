@@ -192,6 +192,24 @@ TEMPLATES: dict[str, list[str]] = {
         ".bbbbbbbbbbbbbb.",
         "................",
     ],
+    "CoopHost": [
+        "................",
+        ".bbbbbbbbbbbbbb.",
+        ".bssssssssssssb.",
+        ".bs.cc....mm.sb.",
+        ".bs.ccc..mmm.sb.",
+        ".bs.ccccmmmm.sb.",
+        ".bs..cc..mm..sb.",
+        ".bs..c....m..sb.",
+        ".bs....ee....sb.",
+        ".bs..eeeeee..sb.",
+        ".bs.eettttee.sb.",
+        ".bs..eeeeee..sb.",
+        ".bs....ee....sb.",
+        ".bssssssssssssb.",
+        ".bbbbbbbbbbbbbb.",
+        "................",
+    ],
     "btn_battle_radar": [
         "................",
         ".bbbbbbbbbbbbbb.",
@@ -248,7 +266,7 @@ def render_template(rows: list[str], scale: int = 4) -> bytes:
 
 
 def main() -> None:
-    for mod in ("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "WorldRelics"):
+    for mod in ("SuiteHub", "CoreScale", "VisualPolish", "GrandWarfare", "LinkedContinents", "EraChronicle", "ApexFactions", "WorldRelics", "CoopHost"):
         out = REPO_ROOT / "mods" / mod / "icon.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(render_template(TEMPLATES[mod], scale=4))
@@ -273,6 +291,7 @@ def main() -> None:
         "btn_apex.png": "ApexFactions",
         "btn_relics.png": "WorldRelics",
         "btn_modern.png": "ModernAge",
+        "btn_coop.png": "CoopHost",
     }
     for fname, tpl in btn_map.items():
         p = res_dir / fname

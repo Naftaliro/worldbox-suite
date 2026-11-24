@@ -1,0 +1,9 @@
+{
+  "name": "CoopHost",
+  "author": "naftaliro",
+  "version": "0.1.0",
+  "GUID": "dev.3hz.worldbox.coophost",
+  "description": "Host-authoritative Co-Op God Mode: streams your live world to a companion browser God Console (LAN / Tailscale / playit.gg) so two players share one map with independent cameras and simultaneous god powers (Alt+C HUD).",
+  "RepoUrl": "https://github.com/naftaliro/worldbox-suite",
+  "iconPath": "icon.png"
+}

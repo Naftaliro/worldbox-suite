@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WorldBox Co-Op God Console</title>
+<style>
+  :root {
+    --crust: #11111b;
+    --mantle: #181825;
+    --base: #1e1e2e;
+    --surface0: #313244;
+    --surface1: #45475a;
+    --subtext0: #a6adc8;
+    --text: #cdd6f4;
+    --mauve: #cba6f7;
+    --lavender: #b4befe;
+    --blue: #89b4fa;
+    --sapphire: #74c7ec;
+    --teal: #94e2d5;
+    --green: #a6e3a1;
+    --yellow: #f9e2af;
+    --peach: #fab387;
+    --red: #f38ba8;
+  }
+  * { box-sizing: border-box; user-select: none; }
+  body {
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--crust);
+    color: var(--text);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--mantle);
+    border-bottom: 1px solid var(--surface1);
+    font-size: 13px;
+  }
+  header strong { color: var(--mauve); font-size: 15px; }
+  .layout { flex: 1; display: flex; min-height: 0; }
+  .sidebar {
+    width: 270px;
+    background: var(--mantle);
+    border-right: 1px solid var(--surface1);
+    padding: 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .rightbar {
+    width: 250px;
+    background: var(--mantle);
+    border-left: 1px solid var(--surface1);
+    padding: 12px;
+    overflow-y: auto;
+    font-size: 12px;
+  }
+  .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--lavender); margin: 4px 0; font-weight: 700; }
+  .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tool-btn {
+    background: var(--surface0);
+    color: var(--text);
+    border: 1px solid var(--surface1);
+    border-radius: 7px;
+    padding: 7px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .tool-btn:hover { border-color: var(--lavender); }
+  .tool-btn.active { border-color: var(--mauve); background: #3b3552; color: var(--mauve); font-weight: 600; }
+  .tool-btn.danger { border-color: rgba(243, 139, 168, 0.45); color: var(--red); }
+  .viewport {
+    flex: 1;
+    position: relative;
+    background: var(--crust);
+    overflow: hidden;
+    cursor: crosshair;
+  }
+  canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  .hud-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(24, 24, 37, 0.88);
+    border: 1px solid var(--surface1);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--subtext0);
+  }
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 17, 27, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .modal {
+    background: var(--mantle);
+    border: 1px solid var(--mauve);
+    border-radius: 14px;
+    padding: 24px;
+    width: 340px;
+  }
+  .modal h2 { margin: 0 0 8px; color: var(--mauve); font-size: 18px; }
+  .modal input {
+    width: 100%;
+    padding: 9px 11px;
+    margin: 6px 0 12px;
+    border-radius: 8px;
+    border: 1px solid var(--surface1);
+    background: var(--surface0);
+    color: var(--text);
+    font-size: 14px;
+  }
+  .modal button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: var(--mauve);
+    color: var(--crust);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .item-row { padding: 5px 0; border-bottom: 1px solid var(--surface0); display: flex; justify-content: space-between; align-items: center; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .log-line { color: var(--subtext0); margin: 4px 0; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div id="login-modal" class="modal-bg">
+  <div class="modal">
+    <h2>WorldBox Co-Op Console</h2>
+    <div style="color:var(--subtext0); font-size:13px; margin-bottom:12px;">Enter your name and the host's 4-digit Join PIN from WorldBox (Alt+C).</div>
+    <label style="font-size:12px; color:var(--subtext0);">Your Name</label>
+    <input id="inp-name" type="text" value="Co-Op God" />
+    <label style="font-size:12px; color:var(--subtext0);">4-Digit Host PIN</label>
+    <input id="inp-pin" type="text" placeholder="e.g. 4829" />
+    <button id="btn-join">Connect to Live World</button>
+    <div id="login-err" style="color:var(--red); font-size:12px; margin-top:8px;"></div>
+  </div>
+</div>
+
+<header>
+  <div><strong>WorldBox Co-Op</strong> &nbsp;·&nbsp; <span id="hdr-world">Connecting...</span></div>
+  <div id="hdr-status" style="color:var(--subtext0);">Scroll to zoom · Right-drag to pan · Left-click to use power</div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="section-title">Mode &amp; Brush Size (<span id="rad-val">3</span>)</div>
+    <input id="rad-slider" type="range" min="1" max="12" value="3" />
+    <div class="tool-grid">
+      <button class="tool-btn active" data-type="pan" data-asset="">Pan / Look</button>
+      <button class="tool-btn" data-type="power" data-asset="bless">Bless &amp; Heal</button>
+    </div>
+
+    <div class="section-title">Spawn Units &amp; Beasts</div>
+    <div class="tool-grid" id="spawn-grid">
+      <button class="tool-btn" data-type="spawn" data-asset="human">Humans</button>
+      <button class="tool-btn" data-type="spawn" data-asset="elf">Elves</button>
+      <button class="tool-btn" data-type="spawn" data-asset="orc">Orcs</button>
+      <button class="tool-btn" data-type="spawn" data-asset="dwarf">Dwarves</button>
+      <button class="tool-btn" data-type="spawn" data-asset="wolf">Wolves</button>
+      <button class="tool-btn" data-type="spawn" data-asset="civ_wolf">Wolfkin</button>
+      <button class="tool-btn" data-type="spawn" data-asset="bear">Bears</button>
+      <button class="tool-btn" data-type="spawn" data-asset="dragon">Dragon</button>
+    </div>
+
+    <div id="modern-section" style="display:none;">
+      <div class="section-title">ModernAge Units</div>
+      <div class="tool-grid">
+        <button class="tool-btn" data-type="spawn" data-asset="modern_light_tank">Light Tank</button>
+        <button class="tool-btn" data-type="spawn" data-asset="modern_mbt">Main Tank</button>
+        <button class="tool-btn" data-type="spawn" data-asset="modern_attack_heli">Attack Heli</button>
+        <button class="tool-btn" data-type="spawn" data-asset="modern_jet">Fighter Jet</button>
+      </div>
+    </div>
+
+    <div class="section-title">Terrain &amp; Building Brushes</div>
+    <div class="tool-grid">
+      <button class="tool-btn" data-type="terrain" data-asset="grass">Grassland</button>
+      <button class="tool-btn" data-type="terrain" data-asset="sand">Sand</button>
+      <button class="tool-btn" data-type="terrain" data-asset="deep_ocean">Deep Ocean</button>
+      <button class="tool-btn" data-type="terrain" data-asset="mountains">Mountains</button>
+      <button class="tool-btn" data-type="terrain" data-asset="jungle">Jungle</button>
+      <button class="tool-btn" data-type="terrain" data-asset="permafrost">Permafrost</button>
+      <button class="tool-btn" data-type="terrain" data-asset="road">Road / Bridge</button>
+      <button class="tool-btn" data-type="terrain" data-asset="wall">Stone Wall</button>
+    </div>
+
+    <div class="section-title">God Powers &amp; Disasters</div>
+    <div class="tool-grid">
+      <button class="tool-btn danger" data-type="power" data-asset="lightning">Lightning</button>
+      <button class="tool-btn danger" data-type="power" data-asset="meteor">Meteor</button>
+      <button class="tool-btn danger" data-type="power" data-asset="fire">Fire</button>
+      <button class="tool-btn" data-type="power" data-asset="rain">Rain</button>
+    </div>
+
+    <div class="section-title">Global Controls</div>
+    <div class="tool-grid">
+      <button class="tool-btn" onclick="sendGlobalPower('pause')">Pause / Play</button>
+      <button class="tool-btn" onclick="sendGlobalPower('peace')">World Peace</button>
+      <button class="tool-btn danger" onclick="sendGlobalPower('war')">Spark War</button>
+      <button class="tool-btn" onclick="resetCamera()">Fit Map</button>
+    </div>
+  </aside>
+
+  <div class="viewport" id="viewport">
+    <canvas id="canvas"></canvas>
+    <div class="hud-hint" id="coords-hint">Tile: --, --</div>
+  </div>
+
+  <aside class="rightbar">
+    <div class="section-title">Kingdoms</div>
+    <div id="kingdoms-list"></div>
+    <div class="section-title" style="margin-top:12px;">Active Wars</div>
+    <div id="wars-list"></div>
+    <div class="section-title" style="margin-top:12px;">Co-Op Feed</div>
+    <div id="coop-log"></div>
+  </aside>
+</div>
+
+<script>
+const COLORS = {
+  deep_ocean:[24,58,108], close_ocean:[36,86,146], shallow_waters:[66,134,186],
+  sand:[232,212,144], soil_low:[146,102,66], soil_high:[122,84,52],
+  hills:[118,122,128], mountains:[92,96,104], summit:[222,230,238],
+  grass_low:[116,178,72], grass_high:[86,148,54], jungle_low:[48,134,62], jungle_high:[32,106,48],
+  savanna_low:[196,176,82], savanna_high:[176,150,62], permafrost_low:[192,218,232], permafrost_high:[168,200,220],
+  desert_low:[228,198,126], desert_high:[212,176,104], road:[168,154,130], field:[204,178,86],
+  wall_order:[196,204,218], wall_iron:[124,136,156], wall_ancient:[156,148,132], wall_green:[96,154,96], wall_wild:[74,134,76]
+};
+
+let pin = "", guestName = "Co-Op God";
+let activeTool = { type: "pan", asset: "" };
+let worldW = 256, worldH = 256, terrainRev = -1;
+let terrainCanvas = document.createElement("canvas");
+let latestState = null;
+
+// Camera (world coords at viewport center + zoom pixels per tile)
+let camX = 128, camY = 128, zoom = 2.5;
+let dragging = false, dragMode = "pan", lastMouseX = 0, lastMouseY = 0;
+let lastCursorSent = 0;
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+  const r = document.getElementById("viewport").getBoundingClientRect();
+  canvas.width = r.width;
+  canvas.height = r.height;
+}
+window.addEventListener("resize", resize);
+resize();
+
+function resetCamera() {
+  camX = worldW / 2;
+  camY = worldH / 2;
+  zoom = Math.min(canvas.width / Math.max(1, worldW), canvas.height / Math.max(1, worldH)) * 0.92;
+}
+
+function screenToWorld(sx, sy) {
+  const wx = camX + (sx - canvas.width / 2) / zoom;
+  const wy = camY - (sy - canvas.height / 2) / zoom;
+  return [Math.floor(wx), Math.floor(wy)];
+}
+
+function worldToScreen(wx, wy) {
+  return [
+    canvas.width / 2 + (wx - camX) * zoom,
+    canvas.height / 2 - (wy - camY) * zoom
+  ];
+}
+
+document.querySelectorAll(".tool-btn[data-type]").forEach((btn) => {
+  btn.onclick = () => {
+    document.querySelectorAll(".tool-btn[data-type]").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeTool = { type: btn.dataset.type, asset: btn.dataset.asset };
+  };
+});
+
+document.getElementById("rad-slider").oninput = (e) => {
+  document.getElementById("rad-val").textContent = e.target.value;
+};
+
+async function sendAction(payload) {
+  if (!pin) return;
+  try {
+    await fetch(`/api/action?pin=${encodeURIComponent(pin)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guestName, radius: parseInt(document.getElementById("rad-slider").value, 10), ...payload })
+    });
+  } catch (_) {}
+}
+
+window.sendGlobalPower = (power) => sendAction({ type: "power", asset: power, x: Math.floor(camX), y: Math.floor(camY) });
+
+async function fetchTerrain() {
+  const res = await fetch(`/api/terrain?pin=${encodeURIComponent(pin)}`);
+  if (!res.ok) return;
+  const d = await res.json();
+  if (!d.gridBase64) return;
+
+  const firstLoad = terrainRev < 0;
+  worldW = d.width;
+  worldH = d.height;
+  terrainRev = d.revision;
+
+  const bin = atob(d.gridBase64);
+  terrainCanvas.width = worldW;
+  terrainCanvas.height = worldH;
+  const tctx = terrainCanvas.getContext("2d");
+  const img = tctx.createImageData(worldW, worldH);
+  const palRGB = d.palette.map((name) => COLORS[name] || (name.includes("ocean") ? [30,75,135] : [115,155,85]));
+
+  for (let y = 0; y < worldH; y++) {
+    const imgY = worldH - 1 - y;
+    const srcRow = y * worldW;
+    const dstRow = imgY * worldW * 4;
+    for (let x = 0; x < worldW; x++) {
+      const rgb = palRGB[bin.charCodeAt(srcRow + x)] || [110,110,110];
+      const p = dstRow + x * 4;
+      img.data[p] = rgb[0];
+      img.data[p + 1] = rgb[1];
+      img.data[p + 2] = rgb[2];
+      img.data[p + 3] = 255;
+    }
+  }
+  tctx.putImageData(img, 0, 0);
+  if (firstLoad) resetCamera();
+}
+
+async function pollState() {
+  if (!pin) return;
+  try {
+    const res = await fetch(`/api/state?pin=${encodeURIComponent(pin)}`);
+    if (!res.ok) return;
+    const st = await res.json();
+    latestState = st;
+    document.getElementById("hdr-world").textContent =
+      `${st.worldName} · Year ${st.year} · ${st.paused ? "PAUSED" : "LIVE"} · ${st.width}x${st.height}`;
+    document.getElementById("modern-section").style.display = st.modernAgeLoaded ? "block" : "none";
+
+    if (st.terrainRevision !== terrainRev && st.width > 0) {
+      fetchTerrain();
+    }
+
+    document.getElementById("kingdoms-list").innerHTML = (st.kingdoms || [])
+      .map((k) => `<div class="item-row"><span><span class="dot" style="background:${k.color}"></span>${k.name}</span><span style="color:var(--subtext0)">${k.pop}</span></div>`)
+      .join("") || '<div class="log-line">No kingdoms yet</div>';
+
+    document.getElementById("wars-list").innerHTML = (st.wars || [])
+      .map((w) => `<div class="item-row"><span style="color:var(--red)">${w.name}</span><span>${w.dead}</span></div>`)
+      .join("") || '<div class="log-line">World at peace</div>';
+
+    document.getElementById("coop-log").innerHTML = (st.log || []).slice().reverse()
+      .map((l) => `<div class="log-line">• ${l}</div>`).join("");
+  } catch (_) {}
+}
+
+function renderLoop() {
+  ctx.fillStyle = "#11111b";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (terrainCanvas.width > 0) {
+    ctx.imageSmoothingEnabled = false;
+    const [sx0, syTop] = worldToScreen(0, worldH);
+    ctx.drawImage(terrainCanvas, sx0, syTop, worldW * zoom, worldH * zoom);
+  }
+
+  if (latestState) {
+    const kColors = {};
+    (latestState.kingdoms || []).forEach((k) => (kColors[k.id] = k.color));
+
+    // Draw streamed units/ships/tanks/jets
+    const uSize = Math.max(2, Math.min(7, zoom * 0.85));
+    for (const u of (latestState.units || [])) {
+      const [sx, sy] = worldToScreen(u[0] + 0.5, u[1] + 0.5);
+      if (sx < -10 || sx > canvas.width + 10 || sy < -10 || sy > canvas.height + 10) continue;
+      const kind = u[3];
+      ctx.fillStyle = kind === 6 ? "#a6adc8" : (kColors[u[2]] || "#cba6f7");
+      if (kind === 2) { // boat
+        ctx.fillRect(sx - uSize * 1.1, sy - uSize * 0.6, uSize * 2.2, uSize * 1.2);
+      } else if (kind === 4 || kind === 5) { // tank / jet
+        ctx.fillStyle = kind === 5 ? "#74c7ec" : "#fab387";
+        ctx.fillRect(sx - uSize * 1.2, sy - uSize * 1.2, uSize * 2.4, uSize * 2.4);
+      } else {
+        ctx.fillRect(sx - uSize / 2, sy - uSize / 2, uSize, uSize);
+      }
+    }
+
+    // Draw city names
+    ctx.font = "600 11px sans-serif";
+    ctx.textAlign = "center";
+    for (const c of (latestState.cities || [])) {
+      const [sx, sy] = worldToScreen(c.x, c.y);
+      ctx.fillStyle = "rgba(17,17,27,0.75)";
+      ctx.fillText(c.name, sx + 1, sy - 5);
+      ctx.fillStyle = kColors[c.kingdomId] || "#cdd6f4";
+      ctx.fillText(c.name, sx, sy - 6);
+    }
+  }
+
+  requestAnimationFrame(renderLoop);
+}
+requestAnimationFrame(renderLoop);
+
+canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.18 : 0.85;
+  zoom = Math.max(0.4, Math.min(24, zoom * factor));
+});
+
+canvas.addEventListener("mousedown", (e) => {
+  dragging = true;
+  lastMouseX = e.offsetX;
+  lastMouseY = e.offsetY;
+  dragMode = (e.button === 2 || e.button === 1 || activeTool.type === "pan") ? "pan" : "paint";
+  if (dragMode === "paint") {
+    const [wx, wy] = screenToWorld(e.offsetX, e.offsetY);
+    sendAction({ type: activeTool.type, asset: activeTool.asset, x: wx, y: wy });
+  }
+});
+
+window.addEventListener("mouseup", () => (dragging = false));
+
+canvas.addEventListener("mousemove", (e) => {
+  const [wx, wy] = screenToWorld(e.offsetX, e.offsetY);
+  document.getElementById("coords-hint").textContent = `Tile: ${wx}, ${wy} · Tool: ${activeTool.asset || "Pan"}`;
+
+  const now = performance.now();
+  if (pin && now - lastCursorSent > 180) {
+    lastCursorSent = now;
+    sendAction({ type: "cursor", asset: "", x: wx, y: wy });
+  }
+
+  if (!dragging) return;
+  if (dragMode === "pan") {
+    camX -= (e.offsetX - lastMouseX) / zoom;
+    camY += (e.offsetY - lastMouseY) / zoom;
+    lastMouseX = e.offsetX;
+    lastMouseY = e.offsetY;
+  } else if (activeTool.type === "terrain") {
+    sendAction({ type: "terrain", asset: activeTool.asset, x: wx, y: wy });
+  }
+});
+
+document.getElementById("btn-join").onclick = async () => {
+  guestName = document.getElementById("inp-name").value.trim() || "Co-Op God";
+  pin = document.getElementById("inp-pin").value.trim();
+  const res = await fetch(`/api/state?pin=${encodeURIComponent(pin)}`);
+  if (!res.ok) {
+    document.getElementById("login-err").textContent = "Wrong PIN or server not running.";
+    pin = "";
+    return;
+  }
+  document.getElementById("login-modal").style.display = "none";
+  await pollState();
+  setInterval(pollState, 300);
+};
+</script>
+</body>
+</html>
