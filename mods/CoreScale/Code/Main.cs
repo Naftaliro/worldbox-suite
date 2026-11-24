@@ -170,8 +170,7 @@ namespace CoreScale
 
         private void DrawOverlayWindow(int id)
         {
-            var world = MapBox.instance;
-            string mapDims = world != null ? $"{world.width}x{world.height} tiles" : "No map";
+            string mapDims = MapBox.width > 0 ? $"{MapBox.width}x{MapBox.height} tiles" : "No map";
 
             GUILayout.Label($"FPS: {_fpsSmoothed:0.0}   |   Pop: {LivePopulation:N0}", _headerStyle);
             GUILayout.Label($"Map: {mapDims}", _labelStyle);

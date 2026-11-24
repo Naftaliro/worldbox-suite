@@ -1,3 +1,4 @@
+using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 
@@ -6,15 +7,18 @@ namespace CoreScale
     [HarmonyPatch(typeof(MoveCamera))]
     public static class CameraPatches
     {
+        private static readonly FieldInfo OrthoSizeMaxField =
+            AccessTools.Field(typeof(MoveCamera), "orthographic_size_max");
+
         [HarmonyPostfix]
-        [HarmonyPatch(nameof(MoveCamera.zoomToBounds))]
+        [HarmonyPatch("zoomToBounds")]
         private static void ZoomToBoundsPostfix(MoveCamera __instance)
         {
             ApplyZoomLimits(__instance);
         }
 
         [HarmonyPostfix]
-        [HarmonyPatch(nameof(MoveCamera.resetZoom))]
+        [HarmonyPatch("resetZoom")]
         private static void ResetZoomPostfix(MoveCamera __instance)
         {
             ApplyZoomLimits(__instance);
@@ -22,14 +26,14 @@ namespace CoreScale
 
         private static void ApplyZoomLimits(MoveCamera cam)
         {
-            if (cam == null || Main.Settings == null) return;
+            if (cam == null || Main.Settings == null || OrthoSizeMaxField == null) return;
 
-            var world = MapBox.instance;
-            if (world != null && world.width > 0 && world.height > 0)
+            if (MapBox.width > 0 && MapBox.height > 0)
             {
-                float maxDim = Mathf.Max(world.width, world.height);
-                float desiredMax = Mathf.Max(cam.orthographic_size_max, maxDim * 0.5f * Main.Settings.ZoomOutMultiplier);
-                cam.orthographic_size_max = desiredMax;
+                float maxDim = Mathf.Max(MapBox.width, MapBox.height);
+                float currentMax = OrthoSizeMaxField.GetValue(cam) is float f ? f : 150f;
+                float desiredMax = Mathf.Max(currentMax, maxDim * 0.5f * Main.Settings.ZoomOutMultiplier);
+                OrthoSizeMaxField.SetValue(cam, desiredMax);
             }
         }
     }

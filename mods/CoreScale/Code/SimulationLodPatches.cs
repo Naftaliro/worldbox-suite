@@ -1,4 +1,6 @@
 using System;
+using System.Reflection;
+using System.Threading.Tasks;
 using HarmonyLib;
 using UnityEngine;
 
@@ -8,7 +10,7 @@ namespace CoreScale
     public static class MapBoxParallelPatches
     {
         [HarmonyPostfix]
-        [HarmonyPatch(nameof(MapBox.Awake))]
+        [HarmonyPatch("Awake")]
         private static void AwakePostfix()
         {
             SimulationLodPatches.ApplyParallelSettings();
@@ -25,6 +27,12 @@ namespace CoreScale
     [HarmonyPatch(typeof(BatchActors))]
     public static class SimulationLodPatches
     {
+        private static readonly FieldInfo ParallelOptionsField =
+            AccessTools.Field(typeof(MapBox), "parallel_options");
+
+        private static readonly FieldInfo QualityChangerField =
+            AccessTools.Field(typeof(MapBox), "quality_changer");
+
         public static void ApplyParallelSettings()
         {
             if (Main.Settings == null || !Main.Settings.UnlockParallelism) return;
@@ -33,20 +41,20 @@ namespace CoreScale
             Config.parallel_chunk_manager = true;
 
             var world = MapBox.instance;
-            if (world != null && world.parallel_options != null)
+            if (world != null && ParallelOptionsField?.GetValue(world) is ParallelOptions opts)
             {
-                world.parallel_options.MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount - 1);
+                opts.MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount - 1);
             }
         }
 
         // Skip micro-sprite frame updates when zoomed far out into strategic/low-res view
         [HarmonyPrefix]
-        [HarmonyPatch(nameof(BatchActors.u3_spriteAnimation))]
+        [HarmonyPatch("u3_spriteAnimation")]
         private static bool SpriteAnimationPrefix()
         {
             if (Main.Settings == null || !Main.Settings.SkipAnimationsInStrategicZoom) return true;
-            var qc = MapBox.instance?.quality_changer;
-            if (qc != null && qc.isLowRes())
+            var world = MapBox.instance;
+            if (world != null && QualityChangerField?.GetValue(world) is QualityChanger qc && qc.isLowRes())
             {
                 return false;
             }
@@ -55,7 +63,7 @@ namespace CoreScale
 
         // Throttle ambient cosmetic checks at LOD Tier 1+
         [HarmonyPrefix]
-        [HarmonyPatch(nameof(BatchActors.updateHovering))]
+        [HarmonyPatch("updateHovering")]
         private static bool HoveringPrefix(BatchActors __instance)
         {
             if (Main.CurrentLodTier < 1) return true;
@@ -64,7 +72,7 @@ namespace CoreScale
         }
 
         [HarmonyPrefix]
-        [HarmonyPatch(nameof(BatchActors.updatePollinating))]
+        [HarmonyPatch("updatePollinating")]
         private static bool PollinatingPrefix(BatchActors __instance)
         {
             if (Main.CurrentLodTier < 1) return true;
@@ -74,7 +82,7 @@ namespace CoreScale
 
         // Time-slice heavy AI decisions across batches at LOD Tier 2+ (smoothly staggered by batch_id)
         [HarmonyPrefix]
-        [HarmonyPatch(nameof(BatchActors.b6_0_updateDecision))]
+        [HarmonyPatch("b6_0_updateDecision")]
         private static bool UpdateDecisionPrefix(BatchActors __instance)
         {
             if (Main.CurrentLodTier < 2) return true;
@@ -83,7 +91,7 @@ namespace CoreScale
         }
 
         [HarmonyPrefix]
-        [HarmonyPatch(nameof(BatchActors.b6_updateAI))]
+        [HarmonyPatch("b6_updateAI")]
         private static bool UpdateAiPrefix(BatchActors __instance)
         {
             if (Main.CurrentLodTier < 3) return true;

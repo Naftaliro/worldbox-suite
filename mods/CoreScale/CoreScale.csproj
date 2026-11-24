@@ -1,45 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
-    <LangVersion>latest</LangVersion>
     <AssemblyName>CoreScale</AssemblyName>
-    <Nullable>disable</Nullable>
-    <!-- Point WorldBoxManaged to worldbox_Data/Managed (or copy Managed DLLs into local/libs) -->
-    <WorldBoxManaged Condition="'$(WorldBoxManaged)' == ''">../../local/libs</WorldBoxManaged>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(WorldBoxManaged)/Assembly-CSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>$(WorldBoxManaged)/Newtonsoft.Json.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine">
-      <HintPath>$(WorldBoxManaged)/UnityEngine.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(WorldBoxManaged)/UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(WorldBoxManaged)/UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.InputLegacyModule">
-      <HintPath>$(WorldBoxManaged)/UnityEngine.InputLegacyModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="0Harmony" Condition="Exists('$(WorldBoxManaged)/0Harmony.dll')">
-      <HintPath>$(WorldBoxManaged)/0Harmony.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="NeoModLoader" Condition="Exists('$(WorldBoxManaged)/NeoModLoader.dll')">
-      <HintPath>$(WorldBoxManaged)/NeoModLoader.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-  </ItemGroup>
 </Project>

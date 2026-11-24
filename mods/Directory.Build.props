@@ -1,0 +1,35 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <NoStdLib>true</NoStdLib>
+    <NoConfig>true</NoConfig>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <!-- Point WorldBoxManaged to worldbox_Data/Managed (defaults to repo local/libs) -->
+    <WorldBoxManaged Condition="'$(WorldBoxManaged)' == ''">$(MSBuildThisFileDirectory)../local/libs</WorldBoxManaged>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Mono BCL from WorldBox Managed/ (enables 100% offline builds matching runtime) -->
+    <Reference Include="mscorlib"><HintPath>$(WorldBoxManaged)/mscorlib.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="netstandard"><HintPath>$(WorldBoxManaged)/netstandard.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System"><HintPath>$(WorldBoxManaged)/System.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Core"><HintPath>$(WorldBoxManaged)/System.Core.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- WorldBox, Unity, Harmony, and NeoModLoader -->
+    <Reference Include="Assembly-CSharp"><HintPath>$(WorldBoxManaged)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(WorldBoxManaged)/Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(WorldBoxManaged)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(WorldBoxManaged)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(WorldBoxManaged)/UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(WorldBoxManaged)/UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(WorldBoxManaged)/UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(WorldBoxManaged)/UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(WorldBoxManaged)/0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="NeoModLoader"><HintPath>$(WorldBoxManaged)/NeoModLoader.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>
