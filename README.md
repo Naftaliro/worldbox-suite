@@ -9,18 +9,18 @@ Open-source modding suite and standalone toolkit for **WorldBox – God Simulato
   * Lossless zlib decompress/recompress and inspection
   * Top-down biome & civilization map PNG renderer
   * **World Stitcher** — merge 2 or more saves side-by-side or in a grid with customizable ocean channels, full coordinate shifting (tiles, zones, buildings, actors, fire/ice), and complete entity ID remapping across kingdoms, cities, armies, clans, cultures, languages, religions, subspecies, families, books, items, wars, and diplomacy.
-* **`tools/studio`** — Local web UI (**WorldBox Studio & Mod Manager**):
+* **`tools/studio`** — Local web UI (**WorldBox Studio & Mod Manager**, Catppuccin Mocha themed):
   * Visual map inspector and live world stitcher
   * World history, kingdoms, wars, and stats browser
   * NeoModLoader mod manager (install/toggle/profiles/save backups)
 
 ### In-Game Mods (`mods/`) — NeoModLoader (C#)
-Planned and scaffolded modules sharing a unified architecture (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
-* **`CoreScale`** — Custom map dimensions, off-screen simulation LOD & tick throttling, strategic zoom view, and army battalion consolidation.
-* **`LinkedContinents`** — Multi-world ocean borders allowing fleets and armies to cross between separate continent saves.
-* **`GrandWarfare`** — Naval combat, amphibious invasions, supply lines/attrition, vassals, and expanded diplomacy.
-* **`VisualPolish`** — Extended camera zoom, atmospheric lighting/day-night shaders, and strategic map overlays.
-* **`EraChronicle`** — Extended tech era progression and automated war/history timeline snapshots.
+Modular suite sharing a unified architecture (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
+* **`CoreScale`** *(implemented — v0.1.0)* — Giant map presets up to 24×24 chunks (`Colossal`, `Continental`, `Planetary`, `Leviathan`), multi-core parallelism tuning, adaptive batch simulation LOD throttling, extended zoom, and an `F8` Catppuccin Mocha perf HUD.
+* **`LinkedContinents`** *(planned)* — Multi-world ocean borders allowing fleets and armies to cross between separate continent saves.
+* **`GrandWarfare`** *(planned)* — Naval combat, amphibious invasions, supply lines/attrition, vassals, and expanded diplomacy.
+* **`VisualPolish`** *(planned)* — Extended camera zoom, atmospheric lighting/day-night shaders, and strategic map overlays.
+* **`EraChronicle`** *(planned)* — Extended tech era progression and automated war/history timeline snapshots.
 
 ## Quick Start
 
