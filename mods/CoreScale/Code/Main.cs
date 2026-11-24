@@ -68,6 +68,8 @@ namespace CoreScale
             Debug.Log("[CoreScale] Unloaded and unpatched.");
         }
 
+        public void ToggleHud() => _showOverlay = !_showOverlay;
+
         private void Update()
         {
             if (Settings == null) return;

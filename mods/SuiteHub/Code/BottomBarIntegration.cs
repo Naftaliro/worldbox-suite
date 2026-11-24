@@ -33,7 +33,7 @@ namespace SuiteHub
                     return;
                 }
 
-                tab.SetLayout(new List<string> { "suite_controls", "suite_conflict", "suite_worlds" });
+                tab.SetLayout(new List<string> { "suite_controls", "suite_conflict", "suite_worlds", "suite_modules" });
 
                 PowerButton hubBtn = PowerButtonCreator.CreateSimpleButton(
                     "suite_open_hub",
@@ -41,6 +41,20 @@ namespace SuiteHub
                     LoadButtonSprite(Path.Combine(resDir, "btn_hub.png")) ?? tabIcon
                 );
                 tab.AddPowerButton("suite_controls", hubBtn);
+
+                PowerButton scaleBtn = PowerButtonCreator.CreateSimpleButton(
+                    "suite_core_scale",
+                    () => Main.Instance?.ToggleCompanionHud("CoreScale.Main"),
+                    LoadButtonSprite(Path.Combine(resDir, "btn_scale.png")) ?? tabIcon
+                );
+                tab.AddPowerButton("suite_controls", scaleBtn);
+
+                PowerButton visBtn = PowerButtonCreator.CreateSimpleButton(
+                    "suite_visual_polish",
+                    () => Main.Instance?.ToggleCompanionHud("VisualPolish.Main"),
+                    LoadButtonSprite(Path.Combine(resDir, "btn_visual.png")) ?? tabIcon
+                );
+                tab.AddPowerButton("suite_controls", visBtn);
 
                 PowerButton warBtn = PowerButtonCreator.CreateSimpleButton(
                     "suite_war_matrix",
@@ -56,6 +70,13 @@ namespace SuiteHub
                 );
                 tab.AddPowerButton("suite_conflict", radarBtn);
 
+                PowerButton gwBtn = PowerButtonCreator.CreateSimpleButton(
+                    "suite_grand_warfare",
+                    () => Main.Instance?.ToggleCompanionHud("GrandWarfare.Main"),
+                    LoadButtonSprite(Path.Combine(resDir, "btn_war_matrix.png")) ?? tabIcon
+                );
+                tab.AddPowerButton("suite_conflict", gwBtn);
+
                 PowerButton worldBtn = PowerButtonCreator.CreateSimpleButton(
                     "suite_world_builder",
                     () => Main.Instance?.ToggleWorldBuilder(),
@@ -63,12 +84,26 @@ namespace SuiteHub
                 );
                 tab.AddPowerButton("suite_worlds", worldBtn);
 
+                PowerButton portalBtn = PowerButtonCreator.CreateSimpleButton(
+                    "suite_linked_continents",
+                    () => Main.Instance?.ToggleCompanionHud("LinkedContinents.Main"),
+                    LoadButtonSprite(Path.Combine(resDir, "btn_portal.png")) ?? tabIcon
+                );
+                tab.AddPowerButton("suite_worlds", portalBtn);
+
                 PowerButton apexBtn = PowerButtonCreator.CreateSimpleButton(
                     "suite_apex_factions",
-                    () => Main.Instance?.ToggleApexFactionsIfLoaded(),
+                    () => Main.Instance?.ToggleCompanionHud("ApexFactions.Main"),
                     LoadButtonSprite(Path.Combine(resDir, "btn_apex.png")) ?? tabIcon
                 );
-                tab.AddPowerButton("suite_worlds", apexBtn);
+                tab.AddPowerButton("suite_modules", apexBtn);
+
+                PowerButton chrBtn = PowerButtonCreator.CreateSimpleButton(
+                    "suite_era_chronicle",
+                    () => Main.Instance?.ToggleCompanionHud("EraChronicle.Main"),
+                    LoadButtonSprite(Path.Combine(resDir, "btn_chronicle.png")) ?? tabIcon
+                );
+                tab.AddPowerButton("suite_modules", chrBtn);
 
                 tab.UpdateLayout();
                 _initialized = true;

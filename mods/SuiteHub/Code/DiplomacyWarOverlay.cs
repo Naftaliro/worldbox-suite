@@ -10,12 +10,18 @@ namespace SuiteHub
         private static readonly FieldInfo Opinion1Field = AccessTools.Field(typeof(DiplomacyRelation), "opinion_k1");
         private static readonly FieldInfo Opinion2Field = AccessTools.Field(typeof(DiplomacyRelation), "opinion_k2");
 
-        private static Rect _rect = new Rect(Screen.width > 420 ? Screen.width - 375 : 20, 76, 355, 390);
+        private static bool _rectInitialized = false;
+        private static Rect _rect = new Rect(20, 76, 355, 390);
         private static Vector2 _scroll;
         private static int _subTab = 0; // 0 = Active Wars & Battles, 1 = Diplomacy Matrix
 
         public static void Draw(GUIStyle box, GUIStyle header, GUIStyle label, GUIStyle btn)
         {
+            if (!_rectInitialized)
+            {
+                _rectInitialized = true;
+                _rect = new Rect(Screen.width > 420 ? Screen.width - 375 : 20, 76, 355, 390);
+            }
             _rect = GUI.Window(941210, _rect, id => DrawContent(header, label, btn), "War & Diplomacy Monitor (F4)", box);
         }
 

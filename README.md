@@ -46,10 +46,16 @@ python3 -m tools.wbox stitch \
   --preview local/output/twin_continents.png
 ```
 
-### 3. Install Mods in WorldBox (Desktop)
-1. Enable **Experimental Mode** in WorldBox settings.
-2. Place `NeoModLoader.dll` into `worldbox_Data/StreamingAssets/mods/` and launch once.
-3. Copy any module folder from `mods/` (e.g., `mods/CoreScale`) into your WorldBox `Mods/` folder (or click **Deploy** inside WorldBox Studio's Mod Manager tab). NeoModLoader compiles `Code/*.cs` automatically at launch.
+### 3. One-Click Install Mods in WorldBox (Desktop)
+**Windows (PowerShell):**
+```powershell
+.\scripts\install_mods.ps1
+```
+**macOS / Linux:**
+```bash
+./scripts/install_mods.sh
+```
+The installer auto-detects Steam's WorldBox folder, downloads `NeoModLoader.dll` if needed, and installs all 7 mods cleanly. Turn on **Experimental Mode** in WorldBox Settings, restart, and click the **WorldBox Suite** tab on the bottom power bar (or use `F2`–`F12`).
 
 ### 4. Build All Mods & Run Tests Locally
 Copy WorldBox's `worldbox_Data/Managed/*.dll`, `NeoModLoader.dll`, and `0Harmony.dll` into `local/libs/` (gitignored), then run:

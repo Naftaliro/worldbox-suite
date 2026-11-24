@@ -146,6 +146,8 @@ namespace EraChronicle
             Debug.Log("[EraChronicle] Unloaded.");
         }
 
+        public void ToggleHud() => _showHud = !_showHud;
+
         private static MapStats GetMapStats()
         {
             var world = MapBox.instance;

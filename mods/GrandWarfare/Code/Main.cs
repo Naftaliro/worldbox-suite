@@ -64,6 +64,8 @@ namespace GrandWarfare
             Debug.Log("[GrandWarfare] Unloaded.");
         }
 
+        public void ToggleHud() => _showWarRoom = !_showWarRoom;
+
         private void Update()
         {
             if (Settings == null) return;

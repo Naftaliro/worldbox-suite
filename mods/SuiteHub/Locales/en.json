@@ -9,6 +9,16 @@
   "suite_battle_radar_description": "Toggle pulsing on-map combat markers and live skirmish counters (Hotkey: F3).",
   "suite_world_builder": "Multi-Continent Builder",
   "suite_world_builder_description": "Generate a brand-new pre-stitched multi-continent world with custom biomes and ocean channels (Hotkey: F2).",
+  "suite_core_scale": "CoreScale Perf & Battalions",
+  "suite_core_scale_description": "Open CoreScale LOD, FPS, and Army Battalion Compression panel (Hotkey: F8).",
+  "suite_visual_polish": "VisualPolish Lighting",
+  "suite_visual_polish_description": "Open atmospheric lighting, vignette, day/night, and photo mode controls (Hotkey: F9).",
+  "suite_grand_warfare": "GrandWarfare War Room",
+  "suite_grand_warfare_description": "Open naval combat, supply attrition, and defense pacts controls (Hotkey: F10).",
+  "suite_linked_continents": "LinkedContinents Portal",
+  "suite_linked_continents_description": "Open cross-world ocean expedition portal controls (Hotkey: F11).",
+  "suite_era_chronicle": "EraChronicle History",
+  "suite_era_chronicle_description": "Open kingdom eras and automated world chronicle recorder (Hotkey: F7).",
   "suite_apex_factions": "ApexFactions & Wild Realms",
   "suite_apex_factions_description": "Open the Warden Sleeping Giant doctrine, Species Awakener, and Feral Pack Domains panel (Hotkey: F12)."
 }

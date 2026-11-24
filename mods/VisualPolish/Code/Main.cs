@@ -58,6 +58,8 @@ namespace VisualPolish
             Debug.Log("[VisualPolish] Unloaded.");
         }
 
+        public void ToggleHud() => _showPanel = !_showPanel;
+
         private void BuildTextures()
         {
             _pixelTex = new Texture2D(1, 1);

@@ -21,7 +21,7 @@ namespace SuiteHub
         private float _initDelay = 0f;
         private float _pruneTimer = 0f;
 
-        private Rect _hubRect = new Rect(20, 76, 300, 310);
+        private Rect _hubRect = new Rect(20, 76, 310, 395);
 
         private Texture2D _bgTex;
         private Texture2D _btnTex;
@@ -63,17 +63,17 @@ namespace SuiteHub
         public void ToggleWorldBuilder() => _showWorldBuilder = !_showWorldBuilder;
         public void ToggleBattleRadar() => BattleRadarSystem.Enabled = !BattleRadarSystem.Enabled;
 
-        public void ToggleApexFactionsIfLoaded()
+        public void ToggleCompanionHud(string mainTypeName)
         {
             try
             {
-                Type t = AccessTools.TypeByName("ApexFactions.Main");
+                Type t = AccessTools.TypeByName(mainTypeName);
                 object inst = t?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
                 t?.GetMethod("ToggleHud", BindingFlags.Public | BindingFlags.Instance)?.Invoke(inst, null);
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[SuiteHub] ApexFactions not loaded: {e.Message}");
+                Debug.LogWarning($"[SuiteHub] Companion module {mainTypeName} not loaded: {e.Message}");
             }
         }
 
@@ -173,14 +173,13 @@ namespace SuiteHub
                 ToggleWorldBuilder();
 
             GUILayout.Space(8);
-            GUILayout.Label("Companion Module Hotkeys:", _headerStyle);
-            GUILayout.Label("• F6  Photo Mode (Hide UI)", _labelStyle);
-            GUILayout.Label("• F7  EraChronicle History HUD", _labelStyle);
-            GUILayout.Label("• F8  CoreScale Perf & Battalions HUD", _labelStyle);
-            GUILayout.Label("• F9  VisualPolish Lighting & Zoom", _labelStyle);
-            GUILayout.Label("• F10 GrandWarfare Naval & Pacts", _labelStyle);
-            GUILayout.Label("• F11 LinkedContinents Ocean Portal", _labelStyle);
-            GUILayout.Label("• F12 ApexFactions Wardens & Wolves", _labelStyle);
+            GUILayout.Label("Suite Module Panels:", _headerStyle);
+            if (GUILayout.Button("CoreScale Perf & Battalions (F8)", _btnStyle)) ToggleCompanionHud("CoreScale.Main");
+            if (GUILayout.Button("VisualPolish Lighting & Zoom (F9)", _btnStyle)) ToggleCompanionHud("VisualPolish.Main");
+            if (GUILayout.Button("GrandWarfare War Room (F10)", _btnStyle)) ToggleCompanionHud("GrandWarfare.Main");
+            if (GUILayout.Button("LinkedContinents Portal (F11)", _btnStyle)) ToggleCompanionHud("LinkedContinents.Main");
+            if (GUILayout.Button("EraChronicle History (F7)", _btnStyle)) ToggleCompanionHud("EraChronicle.Main");
+            if (GUILayout.Button("ApexFactions Wardens & Wolves (F12)", _btnStyle)) ToggleCompanionHud("ApexFactions.Main");
 
             GUI.DragWindow();
         }

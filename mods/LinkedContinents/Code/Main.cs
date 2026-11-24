@@ -59,6 +59,12 @@ namespace LinkedContinents
             Debug.Log("[LinkedContinents] Unloaded.");
         }
 
+        public void ToggleHud()
+        {
+            _showHud = !_showHud;
+            RefreshPendingCount();
+        }
+
         private string CurrentWorldName()
         {
             var world = MapBox.instance;
