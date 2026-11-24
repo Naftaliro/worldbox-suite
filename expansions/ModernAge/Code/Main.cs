@@ -45,6 +45,7 @@ namespace ModernAge
                 _harmony = new Harmony(_declare.UID);
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
                 ModernAssetRegistry.RegisterAll();
+                VehicleSpritePatches.LoadSprites(_declare.FolderPath);
                 Debug.Log($"[ModernAge] Expansion loaded v{_declare.Version}");
             }
             catch (Exception e)

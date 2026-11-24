@@ -131,9 +131,9 @@ try {
 
 Write-Host ""
 if ($env:WORLDBOX_MODERN -eq "1" -or $env:WORLDBOX_MODERN -eq "true") {
-    Write-Host "Core pack (8 mods) + ModernAge Expansion installed!" -ForegroundColor Cyan
+    Write-Host "Core pack (9 mods) + ModernAge Expansion installed!" -ForegroundColor Cyan
 } else {
-    Write-Host "Classic Core pack (8 mods) installed!" -ForegroundColor Cyan
+    Write-Host "Classic Core pack (9 mods) installed!" -ForegroundColor Cyan
     Write-Host "Want Tier 1-3 firearms, tanks, jets, and modern geopolitics too? Run:" -ForegroundColor DarkGray
     Write-Host '  $env:WORLDBOX_MODERN=1; irm https://raw.githubusercontent.com/Naftaliro/worldbox-suite/main/scripts/install.ps1 | iex' -ForegroundColor Gray
 }

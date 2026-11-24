@@ -15,6 +15,7 @@ namespace GrandWarfare
         public static int NavalVolleysFired { get; internal set; }
         public static int ShipsSunk { get; internal set; }
         public static int AttritionTicksApplied { get; internal set; }
+        public static readonly List<string> ActiveBlockades = new List<string>();
 
         // Defense pacts: kingdomId -> set of allied defender kingdomIds
         public static readonly Dictionary<long, HashSet<long>> DefensePacts = new Dictionary<long, HashSet<long>>();
@@ -95,6 +96,10 @@ namespace GrandWarfare
                 {
                     _supplyTimer = 0f;
                     SupplyLineSystem.TickSupplyAttrition();
+                    if (Settings.EnableNavalBlockades)
+                    {
+                        NavalCombatSystem.TickNavalBlockades();
+                    }
                 }
             }
         }
@@ -144,7 +149,7 @@ namespace GrandWarfare
 
             GUILayout.Label($"Active Wars: {activeWars}  |  Pacts: {DefensePacts.Count}", _headerStyle);
             GUILayout.Label($"Naval Volleys: {NavalVolleysFired}  |  Ships Sunk: {ShipsSunk}", _labelStyle);
-            GUILayout.Label($"Supply Attrition Ticks: {AttritionTicksApplied}", _labelStyle);
+            GUILayout.Label($"Supply Attrition: {AttritionTicksApplied}  |  Blockades: {ActiveBlockades.Count}", _labelStyle);
             GUILayout.Space(6);
 
             if (GUILayout.Button($"Naval Combat: {(Settings.EnableNavalCombat ? "ON" : "OFF")}", _btnStyle))
@@ -156,6 +161,12 @@ namespace GrandWarfare
             if (GUILayout.Button($"Coastal Bombardment: {(Settings.EnableCoastalBombardment ? "ON" : "OFF")}", _btnStyle))
             {
                 Settings.EnableCoastalBombardment = !Settings.EnableCoastalBombardment;
+                Settings.Save(_declare.FolderPath);
+            }
+
+            if (GUILayout.Button($"Naval Blockades: {(Settings.EnableNavalBlockades ? "ON" : "OFF")}", _btnStyle))
+            {
+                Settings.EnableNavalBlockades = !Settings.EnableNavalBlockades;
                 Settings.Save(_declare.FolderPath);
             }
 
@@ -311,6 +322,74 @@ namespace GrandWarfare
             if (wasAlive && target.getHealth() <= 0 && target.asset != null && target.asset.is_boat)
             {
                 Main.ShipsSunk++;
+            }
+        }
+
+        private static readonly FieldInfo CityKingdomField = AccessTools.Field(typeof(City), "kingdom");
+
+        /// <summary>
+        /// Enemy warships hovering within blockade range of a city starve its defending garrison.
+        /// </summary>
+        public static void TickNavalBlockades()
+        {
+            Main.ActiveBlockades.Clear();
+            var world = MapBox.instance;
+            var settings = Main.Settings;
+            if (world?.cities == null || world.units?.units_only_alive == null || settings == null) return;
+
+            var alive = world.units.units_only_alive;
+            var ships = new List<Actor>(32);
+            for (int i = 0; i < alive.Count; i++)
+            {
+                Actor u = alive[i];
+                if (u != null && u.isAlive() && u.current_tile != null && u.kingdom != null && u.kingdom.isCiv() && u.asset != null && u.asset.is_boat)
+                {
+                    ships.Add(u);
+                }
+            }
+            if (ships.Count == 0) return;
+
+            float rSq = settings.BlockadeRangeTiles * settings.BlockadeRangeTiles;
+            foreach (City city in world.cities)
+            {
+                if (city == null || !city.isAlive()) continue;
+                WorldTile cTile = city.getTile();
+                Kingdom cKing = CityKingdomField?.GetValue(city) as Kingdom;
+                if (cTile == null || cKing == null || !cKing.isCiv()) continue;
+
+                bool blockaded = false;
+                for (int i = 0; i < ships.Count; i++)
+                {
+                    Actor ship = ships[i];
+                    if (!cKing.isEnemy(ship.kingdom)) continue;
+                    float dx = ship.current_tile.x - cTile.x;
+                    float dy = ship.current_tile.y - cTile.y;
+                    if (dx * dx + dy * dy <= rSq)
+                    {
+                        blockaded = true;
+                        break;
+                    }
+                }
+
+                if (!blockaded) continue;
+                Main.ActiveBlockades.Add(city.name ?? "Port");
+
+                // Drain garrison nutrition inside the blockaded port city
+                int starved = 0;
+                for (int i = 0; i < alive.Count && starved < 18; i++)
+                {
+                    Actor u = alive[i];
+                    if (u != null && u.isAlive() && u.kingdom == cKing && u.current_tile != null)
+                    {
+                        float dx = u.current_tile.x - cTile.x;
+                        float dy = u.current_tile.y - cTile.y;
+                        if (dx * dx + dy * dy <= rSq)
+                        {
+                            u.decreaseNutrition(12);
+                            starved++;
+                        }
+                    }
+                }
             }
         }
     }

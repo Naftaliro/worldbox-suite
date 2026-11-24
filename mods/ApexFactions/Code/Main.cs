@@ -167,8 +167,11 @@ namespace ApexFactions
                 GUILayout.Label("Active Sleeping Giant Retaliations:", _headerStyle);
                 foreach (var tr in WardenSystem.ActiveRetaliations.Values)
                 {
+                    string mercyTxt = tr.EffectiveMercyPercent > 0f
+                        ? $"ceasefire @ {tr.MercyTargetPop} ({tr.EffectiveMercyPercent:0}%)"
+                        : "NO MERCY";
                     GUILayout.Label(
-                        $"• {tr.WardenName} -> {tr.AggressorName}: {tr.CurrentAggressorPop}/{tr.BaselinePop} (ceasefire @ {tr.MercyTargetPop})",
+                        $"• [Strike #{tr.StrikeNumber}] {tr.WardenName} -> {tr.AggressorName}: {tr.CurrentAggressorPop}/{tr.BaselinePop} ({mercyTxt})",
                         _labelStyle
                     );
                 }

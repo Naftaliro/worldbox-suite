@@ -13,6 +13,8 @@ namespace GrandWarfare
         public float NavalVolleyCooldown = 3.0f;
         public int NavalDamage = 18;
         public bool EnableCoastalBombardment = true;
+        public bool EnableNavalBlockades = true;
+        public float BlockadeRangeTiles = 24f;
 
         public bool EnableSupplyAttrition = true;
         public float MaxSupplyDistanceTiles = 135f;

@@ -22,6 +22,7 @@ from tools.wbox import (
     verify_save,
 )
 
+from .diagnostics import analyze_player_log, export_wbox_to_slot, list_save_slots
 from .mod_manager import (
     apply_profile,
     backup_saves,
@@ -169,6 +170,14 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self._send_json(list_mods(cfg))
                 return
 
+            if path == "/api/slots":
+                self._send_json(list_save_slots(cfg.get("worldbox_slots_dir", "")))
+                return
+
+            if path == "/api/diagnostics":
+                self._send_json(analyze_player_log(cfg.get("player_log_path", "")))
+                return
+
             if path == "/api/chronicles":
                 chronicles = []
                 search_dirs = [
@@ -205,11 +214,22 @@ class StudioHandler(BaseHTTPRequestHandler):
             cfg = load_config()
 
             if path == "/api/config":
-                for key in ("saves_dir", "output_dir", "game_streaming_assets"):
+                for key in ("saves_dir", "output_dir", "game_streaming_assets", "worldbox_slots_dir", "player_log_path"):
                     if key in body:
                         cfg[key] = str(body[key]).strip()
                 save_config(cfg)
                 self._send_json(cfg)
+                return
+
+            if path == "/api/slots/export":
+                sid = str(body.get("save_id", ""))
+                slot_num = int(body.get("slot", 1))
+                saves_map = _discover_saves(cfg)
+                if sid not in saves_map:
+                    self._send_json({"error": "Save not found"}, 404)
+                    return
+                res = export_wbox_to_slot(saves_map[sid], slot_num, cfg.get("worldbox_slots_dir", ""))
+                self._send_json(res)
                 return
 
             if path == "/api/saves/upload":

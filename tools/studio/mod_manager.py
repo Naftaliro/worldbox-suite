@@ -49,11 +49,16 @@ def _detect_game_dir() -> str:
     return ""
 
 
+from .diagnostics import detect_player_log_path, detect_worldbox_saves_dir
+
+
 def load_config() -> dict[str, Any]:
     defaults: dict[str, Any] = {
         "saves_dir": str(REPO_ROOT / "local" / "saves"),
         "output_dir": str(REPO_ROOT / "local" / "output"),
         "game_streaming_assets": _detect_game_dir(),
+        "worldbox_slots_dir": detect_worldbox_saves_dir(),
+        "player_log_path": detect_player_log_path(),
         "profiles": dict(DEFAULT_PROFILES),
         "world_profiles": {},
     }

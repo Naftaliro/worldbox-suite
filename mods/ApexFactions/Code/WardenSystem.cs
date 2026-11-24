@@ -12,6 +12,8 @@ namespace ApexFactions
         public long AggressorKingdomId;
         public string WardenName;
         public string AggressorName;
+        public int StrikeNumber;
+        public float EffectiveMercyPercent;
         public int BaselinePop;
         public int MercyTargetPop;
         public int CurrentAggressorPop;
@@ -22,6 +24,8 @@ namespace ApexFactions
     {
         public static readonly HashSet<long> WardenKingdomIds = new HashSet<long>();
         public static readonly Dictionary<long, RetaliationTracker> ActiveRetaliations = new Dictionary<long, RetaliationTracker>();
+        // Three-strikes grudge memory: (wardenKingdomId, aggressorKingdomId) -> strike count
+        public static readonly Dictionary<(long, long), int> AggressorStrikes = new Dictionary<(long, long), int>();
 
         // Internal flag so our own Merciful Ceasefire call is never blocked by our endWar guard
         private static bool _allowingMercifulCeasefire = false;
@@ -177,10 +181,10 @@ namespace ApexFactions
                 int curPop = aggressor.getPopulationPeople();
                 tr.CurrentAggressorPop = curPop;
 
-                if (Main.Settings.MercyThresholdPercent > 0f && curPop <= tr.MercyTargetPop)
+                if (tr.EffectiveMercyPercent > 0f && curPop <= tr.MercyTargetPop)
                 {
                     Debug.Log(
-                        $"[ApexFactions] Merciful Ceasefire: {warden.name} reduced {aggressor.name} from " +
+                        $"[ApexFactions] Merciful Ceasefire (Strike #{tr.StrikeNumber}): {warden.name} reduced {aggressor.name} from " +
                         $"{tr.BaselinePop} to {curPop} (<= {tr.MercyTargetPop}). Spared survivors to tell the tale."
                     );
                     _allowingMercifulCeasefire = true;
@@ -225,10 +229,19 @@ namespace ApexFactions
             if (__result == null || pAttacker == null || pDefender == null) return;
             if (!WardenKingdomIds.Contains(pDefender.id)) return;
 
+            var strikeKey = (pDefender.id, pAttacker.id);
+            AggressorStrikes.TryGetValue(strikeKey, out int prevStrikes);
+            int strikeNum = prevStrikes + 1;
+            AggressorStrikes[strikeKey] = strikeNum;
+
+            // Three-strikes grudge escalation: Strike 1 = 15% mercy, Strike 2 = 5%, Strike 3+ = 0% (no mercy)
+            float basePct = Main.Settings.MercyThresholdPercent;
+            float effectivePct = strikeNum == 1 ? basePct : (strikeNum == 2 ? Mathf.Min(5f, basePct * 0.35f) : 0f);
+
             int baseline = Math.Max(1, pAttacker.getPopulationPeople());
-            int mercyPop = Main.Settings.MercyThresholdPercent <= 0f
+            int mercyPop = effectivePct <= 0f
                 ? 0
-                : Math.Max(Main.Settings.MinSurvivorsFloor, Mathf.RoundToInt(baseline * (Main.Settings.MercyThresholdPercent / 100f)));
+                : Math.Max(Main.Settings.MinSurvivorsFloor, Mathf.RoundToInt(baseline * (effectivePct / 100f)));
 
             ActiveRetaliations[__result.id] = new RetaliationTracker
             {
@@ -237,11 +250,14 @@ namespace ApexFactions
                 AggressorKingdomId = pAttacker.id,
                 WardenName = pDefender.name,
                 AggressorName = pAttacker.name,
+                StrikeNumber = strikeNum,
+                EffectiveMercyPercent = effectivePct,
                 BaselinePop = baseline,
                 MercyTargetPop = mercyPop,
                 CurrentAggressorPop = baseline
             };
 
+            Debug.Log($"[ApexFactions] {pAttacker.name} provoked {pDefender.name} (Strike #{strikeNum}, mercy={effectivePct:0}%)!");
             RallyWardenWarriors(pDefender);
         }
 

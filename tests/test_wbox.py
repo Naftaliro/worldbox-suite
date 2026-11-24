@@ -212,6 +212,59 @@ class TestWboxToolkit(unittest.TestCase):
         self.assertEqual(verify_save(peace_world), [])
         self.assertTrue(all(w.get("died_time", 0) > 0 for w in peace_world["wars"]))
 
+    def test_studio_save_slot_export_and_diagnostics(self) -> None:
+        import json
+        from tools.studio.diagnostics import analyze_player_log, export_wbox_to_slot, list_save_slots
+
+        w = _make_synthetic_world("Slot Realm", 1, 1, "soil_high:grass_high")
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src_wbox = tmp_path / "slot_realm.wbox"
+            save_wbox(w, src_wbox)
+
+            slots_root = tmp_path / "saves"
+            result = export_wbox_to_slot(src_wbox, 7, str(slots_root))
+            self.assertEqual(result["slot"], 7)
+
+            slot_dir = slots_root / "save7"
+            self.assertTrue((slot_dir / "map.wbox").exists())
+            self.assertTrue((slot_dir / "map.meta").exists())
+            self.assertTrue((slot_dir / "preview.png").exists())
+            self.assertTrue((slot_dir / "preview_small.png").exists())
+
+            meta = json.loads((slot_dir / "map.meta").read_text(encoding="utf-8"))
+            self.assertEqual(meta["saveVersion"], 17)
+            self.assertEqual(meta["mapStats"]["name"], "Slot Realm")
+            self.assertEqual(meta["kingdoms"], 1)
+            self.assertTrue(meta["modded"])
+
+            listing = list_save_slots(str(slots_root), max_slots=10)
+            self.assertTrue(listing["exists"])
+            slot7 = [s for s in listing["slots"] if s["slot"] == 7][0]
+            self.assertTrue(slot7["occupied"])
+            self.assertEqual(slot7["name"], "Slot Realm")
+
+            # Verify Player.log diagnostic parsing
+            log_file = tmp_path / "Player.log"
+            log_file.write_text(
+                "\n".join(
+                    [
+                        "[CoreScale] Loaded v0.2.0",
+                        "[ModernAge] Expansion loaded (6 vehicle sprites)",
+                        "[ApexFactions] NullReferenceException: Object reference not set",
+                        "  at ApexFactions.WardenSystem.Tick () [0x00010]",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            diag = analyze_player_log(str(log_file))
+            self.assertTrue(diag["found"])
+            self.assertEqual(diag["mod_health"]["CoreScale"], "ok")
+            self.assertEqual(diag["mod_health"]["ModernAge"], "ok")
+            self.assertEqual(diag["mod_health"]["ApexFactions"], "error")
+            self.assertEqual(len(diag["errors"]), 1)
+            self.assertIn("WardenSystem.Tick", diag["errors"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

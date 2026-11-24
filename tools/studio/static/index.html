@@ -205,6 +205,7 @@
     <button class="tab-btn" data-tab="stitcher">World Stitcher</button>
     <button class="tab-btn" data-tab="chronicle">Chronicle</button>
     <button class="tab-btn" data-tab="mods">Mod Manager</button>
+    <button class="tab-btn" data-tab="diagnostics">Diagnostics</button>
   </nav>
 </header>
 
@@ -256,6 +257,11 @@
             <button class="btn secondary" onclick="runTweak('rename_world')">Save New Name</button>
             <button class="btn secondary" onclick="runTweak('world_peace')">Declare World Peace</button>
             <button class="btn" onclick="runTweak('total_war')">Trigger Superpower War</button>
+          </div>
+          <div class="row" id="ins-slot-export" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+            <span class="muted">Export directly to WorldBox Save Slot:</span>
+            <select id="slot-select"></select>
+            <button class="btn green" onclick="exportSelectedToSlot()">Write map.wbox + map.meta + Preview</button>
           </div>
         </div>
 
@@ -379,6 +385,12 @@
           <label class="field">Saves Folder
             <input id="cfg-saves" type="text" />
           </label>
+          <label class="field">WorldBox Steam Save Slots Folder
+            <input id="cfg-slots" type="text" placeholder="AppData/LocalLow/mkarpenko/WorldBox/saves" />
+          </label>
+          <label class="field">WorldBox Player.log Path
+            <input id="cfg-log" type="text" placeholder="AppData/LocalLow/mkarpenko/WorldBox/Player.log" />
+          </label>
           <div class="row">
             <button id="btn-save-cfg" class="btn">Save Paths</button>
             <button id="btn-backup" class="btn secondary">Backup Saves (.zip)</button>
@@ -409,6 +421,32 @@
         <div class="card">
           <h2>WorldBox Suite Modules (One-Click Deploy)</h2>
           <div id="suite-mods"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIAGNOSTICS TAB -->
+  <section id="tab-diagnostics" class="tab">
+    <div class="grid-2">
+      <div class="card">
+        <div class="row" style="justify-content:space-between; margin-bottom:10px;">
+          <h2 style="margin:0;">Suite Mod Health</h2>
+          <button class="btn secondary" onclick="loadDiagnostics()">Refresh Log</button>
+        </div>
+        <div id="diag-meta" class="muted" style="margin-bottom:10px;">Reading Player.log...</div>
+        <div id="diag-health"></div>
+        <button class="btn" style="width:100%; margin-top:12px;" onclick="copyDiagnostics()">Copy Diagnostic Report</button>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>Errors &amp; Exceptions</h3>
+          <pre id="diag-errors" style="white-space:pre-wrap; font-size:12px; color:var(--red); background:var(--crust); padding:12px; border-radius:8px; max-height:240px; overflow:auto; margin:0;"></pre>
+        </div>
+        <div class="card">
+          <h3>WorldBox Suite Log Activity</h3>
+          <pre id="diag-suite" style="white-space:pre-wrap; font-size:12px; color:var(--text); background:var(--crust); padding:12px; border-radius:8px; max-height:260px; overflow:auto; margin:0;"></pre>
         </div>
       </div>
     </div>
@@ -530,6 +568,7 @@ function selectSave(id) {
   dl.href = `/api/saves/${encodeURIComponent(id)}/download`;
   dl.style.display = "inline-block";
   document.getElementById("ins-tweaks").style.display = "flex";
+  document.getElementById("ins-slot-export").style.display = "flex";
   document.getElementById("ins-launcher").style.display = "flex";
   document.getElementById("twk-world-name").value = sum.name;
   refreshWorldProfileSelect();
@@ -646,9 +685,84 @@ async function loadModManager() {
   state.config = cfg;
   document.getElementById("cfg-game").value = cfg.game_streaming_assets || "";
   document.getElementById("cfg-saves").value = cfg.saves_dir || "";
+  document.getElementById("cfg-slots").value = cfg.worldbox_slots_dir || "";
+  document.getElementById("cfg-log").value = cfg.player_log_path || "";
   renderMods(await api("/api/mods"));
   refreshWorldProfileSelect();
+  loadSlots();
+  loadDiagnostics();
 }
+
+let lastDiagData = null;
+
+async function loadSlots() {
+  try {
+    const res = await api("/api/slots");
+    const sel = document.getElementById("slot-select");
+    if (!sel) return;
+    sel.innerHTML = (res.slots || []).map((s) =>
+      `<option value="${s.slot}">Slot ${s.slot} — ${s.occupied ? `${s.name} (${s.size})` : "Empty"}</option>`
+    ).join("");
+    const firstEmpty = (res.slots || []).find((s) => !s.occupied);
+    if (firstEmpty) sel.value = String(firstEmpty.slot);
+  } catch (_) {}
+}
+
+window.exportSelectedToSlot = async () => {
+  if (!state.selectedId) return;
+  const slot = parseInt(document.getElementById("slot-select").value, 10) || 1;
+  try {
+    const res = await api("/api/slots/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ save_id: state.selectedId, slot }),
+    });
+    toast(`Exported "${res.world_name}" to WorldBox save${res.slot}!`);
+    loadSlots();
+  } catch (err) {
+    toast("Slot export failed: " + err.message);
+  }
+};
+
+window.loadDiagnostics = async () => {
+  try {
+    const d = await api("/api/diagnostics");
+    lastDiagData = d;
+    document.getElementById("diag-meta").textContent = d.found
+      ? `${d.log_path} (${d.total_lines} lines · ${d.errors.length} errors)`
+      : `Log not found yet at: ${d.log_path} (launch WorldBox once to generate Player.log)`;
+
+    const healthEl = document.getElementById("diag-health");
+    healthEl.innerHTML = Object.entries(d.mod_health || {}).map(([mod, status]) => {
+      const cls = status === "ok" ? "green" : (status === "error" ? "" : "warn");
+      const color = status === "error" ? "color:var(--red); background:rgba(243,139,168,0.16);" : "";
+      return `<div class="mod-row"><strong>${mod}</strong><span class="badge ${cls}" style="${color}">${status}</span></div>`;
+    }).join("");
+
+    document.getElementById("diag-errors").textContent =
+      (d.errors && d.errors.length) ? d.errors.join("\n\n") : "No errors or exceptions found in Player.log.";
+    document.getElementById("diag-suite").textContent =
+      (d.suite_lines && d.suite_lines.length) ? d.suite_lines.join("\n") : "No WorldBox Suite log entries yet.";
+  } catch (_) {}
+};
+
+window.copyDiagnostics = async () => {
+  if (!lastDiagData) return;
+  const txt = [
+    `Log: ${lastDiagData.log_path}`,
+    `Health: ${JSON.stringify(lastDiagData.mod_health)}`,
+    `--- ERRORS (${(lastDiagData.errors || []).length}) ---`,
+    ...(lastDiagData.errors || []),
+    `--- SUITE LINES ---`,
+    ...(lastDiagData.suite_lines || []).slice(-30),
+  ].join("\n");
+  try {
+    await navigator.clipboard.writeText(txt);
+    toast("Copied diagnostic report to clipboard!");
+  } catch (_) {
+    toast("Could not access clipboard — copy directly from the boxes.");
+  }
+};
 
 function refreshWorldProfileSelect() {
   const sel = document.getElementById("world-prof-select");
@@ -769,6 +883,8 @@ document.getElementById("btn-save-cfg").onclick = async () => {
     body: JSON.stringify({
       game_streaming_assets: document.getElementById("cfg-game").value,
       saves_dir: document.getElementById("cfg-saves").value,
+      worldbox_slots_dir: document.getElementById("cfg-slots").value,
+      player_log_path: document.getElementById("cfg-log").value,
     }),
   });
   toast("Saved paths");
