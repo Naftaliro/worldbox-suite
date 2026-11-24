@@ -1,0 +1,9 @@
+{
+  "name": "VisualPolish",
+  "author": "naftaliro",
+  "version": "0.1.0",
+  "GUID": "dev.3hz.worldbox.visualpolish",
+  "description": "Atmospheric lighting presets, dynamic day/night cycle, soft vignette, ultra-close zoom, strategic border clarity, F6 photo mode, and F9 visual control panel.",
+  "RepoUrl": "https://github.com/naftaliro/worldbox-suite",
+  "iconPath": "icon.png"
+}

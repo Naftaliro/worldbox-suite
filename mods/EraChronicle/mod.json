@@ -1,0 +1,9 @@
+{
+  "name": "EraChronicle",
+  "author": "naftaliro",
+  "version": "0.1.0",
+  "GUID": "dev.3hz.worldbox.erachronicle",
+  "description": "5-tier kingdom era progression with veteran milestones and automated JSON world-history snapshots readable in WorldBox Studio (F7 Chronicle HUD).",
+  "RepoUrl": "https://github.com/naftaliro/worldbox-suite",
+  "iconPath": "icon.png"
+}

@@ -1,34 +1,38 @@
 # WorldBox Suite
 
-Open-source modding suite and standalone toolkit for **WorldBox – God Simulator** (Steam, saveVersion 17 / NeoModLoader).
+Open-source modding suite and standalone toolkit for **WorldBox – God Simulator** (Steam, saveVersion 17 / NeoModLoader), themed in **Catppuccin Mocha**.
 
 ## What's Inside
 
 ### Standalone Tools (`tools/`)
-* **`tools/wbox`** — Python library & CLI for `.wbox` save files:
+* **`tools/wbox`** — Zero-dependency Python library & CLI for `.wbox` save files:
   * Lossless zlib decompress/recompress and inspection
-  * Top-down biome & civilization map PNG renderer
-  * **World Stitcher** — merge 2 or more saves side-by-side or in a grid with customizable ocean channels, full coordinate shifting (tiles, zones, buildings, actors, fire/ice), and complete entity ID remapping across kingdoms, cities, armies, clans, cultures, languages, religions, subspecies, families, books, items, wars, and diplomacy.
-* **`tools/studio`** — Local web UI (**WorldBox Studio & Mod Manager**, Catppuccin Mocha themed):
-  * Visual map inspector and live world stitcher
-  * World history, kingdoms, wars, and stats browser
-  * NeoModLoader mod manager (install/toggle/profiles/save backups)
+  * Top-down biome, kingdom border, building, fire, and ice PNG renderer
+  * **World Stitcher** — merge 2+ saves side-by-side, stacked, or in a grid with configurable ocean channels, full coordinate shifting (tiles, 8×8 city zones, buildings, actors, fire/ice), and 19-namespace entity ID remapping.
+* **`tools/studio`** — Local web UI (**WorldBox Studio & Mod Manager**, Catppuccin Mocha):
+  * **World Inspector:** Live map preview, toggleable borders/buildings, kingdom leaderboard, war chronicle, `.wbox` upload/download
+  * **World Stitcher:** Interactive multi-world merger with live preview and one-click `.wbox` export
+  * **Chronicle Viewer:** Population timeline SVG chart, kingdom eras, and war/milestone feed
+  * **Mod Manager:** Enable/disable NeoModLoader mods, switch mod profiles, one-click suite deployment, and `.zip` save backups
 
-### In-Game Mods (`mods/`) — NeoModLoader (C#)
-Modular suite sharing a unified architecture (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
-* **`CoreScale`** *(implemented — v0.1.0)* — Giant map presets up to 24×24 chunks (`Colossal`, `Continental`, `Planetary`, `Leviathan`), multi-core parallelism tuning, adaptive batch simulation LOD throttling, extended zoom, and an `F8` Catppuccin Mocha perf HUD.
-* **`LinkedContinents`** *(planned)* — Multi-world ocean borders allowing fleets and armies to cross between separate continent saves.
-* **`GrandWarfare`** *(planned)* — Naval combat, amphibious invasions, supply lines/attrition, vassals, and expanded diplomacy.
-* **`VisualPolish`** *(planned)* — Extended camera zoom, atmospheric lighting/day-night shaders, and strategic map overlays.
-* **`EraChronicle`** *(planned)* — Extended tech era progression and automated war/history timeline snapshots.
+### In-Game NeoModLoader C# Mods (`mods/`)
+All five modules share an offline Mono build configuration (`mods/Directory.Build.props`) and compile cleanly with zero warnings:
+
+| Module | Hotkey | Features |
+| :--- | :---: | :--- |
+| **`CoreScale`** | `F8` | Giant map presets (`Colossal 12×12`, `Continental 16×16`, `Planetary 20×20`, `Leviathan 24×24`), multi-core parallelism unlock, adaptive 3-tier simulation LOD throttling, strategic animation culling, and expanded zoom bounds. |
+| **`VisualPolish`** | `F9` / `F6` | Atmospheric lighting presets (`CrispVibrant`, `GoldenHour`, `MoonlitNight`, `ParchmentAtlas`, `MochaTwilight`), dynamic day/night cycle, soft radial vignette, ultra-close zoom, strategic border clarity, and `F6` Photo Mode. |
+| **`GrandWarfare`** | `F10` | Ship-to-ship naval volleys and coastal bombardment, army supply-line attrition outside friendly cities, and defense-pact diplomacy that pulls allied kingdoms into defensive wars. |
+| **`LinkedContinents`** | `F11` | Ocean-edge fleet transfers connecting separate `.wbox` continent saves via a shared `portal_queue.json`, plus on-demand expedition dispatch and coastal landings. |
+| **`EraChronicle`** | `F7` | 5-tier kingdom era progression (*Dawn Age* through *High Hegemony*) with veteran milestones and automated JSON world-history snapshots readable in WorldBox Studio. |
 
 ## Quick Start
 
-### 1. Run World Studio & Mod Manager
+### 1. Run WorldBox Studio & Mod Manager
 ```bash
 python3 -m tools.studio.server
 ```
-Then open `http://127.0.0.1:8765` in your browser.
+Open `http://127.0.0.1:8765` in your browser.
 
 ### 2. Stitch Worlds via CLI
 ```bash
@@ -40,8 +44,16 @@ python3 -m tools.wbox stitch \
   --preview local/output/twin_continents.png
 ```
 
-## Contributing & Game Assemblies
-Proprietary game DLLs (`Assembly-CSharp.dll`, `UnityEngine*.dll`) and personal save files are intentionally ignored in `.gitignore`. Place your local copies under `local/libs/` and `local/saves/` when developing locally.
+### 3. Install Mods in WorldBox (Desktop)
+1. Enable **Experimental Mode** in WorldBox settings.
+2. Place `NeoModLoader.dll` into `worldbox_Data/StreamingAssets/mods/` and launch once.
+3. Copy any module folder from `mods/` (e.g., `mods/CoreScale`) into your WorldBox `Mods/` folder (or click **Deploy** inside WorldBox Studio's Mod Manager tab). NeoModLoader compiles `Code/*.cs` automatically at launch.
+
+### 4. Build All Mods & Run Tests Locally
+Copy WorldBox's `worldbox_Data/Managed/*.dll`, `NeoModLoader.dll`, and `0Harmony.dll` into `local/libs/` (gitignored), then run:
+```bash
+./scripts/build_all.sh
+```
 
 ## License
 MIT

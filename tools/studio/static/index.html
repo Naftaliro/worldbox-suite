@@ -203,6 +203,7 @@
   <nav>
     <button class="tab-btn active" data-tab="inspector">World Inspector</button>
     <button class="tab-btn" data-tab="stitcher">World Stitcher</button>
+    <button class="tab-btn" data-tab="chronicle">Chronicle</button>
     <button class="tab-btn" data-tab="mods">Mod Manager</button>
   </nav>
 </header>
@@ -314,6 +315,30 @@
           <div id="st-empty" class="muted" style="padding:60px;">Your combined continent map will appear here.</div>
         </div>
         <div id="st-stats" class="stats-row"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHRONICLE TAB -->
+  <section id="tab-chronicle" class="tab">
+    <div class="grid-2">
+      <div class="card">
+        <h2>Recorded Chronicles</h2>
+        <p class="muted">Snapshots written by the EraChronicle mod, plus quick historical snapshots generated from your loaded .wbox saves.</p>
+        <div id="chronicle-list" class="save-list"></div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2 id="chr-title">Select a Chronicle</h2>
+          <div id="chr-meta" class="muted" style="margin-bottom:12px;">Pick an EraChronicle export or save timeline on the left.</div>
+          <div id="chr-chart" class="map-wrap" style="padding:16px;"></div>
+        </div>
+
+        <div class="card">
+          <h3>Kingdom Eras &amp; Milestones</h3>
+          <div id="chr-events" class="muted">No milestones selected yet.</div>
+        </div>
       </div>
     </div>
   </section>
@@ -695,7 +720,116 @@ document.getElementById("btn-backup").onclick = async () => {
   }
 };
 
-loadSaves();
+async function loadChronicles() {
+  const listEl = document.getElementById("chronicle-list");
+  listEl.innerHTML = "";
+  let recorded = [];
+  try {
+    const res = await api("/api/chronicles");
+    recorded = res.chronicles || [];
+  } catch (_) {}
+
+  const items = [];
+  recorded.forEach((c) => {
+    items.push({
+      label: c.data.WorldName || c.filename,
+      badge: "EraChronicle",
+      entries: c.data.Entries || [],
+    });
+  });
+
+  // Also synthesize a live era/war snapshot for each loaded .wbox save
+  state.saves.forEach((s) => {
+    const sum = s.summary;
+    const eraFor = (pop, cities) =>
+      pop >= 800 && cities >= 8 ? "High Hegemony" :
+      pop >= 400 && cities >= 5 ? "Gunpowder & Sail" :
+      pop >= 160 && cities >= 3 ? "Iron Empires" :
+      pop >= 60 && cities >= 2 ? "Bronze Kingdoms" : "Dawn Age";
+    items.push({
+      label: sum.name,
+      badge: "Save Snapshot",
+      entries: [{
+        Year: sum.year,
+        WorldAge: sum.world_age,
+        TotalPopulation: sum.counts.actors,
+        Kingdoms: sum.kingdoms.map((k) => ({
+          Name: k.name,
+          Era: eraFor(k.population, k.cities),
+          Population: k.population,
+          Cities: k.cities,
+        })),
+        ActiveWars: sum.wars.filter((w) => w.active).map((w) => ({
+          Name: w.name,
+          TotalDeaths: w.total_deaths,
+        })),
+        Events: sum.wars.slice(0, 8).map((w) => `${w.name} (${w.total_deaths} casualties)`),
+      }],
+    });
+  });
+
+  if (!items.length) {
+    listEl.innerHTML = '<div class="muted">No chronicles found yet.</div>';
+    return;
+  }
+
+  items.forEach((item, idx) => {
+    const el = document.createElement("div");
+    el.className = "save-item";
+    el.innerHTML = `
+      <div class="title"><span>${item.label}</span><span class="badge ${item.badge === "EraChronicle" ? "green" : ""}">${item.badge}</span></div>
+      <div class="muted">${item.entries.length} snapshot(s)</div>
+    `;
+    el.onclick = () => renderChronicle(item);
+    listEl.appendChild(el);
+    if (idx === 0) renderChronicle(item);
+  });
+}
+
+function renderChronicle(item) {
+  document.getElementById("chr-title").textContent = item.label;
+  const entries = item.entries || [];
+  if (!entries.length) {
+    document.getElementById("chr-meta").textContent = "Empty chronicle.";
+    return;
+  }
+  const latest = entries[entries.length - 1];
+  document.getElementById("chr-meta").textContent =
+    `Latest: Year ${latest.Year} · ${latest.TotalPopulation} total population · ${(latest.Kingdoms || []).length} kingdoms · ${(latest.ActiveWars || []).length} active wars`;
+
+  // Simple Catppuccin Mocha SVG population chart across snapshots
+  const w = 680, h = 160, pad = 28;
+  const maxPop = Math.max(10, ...entries.map((e) => e.TotalPopulation || 0));
+  const pts = entries.map((e, i) => {
+    const x = entries.length === 1 ? w / 2 : pad + (i / (entries.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((e.TotalPopulation || 0) / maxPop) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  document.getElementById("chr-chart").innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" style="width:100%; max-width:680px; height:auto;">
+      <line x1="${pad}" y1="${h - pad}" x2="${w - pad}" y2="${h - pad}" stroke="#45475a" stroke-width="1" />
+      ${entries.length > 1 ? `<polyline fill="none" stroke="#cba6f7" stroke-width="2.5" points="${pts}" />` : ""}
+      ${entries.map((e, i) => {
+        const x = entries.length === 1 ? w / 2 : pad + (i / (entries.length - 1)) * (w - pad * 2);
+        const y = h - pad - ((e.TotalPopulation || 0) / maxPop) * (h - pad * 2);
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="#a6e3a1" />
+                <text x="${x.toFixed(1)}" y="${(y - 10).toFixed(1)}" text-anchor="middle" fill="#cdd6f4" font-size="11">Y${e.Year}: ${e.TotalPopulation}</text>`;
+      }).join("")}
+    </svg>
+  `;
+
+  const kingdomsHtml = (latest.Kingdoms || [])
+    .map((k) => `<div class="mod-row"><div><strong>${k.Name}</strong> <span class="muted">${k.Population} pop · ${k.Cities} cities</span></div><span class="badge warn">${k.Era}</span></div>`)
+    .join("");
+  const eventsHtml = entries.flatMap((e) => e.Events || []).slice(-12).reverse()
+    .map((ev) => `<div class="muted" style="margin:4px 0;">• ${ev}</div>`).join("");
+
+  document.getElementById("chr-events").innerHTML =
+    kingdomsHtml + (eventsHtml ? `<h3 style="margin-top:14px;">Recorded Events &amp; Wars</h3>${eventsHtml}` : "");
+}
+
+loadSaves().then(loadChronicles);
 loadModManager();
 </script>
 </body>

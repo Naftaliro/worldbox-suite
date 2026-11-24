@@ -167,6 +167,31 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self._send_json(list_mods(cfg))
                 return
 
+            if path == "/api/chronicles":
+                chronicles = []
+                search_dirs = [
+                    Path(cfg.get("saves_dir", "")).parent / "chronicles",
+                    Path(__file__).resolve().parent.parent.parent / "mods" / "EraChronicle" / "chronicles",
+                ]
+                mods_state = list_mods(cfg)
+                search_dirs.append(Path(mods_state["enabled_dir"]) / "EraChronicle" / "chronicles")
+                seen_paths = set()
+                for cdir in search_dirs:
+                    if not cdir.exists():
+                        continue
+                    for p in sorted(cdir.glob("*_chronicle.json")):
+                        rp = str(p.resolve())
+                        if rp in seen_paths:
+                            continue
+                        seen_paths.add(rp)
+                        try:
+                            doc = json.loads(p.read_text(encoding="utf-8"))
+                            chronicles.append({"filename": p.name, "data": doc})
+                        except Exception:
+                            pass
+                self._send_json({"chronicles": chronicles})
+                return
+
             self._send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
         except Exception as exc:
             self._send_json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
