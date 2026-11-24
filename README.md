@@ -4,6 +4,22 @@ a 9-mod classic pack, an opt-in modern warfare & geopolitics expansion, and a lo
 
 catppuccin mocha everywhere.
 
+## preview
+
+**worldbox studio — world inspector, per-world mod profiles & direct steam save-slot export**
+
+![WorldBox Studio](docs/screenshots/worldbox-studio.png)
+
+**co-op god console — two players sharing one live map with independent cameras**
+
+![WorldBox Co-Op God Console](docs/screenshots/coop-god-console.png)
+
+**modernage expansion — custom 32×32 pixel-art vehicle & aircraft sprites**
+
+<p align="center">
+  <img src="docs/screenshots/modernage-vehicles.png" alt="ModernAge Vehicle Sprites" width="520" />
+</p>
+
 ## install
 
 **windows (one-liner in powershell — no git needed):**
