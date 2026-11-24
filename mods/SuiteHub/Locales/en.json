@@ -1,0 +1,12 @@
+{
+  "tab_worldbox_suite": "WorldBox Suite",
+  "tab_worldbox_suite_desc": "Unified controls for giant multi-continent worlds, live conflict radar, diplomacy monitor, and suite tools.",
+  "suite_open_hub": "Suite Control Center",
+  "suite_open_hub_description": "Open the unified Catppuccin Mocha control center (Hotkey: F5).",
+  "suite_war_matrix": "War & Diplomacy HUD",
+  "suite_war_matrix_description": "Toggle the floating war, relations, and jump-to-battle overlay (Hotkey: F4).",
+  "suite_battle_radar": "Battlefield Conflict Radar",
+  "suite_battle_radar_description": "Toggle pulsing on-map combat markers and live skirmish counters (Hotkey: F3).",
+  "suite_world_builder": "Multi-Continent Builder",
+  "suite_world_builder_description": "Generate a brand-new pre-stitched multi-continent world with custom biomes and ocean channels (Hotkey: F2)."
+}

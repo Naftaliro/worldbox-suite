@@ -1,9 +1,9 @@
 {
   "name": "CoreScale",
   "author": "naftaliro",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "GUID": "dev.3hz.worldbox.corescale",
-  "description": "Custom giant map sizes (up to 24x24 chunks), adaptive simulation LOD throttling, multi-core parallelism tuning, extended zoom, and an F8 performance overlay.",
+  "description": "Custom giant map sizes (up to 24x24 chunks), adaptive simulation LOD throttling, multi-core parallelism tuning, army battalion compression, extended zoom, and an F8 performance HUD.",
   "RepoUrl": "https://github.com/naftaliro/worldbox-suite",
   "iconPath": "icon.png"
 }

@@ -16,11 +16,12 @@ Open-source modding suite and standalone toolkit for **WorldBox – God Simulato
   * **Mod Manager:** Enable/disable NeoModLoader mods, switch mod profiles, one-click suite deployment, and `.zip` save backups
 
 ### In-Game NeoModLoader C# Mods (`mods/`)
-All five modules share an offline Mono build configuration (`mods/Directory.Build.props`) and compile cleanly with zero warnings:
+All six modules share an offline Mono build configuration (`mods/Directory.Build.props`), include custom 64×64 Catppuccin Mocha pixel icons, and compile cleanly with zero warnings:
 
-| Module | Hotkey | Features |
+| Module | Bottom Bar / Hotkey | Features |
 | :--- | :---: | :--- |
-| **`CoreScale`** | `F8` | Giant map presets (`Colossal 12×12`, `Continental 16×16`, `Planetary 20×20`, `Leviathan 24×24`), multi-core parallelism unlock, adaptive 3-tier simulation LOD throttling, strategic animation culling, and expanded zoom bounds. |
+| **`SuiteHub`** | **Bottom Tab** / `F2`–`F5` | Native WorldBox bottom power-bar tab integrating the whole suite, floating **War & Diplomacy Monitor** (`F4`) with opinion matrix and jump-to-battle, pulsing on-map **Battlefield Conflict Radar** (`F3`), in-game **Multi-Continent World Builder** (`F2`), and unified Control Center (`F5`). |
+| **`CoreScale`** | `F8` | Giant map presets (`Colossal 12×12` through `Leviathan 24×24`), multi-core parallelism unlock, adaptive 3-tier simulation LOD throttling, **Army Battalion Compression**, strategic animation culling, and expanded zoom bounds. |
 | **`VisualPolish`** | `F9` / `F6` | Atmospheric lighting presets (`CrispVibrant`, `GoldenHour`, `MoonlitNight`, `ParchmentAtlas`, `MochaTwilight`), dynamic day/night cycle, soft radial vignette, ultra-close zoom, strategic border clarity, and `F6` Photo Mode. |
 | **`GrandWarfare`** | `F10` | Ship-to-ship naval volleys and coastal bombardment, army supply-line attrition outside friendly cities, and defense-pact diplomacy that pulls allied kingdoms into defensive wars. |
 | **`LinkedContinents`** | `F11` | Ocean-edge fleet transfers connecting separate `.wbox` continent saves via a shared `portal_queue.json`, plus on-demand expedition dispatch and coastal landings. |

@@ -188,6 +188,30 @@ class TestWboxToolkit(unittest.TestCase):
         self.assertEqual(len(grid), 4 * 64)
         self.assertEqual(len(grid[0]), 10 * 64)
 
+        # Verify archipelago + intercontinental war scenario preset
+        war_world = stitch_worlds(
+            [s1, s2],
+            StitchOptions(
+                name="Archipelago Clash",
+                layout="row",
+                gap_chunks=3,
+                mode="full",
+                archipelago=True,
+                diplomacy_preset="continent_war",
+            ),
+        )
+        self.assertEqual(verify_save(war_world), [])
+        self.assertEqual(len(war_world["wars"]), len(s1["wars"]) + len(s2["wars"]) + 1)
+        self.assertTrue(any(w.get("winner", 0) == 0 and not w.get("died_time") for w in war_world["wars"]))
+
+        # Verify peace preset closes active wars
+        peace_world = stitch_worlds(
+            [s1, s2],
+            StitchOptions(name="Peaceful Realms", gap_chunks=2, diplomacy_preset="peace"),
+        )
+        self.assertEqual(verify_save(peace_world), [])
+        self.assertTrue(all(w.get("died_time", 0) > 0 for w in peace_world["wars"]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,7 +20,8 @@ namespace CoreScale
         private bool _showOverlay = false;
         private float _fpsSmoothed = 60f;
         private float _statsTimer = 0f;
-        private Rect _windowRect = new Rect(18, 86, 270, 215);
+        private float _battalionTimer = 0f;
+        private Rect _windowRect = new Rect(18, 86, 285, 285);
 
         private GUIStyle _boxStyle;
         private GUIStyle _labelStyle;
@@ -87,6 +88,16 @@ namespace CoreScale
             {
                 _statsTimer = 0f;
                 RefreshLodState();
+            }
+
+            if (Settings.EnableBattalionCompression && !Config.paused)
+            {
+                _battalionTimer += Time.deltaTime;
+                if (_battalionTimer >= 8.0f)
+                {
+                    _battalionTimer = 0f;
+                    BattalionCompressionSystem.CompressMegaArmies(force: false);
+                }
             }
         }
 
@@ -194,6 +205,17 @@ namespace CoreScale
             {
                 Settings.ForceDisableShadows = !Settings.ForceDisableShadows;
                 Settings.Save(_declare.FolderPath);
+            }
+
+            if (GUILayout.Button($"Auto Battalions: {(Settings.EnableBattalionCompression ? "ON" : "OFF")} ({BattalionCompressionSystem.TotalSoldiersConsolidated})", _btnStyle))
+            {
+                Settings.EnableBattalionCompression = !Settings.EnableBattalionCompression;
+                Settings.Save(_declare.FolderPath);
+            }
+
+            if (GUILayout.Button("Compress Mega-Armies Now", _btnStyle))
+            {
+                BattalionCompressionSystem.CompressMegaArmies(force: true);
             }
 
             GUI.DragWindow();

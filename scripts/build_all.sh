@@ -8,12 +8,13 @@ echo "=== Running Python toolkit tests ==="
 python3 -m unittest discover -s tests -v
 
 echo ""
-echo "=== Building all 5 NeoModLoader C# mods ==="
+echo "=== Building all 6 NeoModLoader C# mods ==="
 export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/tmp/dotnet_home}"
 export DOTNET_NOLOGO=1
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 
 for proj in \
+  mods/SuiteHub/SuiteHub.csproj \
   mods/CoreScale/CoreScale.csproj \
   mods/VisualPolish/VisualPolish.csproj \
   mods/GrandWarfare/GrandWarfare.csproj \

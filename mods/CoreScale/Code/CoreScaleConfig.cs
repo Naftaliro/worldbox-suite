@@ -13,6 +13,10 @@ namespace CoreScale
         public bool SkipAnimationsInStrategicZoom = true;
         public bool UnlockParallelism = true;
         public bool ForceDisableShadows = false;
+        public bool EnableBattalionCompression = true;
+        public int BattalionPopThreshold = 8000;
+        public int MinArmySizeForCompression = 24;
+        public int SoldiersPerRegimentMerge = 6;
 
         // Population thresholds for progressive batch time-slicing
         public int LodTier1Population = 3000;

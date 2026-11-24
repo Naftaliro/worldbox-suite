@@ -243,6 +243,12 @@
             <div id="ins-empty" class="muted" style="padding:40px;">Choose a save from the left to inspect it.</div>
           </div>
           <div id="ins-stats" class="stats-row"></div>
+          <div class="row" id="ins-tweaks" style="display:none; margin-top:10px;">
+            <input id="twk-world-name" type="text" placeholder="Rename world..." style="flex:1; min-width:160px;" />
+            <button class="btn secondary" onclick="runTweak('rename_world')">Save New Name</button>
+            <button class="btn secondary" onclick="runTweak('world_peace')">Declare World Peace</button>
+            <button class="btn" onclick="runTweak('total_war')">Trigger Superpower War</button>
+          </div>
         </div>
 
         <div class="card" id="ins-kingdoms-card" style="display:none;">
@@ -296,8 +302,18 @@
             <option value="terrain_only">Terrain Only (blank canvas)</option>
           </select>
         </label>
-        <label class="muted" style="display:block; margin-bottom:14px;">
+        <label class="field">Scenario Diplomacy Preset
+          <select id="st-diplomacy">
+            <option value="keep">Keep Existing Wars &amp; Diplomacy</option>
+            <option value="continent_war">Instant Intercontinental War (Top Empires Clash)</option>
+            <option value="peace">World Peace Era (End Active Wars)</option>
+          </select>
+        </label>
+        <label class="muted" style="display:block; margin-bottom:8px;">
           <input id="st-blend" type="checkbox" checked /> Soften coastal edges into the ocean channel
+        </label>
+        <label class="muted" style="display:block; margin-bottom:14px;">
+          <input id="st-archipelago" type="checkbox" checked /> Scatter stepping-stone archipelago islands in ocean gap
         </label>
         <button id="btn-stitch" class="btn green" style="width:100%;">Stitch Worlds &amp; Render Preview</button>
       </div>
@@ -501,6 +517,8 @@ function selectSave(id) {
   const dl = document.getElementById("ins-download");
   dl.href = `/api/saves/${encodeURIComponent(id)}/download`;
   dl.style.display = "inline-block";
+  document.getElementById("ins-tweaks").style.display = "flex";
+  document.getElementById("twk-world-name").value = sum.name;
 
   updateInspectorImage();
 
@@ -575,6 +593,8 @@ document.getElementById("btn-stitch").onclick = async () => {
         border_chunks: parseInt(document.getElementById("st-border").value, 10) || 0,
         mode: document.getElementById("st-mode").value,
         coast_blend: document.getElementById("st-blend").checked,
+        archipelago: document.getElementById("st-archipelago").checked,
+        diplomacy_preset: document.getElementById("st-diplomacy").value,
       }),
     });
     const sum = res.summary;
@@ -828,6 +848,27 @@ function renderChronicle(item) {
   document.getElementById("chr-events").innerHTML =
     kingdomsHtml + (eventsHtml ? `<h3 style="margin-top:14px;">Recorded Events &amp; Wars</h3>${eventsHtml}` : "");
 }
+
+window.runTweak = async (action) => {
+  if (!state.selectedId) return;
+  try {
+    const res = await api("/api/saves/tweak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        save_id: state.selectedId,
+        action,
+        world_name: document.getElementById("twk-world-name").value,
+      }),
+    });
+    toast("Saved tweaked world -> " + res.id);
+    await loadSaves();
+    selectSave(res.id);
+    await loadChronicles();
+  } catch (err) {
+    toast("Tweak failed: " + err.message);
+  }
+};
 
 loadSaves().then(loadChronicles);
 loadModManager();

@@ -1,0 +1,9 @@
+{
+  "name": "SuiteHub",
+  "author": "naftaliro",
+  "version": "0.1.0",
+  "GUID": "dev.3hz.worldbox.suitehub",
+  "description": "Native WorldBox bottom power-bar tab for the entire suite, floating War & Diplomacy monitor, live Battlefield Conflict Radar, and in-game Multi-Continent World Builder.",
+  "RepoUrl": "https://github.com/naftaliro/worldbox-suite",
+  "iconPath": "icon.png"
+}

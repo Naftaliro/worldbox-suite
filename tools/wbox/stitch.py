@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import math
+import random
 from dataclasses import dataclass
 from typing import Any
 
@@ -98,6 +99,9 @@ class StitchOptions:
     fill_tile: str = "deep_ocean"
     mode: str = "full"  # "full" or "terrain_only"
     coast_blend: bool = True
+    archipelago: bool = False
+    diplomacy_preset: str = "keep"  # "keep", "continent_war", "peace"
+    seed: int = 42
 
 
 def _shift_id(val: Any, offset: int) -> Any:
@@ -443,6 +447,146 @@ def _soften_channel_edges(
         paint_ring(dx_tiles + w_tiles - 1, y)
 
 
+def _scatter_channel_archipelago(
+    grid: list[list[str]],
+    placements: list[tuple[int, int]],
+    worlds: list[dict[str, Any]],
+    total_w: int,
+    total_h: int,
+    seed: int = 42,
+) -> None:
+    """Procedurally generate natural stepping-stone islands in open deep-ocean channels."""
+    rng = random.Random(seed)
+
+    # Track occupied continent rectangles (with 6-tile safety margin so we don't overwrite coastlines)
+    occupied: list[tuple[int, int, int, int]] = []
+    for world, (dx, dy) in zip(worlds, placements):
+        x0 = dx * CHUNK_SIZE - 6
+        y0 = dy * CHUNK_SIZE - 6
+        x1 = (dx + int(world["width"])) * CHUNK_SIZE + 6
+        y1 = (dy + int(world["height"])) * CHUNK_SIZE + 6
+        occupied.append((x0, y0, x1, y1))
+
+    def in_continent(x: int, y: int) -> bool:
+        for x0, y0, x1, y1 in occupied:
+            if x0 <= x < x1 and y0 <= y < y1:
+                return True
+        return False
+
+    # Collect candidate channel centers
+    candidates: list[tuple[int, int]] = []
+    step = 18
+    for y in range(16, total_h - 16, step):
+        for x in range(16, total_w - 16, step):
+            if not in_continent(x, y) and grid[y][x] == "deep_ocean":
+                candidates.append((x, y))
+
+    if not candidates:
+        return
+
+    rng.shuffle(candidates)
+    num_islands = max(3, min(14, len(candidates) // 5))
+    chosen: list[tuple[int, int, int]] = []
+    for cx, cy in candidates:
+        if len(chosen) >= num_islands:
+            break
+        if any((cx - ox) ** 2 + (cy - oy) ** 2 < 26 ** 2 for ox, oy, _ in chosen):
+            continue
+        radius = rng.randint(7, 15)
+        chosen.append((cx, cy, radius))
+
+    for cx, cy, radius in chosen:
+        # Irregular organic island shape using a few harmonic lobes
+        a1, a2 = rng.uniform(0, 6.28), rng.uniform(0, 6.28)
+        f1, f2 = rng.randint(2, 4), rng.randint(3, 6)
+        biome = rng.choice(["soil_high:grass_high", "soil_low:jungle_low", "soil_low:savanna_low"])
+
+        for y in range(max(1, cy - radius - 5), min(total_h - 1, cy + radius + 6)):
+            for x in range(max(1, cx - radius - 5), min(total_w - 1, cx + radius + 6)):
+                if in_continent(x, y):
+                    continue
+                dx, dy = x - cx, y - cy
+                dist = math.hypot(dx, dy)
+                ang = math.atan2(dy, dx)
+                eff_r = radius * (1.0 + 0.18 * math.sin(f1 * ang + a1) + 0.10 * math.cos(f2 * ang + a2))
+                if dist <= eff_r * 0.42:
+                    grid[y][x] = "hills" if radius >= 12 and dist <= eff_r * 0.22 else biome
+                elif dist <= eff_r * 0.72:
+                    grid[y][x] = biome
+                elif dist <= eff_r:
+                    grid[y][x] = "sand"
+                elif dist <= eff_r + 2.2 and grid[y][x] in ("deep_ocean", "close_ocean"):
+                    grid[y][x] = "shallow_waters"
+                elif dist <= eff_r + 4.4 and grid[y][x] == "deep_ocean":
+                    grid[y][x] = "close_ocean"
+
+
+def _apply_diplomacy_preset(
+    merged_entities: dict[str, list[dict[str, Any]]],
+    world_kingdom_groups: list[list[int]],
+    merged_stats: dict[str, Any],
+    preset: str,
+) -> None:
+    """Apply optional intercontinental war or peace preset after entity remapping."""
+    if preset == "peace":
+        now = float(merged_stats.get("world_time", 100.0))
+        for war in merged_entities["wars"]:
+            if not war.get("died_time"):
+                war["died_time"] = now
+                war["winner"] = 1
+        return
+
+    if preset != "continent_war" or len(world_kingdom_groups) < 2:
+        return
+
+    # Find highest-population kingdom from continent 1 and continent 2
+    pop_by_k: dict[int, int] = {}
+    for a in merged_entities["actors_data"]:
+        kid = a.get("civ_kingdom_id", -1)
+        if isinstance(kid, int) and kid > 0:
+            pop_by_k[kid] = pop_by_k.get(kid, 0) + 1
+
+    k_by_id = {k["id"]: k for k in merged_entities["kingdoms"] if isinstance(k, dict) and "id" in k}
+    leaders: list[dict[str, Any]] = []
+    for grp in world_kingdom_groups[:2]:
+        valid = [k_by_id[kid] for kid in grp if kid in k_by_id]
+        if valid:
+            valid.sort(key=lambda k: -pop_by_k.get(k["id"], 0))
+            leaders.append(valid[0])
+
+    if len(leaders) < 2:
+        return
+
+    k1, k2 = leaders[0], leaders[1]
+    next_war_id = max((int(w.get("id", 0)) for w in merged_entities["wars"]), default=0) + 1
+    now = float(merged_stats.get("world_time", 100.0))
+    merged_entities["wars"].append(
+        {
+            "id": next_war_id,
+            "name": f"War of {k1.get('name', 'West')} and {k2.get('name', 'East')}",
+            "created_time": now,
+            "main_attacker": k1["id"],
+            "main_defender": k2["id"],
+            "list_attackers": [k1["id"]],
+            "list_defenders": [k2["id"]],
+            "past_attackers": [],
+            "past_defenders": [],
+            "died_attackers": [],
+            "died_defenders": [],
+            "started_by_kingdom_id": k1["id"],
+            "started_by_kingdom_name": k1.get("name", ""),
+            "started_by_actor_id": k1.get("kingID", -1),
+            "dead_attackers": 0,
+            "dead_defenders": 0,
+            "total_deaths": 0,
+            "renown": 10,
+            "winner": 0,
+        }
+    )
+    merged_stats["id_war"] = max(int(merged_stats.get("id_war", 1)), next_war_id + 1)
+    merged_stats["warsStarted"] = int(merged_stats.get("warsStarted", 0)) + 1
+
+
 def stitch_worlds(worlds: list[dict[str, Any]], options: StitchOptions | None = None) -> dict[str, Any]:
     """Combine 2 or more WorldBox saveVersion 17 saves into a single playable save dict."""
     if len(worlds) < 2:
@@ -465,6 +609,7 @@ def stitch_worlds(worlds: list[dict[str, Any]], options: StitchOptions | None = 
 
     merged_entities: dict[str, list[dict[str, Any]]] = {k: [] for k in ENTITY_COUNTERS}
     running_offsets: dict[str, int] = {k: 0 for k in ENTITY_COUNTERS}
+    world_kingdom_groups: list[list[int]] = []
 
     for world, (dx_chunks, dy_chunks) in zip(worlds, placements):
         dx_tiles = dx_chunks * CHUNK_SIZE
@@ -497,11 +642,17 @@ def stitch_worlds(worlds: list[dict[str, Any]], options: StitchOptions | None = 
 
         if opts.mode == "full":
             remapped = _remap_world_entities(world, running_offsets, dx_chunks, dy_chunks)
+            world_kingdom_groups.append([int(k["id"]) for k in remapped["kingdoms"] if "id" in k])
             for sec, items in remapped.items():
                 merged_entities[sec].extend(items)
             for sec, counter_key in ENTITY_COUNTERS.items():
                 max_local = _max_id_in_save(world, sec, counter_key)
                 running_offsets[sec] += max_local + 100
+
+    if opts.archipelago and opts.gap_chunks > 0:
+        _scatter_channel_archipelago(
+            merged_grid, placements, worlds, total_w_tiles, total_h_tiles, seed=opts.seed
+        )
 
     # Compress merged terrain back to WorldBox RLE format
     tile_map, tile_array, tile_amounts = encode_tiles(merged_grid)
@@ -529,6 +680,8 @@ def stitch_worlds(worlds: list[dict[str, Any]], options: StitchOptions | None = 
                 default=0,
             )
             merged_stats[counter_key] = max(max_used + 1, running_offsets[sec] + 1)
+        if opts.diplomacy_preset != "keep":
+            _apply_diplomacy_preset(merged_entities, world_kingdom_groups, merged_stats, opts.diplomacy_preset)
     else:
         for key in SUMMED_STATS:
             if key in merged_stats:

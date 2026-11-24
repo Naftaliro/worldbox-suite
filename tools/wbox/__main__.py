@@ -62,6 +62,8 @@ def cmd_stitch(args: argparse.Namespace) -> int:
         border_chunks=args.border,
         mode=args.mode,
         coast_blend=not args.no_blend,
+        archipelago=args.archipelago,
+        diplomacy_preset=args.diplomacy,
     )
     merged = stitch_worlds(worlds, opts)
     errors = verify_save(merged)
@@ -125,6 +127,8 @@ def main(argv: list[str] | None = None) -> int:
     p_st.add_argument("--border", type=int, default=0, help="Outer ocean border in chunks")
     p_st.add_argument("--mode", choices=["full", "terrain_only"], default="full")
     p_st.add_argument("--no-blend", action="store_true", help="Disable coastal edge blending")
+    p_st.add_argument("--archipelago", action="store_true", help="Scatter stepping-stone islands in ocean gaps")
+    p_st.add_argument("--diplomacy", choices=["keep", "continent_war", "peace"], default="keep")
     p_st.add_argument("--preview", help="Optional output PNG preview path")
     p_st.add_argument("--scale", type=int, default=2, help="Preview PNG scale factor")
     p_st.set_defaults(func=cmd_stitch)

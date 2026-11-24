@@ -237,6 +237,8 @@ class StudioHandler(BaseHTTPRequestHandler):
                     border_chunks=max(0, min(4, int(body.get("border_chunks", 0)))),
                     mode=str(body.get("mode", "full")),
                     coast_blend=bool(body.get("coast_blend", True)),
+                    archipelago=bool(body.get("archipelago", False)),
+                    diplomacy_preset=str(body.get("diplomacy_preset", "keep")),
                 )
                 merged = stitch_worlds(worlds, opts)
                 errors = verify_save(merged)
@@ -255,6 +257,75 @@ class StudioHandler(BaseHTTPRequestHandler):
                         "summary": summarize_save(merged),
                     }
                 )
+                return
+
+            if path == "/api/saves/tweak":
+                sid = str(body.get("save_id", ""))
+                saves_map = _discover_saves(cfg)
+                if sid not in saves_map:
+                    self._send_json({"error": "Save not found"}, 404)
+                    return
+                fpath = saves_map[sid]
+                data = load_wbox(fpath)
+                action = str(body.get("action", ""))
+
+                if action == "rename_world":
+                    new_name = str(body.get("world_name", "")).strip()
+                    if new_name:
+                        data.setdefault("mapStats", {})["name"] = new_name
+                elif action == "rename_kingdom":
+                    kid = int(body.get("kingdom_id", -1))
+                    new_kname = str(body.get("kingdom_name", "")).strip()
+                    for k in data.get("kingdoms", []):
+                        if k.get("id") == kid and new_kname:
+                            k["name"] = new_kname
+                elif action == "world_peace":
+                    now = float(data.get("mapStats", {}).get("world_time", 100.0))
+                    for w in data.get("wars", []):
+                        if not w.get("died_time"):
+                            w["died_time"] = now
+                            w["winner"] = 1
+                elif action == "total_war":
+                    summary = summarize_save(data)
+                    ks = summary.get("kingdoms", [])
+                    if len(ks) >= 2:
+                        k1, k2 = ks[0], ks[1]
+                        next_wid = max((int(w.get("id", 0)) for w in data.get("wars", [])), default=0) + 1
+                        now = float(data.get("mapStats", {}).get("world_time", 100.0))
+                        data.setdefault("wars", []).append(
+                            {
+                                "id": next_wid,
+                                "name": f"Great War of {k1['name']} & {k2['name']}",
+                                "created_time": now,
+                                "main_attacker": k1["id"],
+                                "main_defender": k2["id"],
+                                "list_attackers": [k1["id"]],
+                                "list_defenders": [k2["id"]],
+                                "past_attackers": [],
+                                "past_defenders": [],
+                                "died_attackers": [],
+                                "died_defenders": [],
+                                "started_by_kingdom_id": k1["id"],
+                                "started_by_kingdom_name": k1["name"],
+                                "started_by_actor_id": -1,
+                                "dead_attackers": 0,
+                                "dead_defenders": 0,
+                                "total_deaths": 0,
+                                "renown": 10,
+                                "winner": 0,
+                            }
+                        )
+                        data.setdefault("mapStats", {})["id_war"] = max(
+                            int(data.get("mapStats", {}).get("id_war", 1)), next_wid + 1
+                        )
+                else:
+                    self._send_json({"error": f"Unknown tweak action: {action}"}, 400)
+                    return
+
+                out_path = Path(cfg["output_dir"]) / _safe_filename(f"tweaked_{fpath.stem}")
+                save_wbox(data, out_path)
+                _SAVE_CACHE.clear()
+                self._send_json({"id": f"output:{out_path.name}", "summary": summarize_save(data)})
                 return
 
             if path == "/api/mods/toggle":
