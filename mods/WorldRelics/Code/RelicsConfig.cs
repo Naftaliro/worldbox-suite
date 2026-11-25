@@ -22,6 +22,10 @@ namespace WorldRelics
 
         public bool EnableDenseCities = false;
 
+        public bool TectonicSlowGeological = false;
+        public int TectonicMaxDriftSteps = 14;
+        public bool EnableNaturalTectonicEvents = false;
+
         public static WorldRelicsConfig LoadOrCreate(string modFolder)
         {
             string path = Path.Combine(modFolder, "worldrelics_config.json");

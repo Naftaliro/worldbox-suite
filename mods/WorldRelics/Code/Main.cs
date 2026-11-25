@@ -22,7 +22,7 @@ namespace WorldRelics
         private float _decayTimer = 0f;
         private string _status = "";
         private Vector2 _scroll;
-        private Rect _windowRect = new Rect(340, 290, 365, 410);
+        private Rect _windowRect = new Rect(340, 220, 365, 490);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -55,6 +55,7 @@ namespace WorldRelics
 
         public void OnUnload()
         {
+            TectonicDriftSystem.StopSilent();
             DenseCitiesSystem.RestoreVanilla();
             _harmony?.UnpatchSelf();
             Debug.Log("[WorldRelics] Unloaded.");
@@ -75,6 +76,8 @@ namespace WorldRelics
                 case "bridges": return Settings.EnableSeaBridges;
                 case "ruins": return Settings.EnableRuinDecay;
                 case "dense_cities": return Settings.EnableDenseCities;
+                case "tectonic_slow": return Settings.TectonicSlowGeological;
+                case "tectonic_natural": return Settings.EnableNaturalTectonicEvents;
                 default: return false;
             }
         }
@@ -128,6 +131,40 @@ namespace WorldRelics
             return n > 0 ? $"Weathered {n} ancient ruin tiles (+60 years)!" : "No fallen city ruins tracked yet.";
         }
 
+        public string TriggerPangaeaDrift()
+        {
+            string msg = TectonicDriftSystem.StartPangaeaDrift();
+            _status = msg;
+            return msg;
+        }
+
+        public string TriggerTectonicRift()
+        {
+            string msg = TectonicDriftSystem.StartTectonicRift();
+            _status = msg;
+            return msg;
+        }
+
+        public string ToggleTectonicSpeed()
+        {
+            Settings.TectonicSlowGeological = !Settings.TectonicSlowGeological;
+            Settings.Save(_declare.FolderPath);
+            string msg = Settings.TectonicSlowGeological
+                ? "Tectonic Speed: Geological (slow drift, 6.0s/step)"
+                : "Tectonic Speed: Cinematic (fast drift, 0.9s/step)";
+            _status = msg;
+            return msg;
+        }
+
+        public string ToggleNaturalTectonics()
+        {
+            Settings.EnableNaturalTectonicEvents = !Settings.EnableNaturalTectonicEvents;
+            Settings.Save(_declare.FolderPath);
+            string msg = $"Rare Natural Tectonic Rifts: {(Settings.EnableNaturalTectonicEvents ? "ON" : "OFF")}";
+            _status = msg;
+            return msg;
+        }
+
         private void Update()
         {
             if (Settings == null) return;
@@ -147,6 +184,8 @@ namespace WorldRelics
             if (Config.paused || MapBox.instance == null) return;
 
             float dt = Time.deltaTime;
+            TectonicDriftSystem.Tick(dt);
+
             _infraTimer += dt;
             if (_infraTimer >= 18f)
             {
@@ -174,7 +213,7 @@ namespace WorldRelics
         private void DrawHud(int id)
         {
             GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(360));
+            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(440));
 
             GameUiStyle.Label($"Walls Built: {InfrastructureBuilder.WallsBuilt}  |  Bridges: {InfrastructureBuilder.BridgesBuilt}", "Infrastructure Built|Total city perimeter wall tiles and stone sea bridges constructed in this session.", isHeader: true);
             GameUiStyle.Label($"Tracked Ruin Sites: {RuinsDecaySystem.RuinSites.Count}", "Fallen Empires|Ruined cities whose abandoned walls and roads are slowly weathering over centuries.");
@@ -238,6 +277,65 @@ namespace WorldRelics
             {
                 int n = RuinsDecaySystem.WeatherAllRuins(60);
                 _status = $"Weathered {n} ruin tiles.";
+            }
+
+            GUILayout.Space(8);
+            GameUiStyle.Label(
+                $"Tectonic Events: {TectonicDriftSystem.StatusLabel()}",
+                "Continental Tectonics|Split continents apart physically with Pangaea Drift, or carve an empire-safe widening ocean strait across populated worlds.",
+                isHeader: true);
+
+            GUILayout.BeginHorizontal();
+            if (GameUiStyle.Button(
+                "Pangaea Drift",
+                "Physical Plate Drift|Physically slides the two continental plates apart across open ocean, opening a jagged sea between them while carrying living units on their plates. Collapses buildings before shifting so zones stay safe.|Requires ocean room at map edges"))
+            {
+                TriggerPangaeaDrift();
+            }
+            if (GameUiStyle.Button(
+                "Empire-Safe Rift",
+                "Widening Ocean Strait|Carves an organic tectonic sea channel across any map size. Evacuates units to dry land and leaves inland cities, buildings, and walls untouched.|Safe for populated worlds"))
+            {
+                TriggerTectonicRift();
+            }
+            if (GameUiStyle.Button(
+                "Stop",
+                "Stop Tectonic Event|Halt any active Pangaea Drift or Tectonic Rift immediately.",
+                GUILayout.Width(54)))
+            {
+                _status = TectonicDriftSystem.StopActiveEvent();
+            }
+            GUILayout.EndHorizontal();
+
+            if (GameUiStyle.ToggleButton(
+                Settings.TectonicSlowGeological
+                    ? "Drift Speed: Geological (6.0s/step)"
+                    : "Drift Speed: Cinematic (0.9s/step)",
+                Settings.TectonicSlowGeological,
+                "Tectonic Drift Speed|Cinematic unfolds in ~12-20 seconds; Geological unfolds slowly over minutes so continents drift over decades.|Saved automatically"))
+            {
+                ToggleTectonicSpeed();
+            }
+
+            float nextStepsFloat = GameUiStyle.SliderRow(
+                $"Max Drift Steps: {Mathf.Clamp(Settings.TectonicMaxDriftSteps, 6, 24)} (~{Mathf.Clamp(Settings.TectonicMaxDriftSteps, 6, 24) * 2} tile sea)",
+                Mathf.Clamp(Settings.TectonicMaxDriftSteps, 6, 24),
+                6f,
+                24f,
+                "Max Drift Steps|Controls how wide the ocean gap becomes (roughly 2x steps in tiles). Pangaea Drift also auto-caps to keep a 4-tile ocean buffer at map borders.");
+            int nextSteps = Mathf.RoundToInt(nextStepsFloat);
+            if (nextSteps != Settings.TectonicMaxDriftSteps)
+            {
+                Settings.TectonicMaxDriftSteps = nextSteps;
+                Settings.Save(_declare.FolderPath);
+            }
+
+            if (GameUiStyle.ToggleButton(
+                $"Rare Natural Rifts: {(Settings.EnableNaturalTectonicEvents ? "ON" : "OFF")}",
+                Settings.EnableNaturalTectonicEvents,
+                "Rare Natural Tectonic Events|When enabled, the world occasionally triggers an empire-safe tectonic rift on its own (~8% chance every 3 minutes when idle).|Saved automatically"))
+            {
+                ToggleNaturalTectonics();
             }
 
             if (RuinsDecaySystem.RuinSites.Count > 0)

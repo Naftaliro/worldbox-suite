@@ -43,6 +43,9 @@ namespace SuiteHub
                 Sprite iconChron          = LoadButtonSprite(Path.Combine(resDir, "btn_chronicle.png")) ?? tabIcon;
                 Sprite iconRelics         = LoadButtonSprite(Path.Combine(resDir, "btn_relics.png")) ?? tabIcon;
                 Sprite iconDenseCities    = LoadButtonSprite(Path.Combine(resDir, "btn_dense_cities.png")) ?? iconRelics;
+                Sprite iconPangaeaDrift   = LoadButtonSprite(Path.Combine(resDir, "btn_pangaea_drift.png")) ?? iconWorld;
+                Sprite iconTectonicRift   = LoadButtonSprite(Path.Combine(resDir, "btn_tectonic_rift.png")) ?? iconWorld;
+                Sprite iconTectonicSpeed  = LoadButtonSprite(Path.Combine(resDir, "btn_tectonic_speed.png")) ?? iconRelics;
                 Sprite iconCoop           = LoadButtonSprite(Path.Combine(resDir, "btn_coop.png")) ?? tabIcon;
                 Sprite iconModern         = LoadButtonSprite(Path.Combine(resDir, "btn_modern.png")) ?? tabIcon;
 
@@ -131,6 +134,12 @@ namespace SuiteHub
                         MultiContinentGenerator.GenerateNow();
                         Main.ShowToast("Generated " + MultiContinentGenerator.CurrentSummary());
                     });
+
+                    AddAction(powersTab, "p_worlds", "suite_pangaea_drift", iconPangaeaDrift,
+                        () => Main.ShowToast(Main.InvokeCompanionAction("WorldRelics.Main", "TriggerPangaeaDrift")));
+
+                    AddAction(powersTab, "p_worlds", "suite_tectonic_rift", iconTectonicRift,
+                        () => Main.ShowToast(Main.InvokeCompanionAction("WorldRelics.Main", "TriggerTectonicRift")));
 
                     AddAction(powersTab, "p_worlds", "suite_dispatch_fleet", iconPortal,
                         () => Main.ShowToast(Main.InvokeCompanionAction("LinkedContinents.Main", "SendExpeditionNow")));
@@ -275,6 +284,10 @@ namespace SuiteHub
                     AddToggle(rulesTab, "r_world", "suite_tog_ruins", iconRelics,
                         () => Main.GetCompanionState("WorldRelics.Main", "ruins"),
                         () => Main.InvokeCompanionAction("WorldRelics.Main", "ToggleRuinDecay"));
+
+                    AddToggle(rulesTab, "r_world", "suite_tog_tectonic_speed", iconTectonicSpeed,
+                        () => Main.GetCompanionState("WorldRelics.Main", "tectonic_slow"),
+                        () => Main.InvokeCompanionAction("WorldRelics.Main", "ToggleTectonicSpeed"));
 
                     AddToggle(rulesTab, "r_world", "suite_tog_eras", iconChron,
                         () => Main.GetCompanionState("EraChronicle.Main", "eras"),

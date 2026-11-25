@@ -1618,6 +1618,423 @@ def make_btn_dense_cities() -> Canvas:
     return c
 
 
+def make_btn_pangaea_drift() -> Canvas:
+    """Pangaea Drift: Matching green-and-brown island halves pulling apart over opening sea with golden arrows."""
+    c = Canvas(32, 32)
+
+    # 1. Opening ocean channel beneath and between the two drifting halves
+    # Clean organic sea basin (x=6..25, y=13..29)
+    c.ellipse(15.5, 22.0, 10.4, 7.0, BLU_0)
+    c.ellipse(15.5, 21.4, 9.6, 6.2, BLU_1)
+    c.ellipse(15.5, 20.6, 8.2, 5.2, BLU_2)
+
+    # Clean layered ocean currents & surf crests down the widening central strait
+    for y in range(14, 28):
+        shift = 1 if (y // 3) % 2 == 0 else 0
+        c.hline(13 + shift, 17 + shift, y, BLU_2 if y < 24 else BLU_1)
+    # Crisp cyan-white wave lines across the opening channel
+    for x0, x1, wy in [(14, 17, 15), (13, 16, 18), (15, 18, 21), (12, 16, 24), (16, 19, 26)]:
+        c.hline(x0, x1, wy, BLU_3)
+        c.px(x0 + 1, wy, BLU_4)
+    c.add_outline(OUTLINE_DARK)
+
+    # 2. Matching puzzle-fit island halves drawn on separate layers so inner coastlines have crisp 1px outlines
+    # Left half: jigsaw eastern coast (cape at y=16..18, cove at y=13..15)
+    left_land_rows = {
+        11: (4, 11),
+        12: (3, 12),
+        13: (2, 11),   # inward cove matching right point
+        14: (2, 10),
+        15: (2, 11),
+        16: (2, 12),   # protruding cape matching right cove
+        17: (2, 13),
+        18: (3, 12),
+        19: (3, 11),
+        20: (4, 11),
+        21: (5, 10),
+    }
+    # Right half: complementary western coast (point at y=13..15, cove at y=16..18)
+    right_land_rows = {
+        11: (20, 27),
+        12: (19, 28),
+        13: (19, 29),  # protruding point matching left cove
+        14: (18, 29),
+        15: (19, 29),
+        16: (20, 29),  # inward cove matching left cape
+        17: (21, 29),
+        18: (20, 28),
+        19: (19, 28),
+        20: (20, 27),
+        21: (21, 26),
+    }
+
+    def make_island_half_layer(row_spans: dict[int, tuple[int, int]], is_left: bool) -> Canvas:
+        layer = Canvas(32, 32)
+        col_bottom: dict[int, int] = {}
+        for y, (x0, x1) in row_spans.items():
+            for x in range(x0, x1 + 1):
+                if x not in col_bottom or y > col_bottom[x]:
+                    col_bottom[x] = y
+
+        # 3D rocky brown earth cliff underside (4px thick)
+        for x, y_bot in col_bottom.items():
+            for dy in range(1, 5):
+                cy = y_bot + dy
+                if cy > 26:
+                    continue
+                if dy == 1:
+                    col = BRN_3 if (x + cy) % 3 == 0 else BRN_2
+                elif dy == 2:
+                    col = BRN_2 if is_left else BRN_1
+                elif dy == 3:
+                    col = BRN_1
+                else:
+                    col = BRN_0
+                layer.px(x, cy, col)
+
+        # Lush emerald grass plateau + warm sandy sheared coast rim
+        for y, (x0, x1) in row_spans.items():
+            for x in range(x0, x1 + 1):
+                is_inner_edge = (x == x1) if is_left else (x == x0)
+                if is_inner_edge:
+                    layer.px(x, y, PAR_2 if y % 2 == 0 else PAR_1)
+                elif y <= 13 and ((x - x0 < 5) if is_left else (x - x0 < 5)):
+                    layer.px(x, y, GRN_3)
+                elif y >= 19:
+                    layer.px(x, y, GRN_1)
+                else:
+                    layer.px(x, y, GRN_2)
+
+        # Sunlit grassy knolls & tiny dark-green forest tufts
+        if is_left:
+            layer.fill_rect(4, 13, 7, 15, GRN_3)
+            layer.px(5, 13, GRN_4)
+            layer.px(8, 16, GRN_1)
+            layer.px(9, 17, GRN_0)
+            layer.px(9, 16, GRN_1)
+            layer.px(6, 18, GRN_1)
+        else:
+            layer.fill_rect(23, 13, 26, 15, GRN_3)
+            layer.px(24, 13, GRN_4)
+            layer.px(22, 15, GRN_1)
+            layer.px(25, 17, GRN_0)
+            layer.px(25, 16, GRN_1)
+            layer.px(23, 19, GRN_1)
+
+        layer.add_outline(OUTLINE_WARM)
+        return layer
+
+    c.blit(make_island_half_layer(left_land_rows, is_left=True))
+    c.blit(make_island_half_layer(right_land_rows, is_left=False))
+
+    # 3. Bold golden outward drift arrows (<-- and -->) on top layer
+    arrows = Canvas(32, 32)
+
+    # Left arrow (<--): tip at x=2, head x=2..6, shaft x=6..13, centered at y=6
+    arrows.poly([(1.8, 6.0), (6.5, 2.2), (6.5, 9.8)], GOLD_2)
+    arrows.poly([(2.8, 6.0), (6.2, 3.2), (6.2, 6.0)], GOLD_3)
+    arrows.fill_rect(6, 5, 13, 7, GOLD_2)
+    arrows.hline(5, 13, 5, GOLD_3)
+    arrows.hline(6, 13, 7, GOLD_1)
+    arrows.px(3, 6, GOLD_4)
+    arrows.px(4, 5, GOLD_4)
+    arrows.px(5, 4, GOLD_4)
+
+    # Right arrow (-->): tip at x=29, head x=25..29, shaft x=18..25, centered at y=6
+    arrows.poly([(29.2, 6.0), (24.5, 2.2), (24.5, 9.8)], GOLD_2)
+    arrows.poly([(28.2, 6.0), (24.8, 3.2), (24.8, 6.0)], GOLD_3)
+    arrows.fill_rect(18, 5, 25, 7, GOLD_2)
+    arrows.hline(18, 26, 5, GOLD_3)
+    arrows.hline(18, 25, 7, GOLD_1)
+    arrows.px(28, 6, GOLD_4)
+    arrows.px(27, 5, GOLD_4)
+    arrows.px(26, 4, GOLD_4)
+
+    arrows.add_outline(OUTLINE_DARK)
+    c.blit(arrows)
+    return c
+
+
+def make_btn_tectonic_rift() -> Canvas:
+    """Tectonic Rift: Landmass cracked down the center by a glowing magma fault with blue sea rushing in."""
+    c = Canvas(32, 32)
+
+    # Sharp jagged lightning-style earthquake fault spine from top (y=3) to flooded mouth (y=28)
+    rift_cx: dict[int, int] = {
+        3: 16, 4: 15, 5: 14, 6: 14, 7: 15, 8: 17, 9: 17, 10: 16,
+        11: 14, 12: 14, 13: 15, 14: 16, 15: 16, 16: 15, 17: 15,
+        18: 16, 19: 16, 20: 15, 21: 15, 22: 15, 23: 15, 24: 15,
+        25: 15, 26: 15, 27: 15, 28: 15,
+    }
+    rift_hw: dict[int, int] = {
+        3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 2, 10: 2,
+        11: 2, 12: 2, 13: 2, 14: 2, 15: 2, 16: 3, 17: 3,
+        18: 3, 19: 3, 20: 3, 21: 4, 22: 4, 23: 5, 24: 5,
+        25: 5, 26: 5, 27: 4, 28: 3,
+    }
+
+    # 1. Rounded ocean bay base at the bottom so rushing sea silhouette curves organically (no flat box edge)
+    c.ellipse(15.5, 24.0, 8.2, 5.2, BLU_0)
+    c.ellipse(15.5, 23.4, 7.4, 4.6, BLU_1)
+    c.ellipse(15.5, 22.8, 6.2, 3.8, BLU_2)
+
+    # 2. Build left and right fractured island plates on separate layer with crisp 1px dark fault rim
+    land = Canvas(32, 32)
+    for y in range(3, 27):
+        rcx = rift_cx.get(y, 15)
+        hw = rift_hw.get(y, 2)
+        for x in range(2, 30):
+            if abs(x - rcx) <= hw:
+                continue
+
+            is_right = x > rcx
+            sy = y - (1 if is_right else 0)
+            nx = (x - 15.5) / 13.0
+            ny = (sy - 13.8) / 10.4
+            if nx * nx + ny * ny <= 1.0:
+                if sy >= 20:
+                    cliff_d = sy - 20
+                    col = BRN_3 if cliff_d == 0 else (BRN_2 if cliff_d == 1 else (BRN_1 if cliff_d == 2 else BRN_0))
+                    land.px(x, y, col)
+                else:
+                    if sy <= 9 and x < 14:
+                        col = GRN_3
+                    elif sy <= 11 and x > 18:
+                        col = GRN_3 if (x + sy) % 2 == 0 else GRN_2
+                    elif sy >= 17:
+                        col = GRN_1
+                    else:
+                        col = GRN_2
+                    land.px(x, y, col)
+
+    # Shaded mountain peaks flanking the earthquake fault
+    for mx, my in [(7, 11), (9, 13), (23, 12), (25, 14)]:
+        land.poly([(mx, my - 3), (mx - 3, my + 2), (mx + 3, my + 2)], STN_1)
+        land.poly([(mx, my - 3), (mx - 3, my + 2), (mx, my + 2)], STN_2)
+        land.px(mx, my - 3, STN_4)
+        land.px(mx - 1, my - 2, STN_3)
+
+    # Crisp inner basalt/earth fracture edge right along the fault walls
+    for y in range(4, 25):
+        rcx = rift_cx[y]
+        hw = rift_hw[y]
+        for side in (-1, 1):
+            wx = rcx + side * (hw + 1)
+            if 2 <= wx <= 29 and land.is_solid(wx, y):
+                land.px(wx, y, BRN_2 if y > 16 else STN_1)
+
+    # Subtle secondary earthquake cracks branching into grass
+    for bx, by in [(10, 9), (9, 10), (21, 10), (22, 11), (10, 17), (9, 18), (21, 18), (22, 19)]:
+        if land.is_solid(bx, by):
+            land.px(bx, by, OUTLINE_WARM)
+
+    land.add_outline(OUTLINE_DARK)
+
+    # 3. Glowing volcanic magma fissure (upper y=4..16) + rushing sapphire-cyan ocean (lower y=17..28)
+    rift = Canvas(32, 32)
+    for y in range(4, 28):
+        rcx = rift_cx[y]
+        hw = rift_hw[y]
+        for x in range(rcx - hw, rcx + hw + 1):
+            dist = abs(x - rcx)
+            if y <= 15:
+                # Molten magma core
+                if dist == 0:
+                    col = GOLD_4 if y in (5, 8, 11, 14) else GOLD_3
+                elif dist == 1:
+                    col = ORG_3 if (x + y) % 2 == 0 else ORG_2
+                else:
+                    col = RED_2 if dist == hw else RED_1
+                rift.px(x, y, col)
+            elif y <= 18:
+                # Sizzling magma-meets-sea steam & white-cyan surf clash
+                if y == 16 and dist <= 1:
+                    col = GOLD_4 if dist == 0 else ORG_3
+                elif dist <= 1:
+                    col = BLU_4
+                elif dist == 2:
+                    col = BLU_3 if y >= 17 else ORG_2
+                else:
+                    col = RED_1 if y == 16 else BLU_2
+                rift.px(x, y, col)
+            else:
+                # Surging blue ocean rushing upward into the cracked chasm
+                if y >= 26:
+                    col = BLU_1 if abs(x - rcx) >= 3 else BLU_2
+                elif dist == hw:
+                    col = BLU_3
+                elif dist <= 1:
+                    col = BLU_2 if y % 2 == 0 else BLU_3
+                else:
+                    col = BLU_2 if y < 24 else BLU_1
+                rift.px(x, y, col)
+
+    # Crisp surging wave crests rushing upward into the rift mouth
+    for x0, x1, wy in [(14, 17, 18), (13, 16, 21), (15, 18, 23), (12, 16, 25), (15, 18, 27)]:
+        rift.hline(x0, x1, wy, BLU_3)
+        rift.px(x0 + 1, wy, BLU_4)
+
+    # Glowing volcanic spark embers popping out of the upper fissure
+    rift.px(13, 3, ORG_3)
+    rift.px(17, 3, GOLD_3)
+
+    c.blit(land)
+    c.blit(rift)
+    c.add_outline(OUTLINE_DARK)
+    return c
+
+
+def make_btn_tectonic_speed() -> Canvas:
+    """Tectonic Speed: Golden sand hourglass sitting over a cracked stone tectonic plate."""
+    c = Canvas(32, 32)
+
+    # 1. Prominent cracked stone tectonic plate base (y=17..29, x=2..29)
+    # Left stone slab half (slightly elevated 1px)
+    c.poly([(2.0, 21.0), (14.8, 17.5), (14.4, 25.0), (3.0, 26.2)], STN_2)
+    c.poly([(2.8, 21.2), (14.2, 18.2), (13.4, 22.8), (4.2, 24.2)], STN_3)
+    # Left 3D cliff thickness (y=24..28)
+    c.poly([(2.0, 21.0), (3.0, 26.2), (14.4, 25.0), (13.8, 28.6), (3.4, 28.8), (2.0, 24.8)], STN_1)
+    c.hline(4, 13, 28, STN_0)
+
+    # Right stone slab half (shifted slightly down-right across the tectonic fault)
+    c.poly([(17.2, 18.2), (29.5, 21.5), (28.5, 26.5), (16.8, 25.6)], STN_2)
+    c.poly([(17.6, 18.8), (28.5, 21.6), (27.2, 24.4), (17.2, 23.6)], STN_3)
+    # Right 3D cliff thickness (y=24..28)
+    c.poly([(16.8, 25.6), (28.5, 26.5), (29.5, 21.5), (29.5, 25.2), (28.2, 28.8), (17.2, 28.6)], STN_1)
+    c.hline(18, 27, 28, STN_0)
+
+    # Crisp stone highlights & weathered bevel ticks
+    for sx, sy in [(5, 21), (8, 20), (11, 20), (21, 20), (25, 21)]:
+        c.px(sx, sy, STN_4)
+    for sx, sy in [(6, 25), (10, 26), (22, 26), (26, 25)]:
+        c.px(sx, sy, STN_0)
+
+    # Bold jagged tectonic fault crack zig-zagging down through the center of the stone plate (y=19..28)
+    crack_path = [
+        (15, 19), (16, 20), (15, 21), (14, 22), (15, 23),
+        (16, 24), (16, 25), (15, 26), (14, 27), (15, 28),
+    ]
+    for cx, cy in crack_path:
+        c.px(cx, cy, OUTLINE_DARK)
+        c.px(cx + 1, cy, OBS_0)
+        # Warm glowing mantle seam inside the deep stone fracture
+        if cy in (23, 24, 26):
+            c.px(cx, cy, ORG_2)
+        if cy == 25:
+            c.px(cx, cy, GOLD_3)
+        if cy == 27:
+            c.px(cx, cy, RED_2)
+
+    # Branching hairline stone cracks on left & right plate shoulders
+    for fx, fy in [(10, 23), (9, 24), (8, 24), (21, 23), (22, 24), (23, 24)]:
+        c.px(fx, fy, STN_0)
+        c.px(fx, fy - 1, STN_3)
+
+    c.add_outline(OUTLINE_DARK)
+
+    # Soft cast shadow where the hourglass base rests atop the cracked stone plate
+    c.hline(10, 21, 21, STN_0)
+    c.hline(11, 20, 22, OBS_0)
+
+    # 2. Iconic pinched-waist golden sand hourglass (y=2..21) — unmistakable >< silhouette!
+    hg = Canvas(32, 32)
+
+    # Symmetrical pinched crystal glass bulbs (y=5..18)
+    bulb_half_w: dict[int, int] = {
+        5: 5, 6: 5, 7: 5, 8: 4, 9: 3, 10: 2,
+        11: 1,  # crisp pinched waist
+        12: 2, 13: 3, 14: 4, 15: 5, 16: 5, 17: 5, 18: 5,
+    }
+    for y, hw in bulb_half_w.items():
+        for x in range(15 - hw, 16 + hw + 1):
+            if x == 15 - hw or x == 16 + hw:
+                col = BLU_2  # glass contour tint
+            elif x == 15 - hw + 1:
+                col = BLU_4  # curved bright reflection on left glass wall
+            elif x >= 16 + hw - 1:
+                col = STL_2
+            else:
+                col = BLU_3 if y < 11 else STL_3
+            hg.px(x, y, col)
+
+    # Upper bulb golden sand funnel (y=7..10)
+    upper_sand = {
+        7: (12, 19),
+        8: (13, 18),
+        9: (14, 17),
+        10: (15, 16),
+    }
+    for y, (x0, x1) in upper_sand.items():
+        for x in range(x0, x1 + 1):
+            if y == 7 and x in (13, 14, 15):
+                col = GOLD_4
+            elif x <= 15:
+                col = GOLD_3
+            elif x == x1:
+                col = GOLD_1
+            else:
+                col = GOLD_2
+            hg.px(x, y, col)
+
+    # Falling golden sand trickle through the pinched waist (y=11..15)
+    for y in range(11, 16):
+        hg.px(15, y, GOLD_4 if y % 2 == 1 else GOLD_3)
+        if y <= 12:
+            hg.px(16, y, GOLD_2)
+
+    # Lower bulb golden sand pyramid mound (y=15..18)
+    lower_sand = {
+        15: (15, 16),
+        16: (13, 18),
+        17: (12, 19),
+        18: (11, 20),
+    }
+    for y, (x0, x1) in lower_sand.items():
+        for x in range(x0, x1 + 1):
+            if y == 15 and x == 15:
+                col = GOLD_4
+            elif x < 15:
+                col = GOLD_3 if y < 18 else GOLD_2
+            elif x == 15:
+                col = GOLD_4 if y == 16 else GOLD_3
+            elif x >= x1 - 1:
+                col = GOLD_1
+            else:
+                col = GOLD_2
+            hg.px(x, y, col)
+
+    # Curved white-cyan glass specular highlights over left glass wall
+    for gx, gy in [(11, 6), (11, 7), (12, 8), (12, 15), (11, 16), (11, 17)]:
+        hg.px(gx, gy, BLU_4)
+
+    # Ornate golden collar pinching the narrow waist (y=11)
+    hg.hline(14, 17, 11, GOLD_2)
+    hg.px(14, 11, GOLD_3)
+    hg.px(15, 11, GOLD_4)
+
+    # Ornate wide golden top cap (y=2..4, x=8..23)
+    hg.fill_rect(9, 2, 22, 4, GOLD_2)
+    hg.hline(8, 23, 3, GOLD_2)
+    hg.hline(9, 21, 2, GOLD_3)
+    hg.hline(10, 16, 2, GOLD_4)
+    hg.hline(9, 22, 4, GOLD_1)
+    hg.px(8, 3, GOLD_3)
+    hg.px(23, 3, GOLD_0)
+
+    # Ornate wide golden bottom base (y=19..21, x=8..23)
+    hg.fill_rect(9, 19, 22, 21, GOLD_2)
+    hg.hline(8, 23, 20, GOLD_2)
+    hg.hline(9, 21, 19, GOLD_3)
+    hg.hline(10, 15, 19, GOLD_4)
+    hg.hline(9, 22, 21, GOLD_0)
+    hg.px(8, 20, GOLD_3)
+    hg.px(23, 20, GOLD_0)
+
+    hg.add_outline(OUTLINE_DARK)
+    c.blit(hg)
+    return c
+
+
 # =============================================================================
 # 4. MULTI-FRAME WARDEN SENTINEL ANIMATION SUITE (34 frames, 32x32 RGBA)
 # =============================================================================
@@ -2736,6 +3153,9 @@ def main() -> None:
         ("btn_war_ticker", make_btn_war_ticker()),
         ("btn_species_panel", make_btn_species_panel()),
         ("btn_dense_cities", make_btn_dense_cities()),
+        ("btn_pangaea_drift", make_btn_pangaea_drift()),
+        ("btn_tectonic_rift", make_btn_tectonic_rift()),
+        ("btn_tectonic_speed", make_btn_tectonic_speed()),
     ]
 
     for name, img in wardens + warden_anims:

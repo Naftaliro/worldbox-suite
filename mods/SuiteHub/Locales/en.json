@@ -64,6 +64,14 @@
   "suite_gen_continent_description": "Sculpt a brand-new pre-stitched multi-continent map right in-game with stepping-stone islands and starting settlers.",
   "suite_gen_continent_tip": "Replaces current map!",
 
+  "suite_pangaea_drift": "Pangaea Plate Drift",
+  "suite_pangaea_drift_description": "Physically slide two halves of a continent apart across open ocean, carving a jagged sea and volcanic islets while carrying living units on their drifting plates. Collapses buildings first to keep zones safe.",
+  "suite_pangaea_drift_tip": "Click again to stop · WorldRelics",
+
+  "suite_tectonic_rift": "Empire-Safe Tectonic Rift",
+  "suite_tectonic_rift_description": "Open an organic widening ocean strait across any map without harming inland empires. Evacuates units to nearby dry shores and preserves inland cities, walls, and cliffs.",
+  "suite_tectonic_rift_tip": "Click again to stop · WorldRelics",
+
   "suite_dispatch_fleet": "Dispatch Ocean Expedition",
   "suite_dispatch_fleet_description": "Queue 12 soldiers from your strongest kingdom into the ocean portal to invade or reinforce another linked save.",
   "suite_dispatch_fleet_tip": "Portal Setup: F11",
@@ -179,6 +187,10 @@
   "suite_tog_ruins": "Centuries Ruin Decay",
   "suite_tog_ruins_description": "Fallen fortified cities preserve their walls and slowly weather into ancient mossy ruins.",
   "suite_tog_ruins_tip": "Click to toggle ON/OFF",
+
+  "suite_tog_tectonic_speed": "Geological Tectonic Speed",
+  "suite_tog_tectonic_speed_description": "Switch continental drift and tectonic rifts between fast Cinematic speed (0.9s/step) and slow Geological speed (6.0s/step over minutes).",
+  "suite_tog_tectonic_speed_tip": "ON = Geological · OFF = Cinematic",
 
   "suite_tog_eras": "Kingdom Era Progression",
   "suite_tog_eras_description": "Advance kingdoms through 5 era tiers with king and veteran army milestone bonuses.",
