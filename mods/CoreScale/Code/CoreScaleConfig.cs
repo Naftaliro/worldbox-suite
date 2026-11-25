@@ -10,7 +10,10 @@ namespace CoreScale
     {
         public bool EnableCustomMapSizes = true;
         public bool EnableAdaptiveLOD = true;
+        public bool TurboMode = false;
+        public bool EnableFpsGovernor = true;
         public bool SkipAnimationsInStrategicZoom = true;
+        public bool ThrottleParticlesAndFlashes = true;
         public bool UnlockParallelism = true;
         public bool ForceDisableShadows = false;
         public bool EnableBattalionCompression = true;

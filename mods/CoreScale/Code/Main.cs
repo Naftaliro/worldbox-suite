@@ -15,6 +15,7 @@ namespace CoreScale
         public static Main Instance { get; private set; }
         public static CoreScaleConfig Settings { get; private set; }
         public static int CurrentLodTier { get; private set; }
+        public static int EffectiveLodTier { get; private set; }
         public static int LivePopulation { get; private set; }
 
         private ModDeclare _declare;
@@ -98,11 +99,24 @@ namespace CoreScale
             switch (key)
             {
                 case "lod": return Settings.EnableAdaptiveLOD;
+                case "turbo": return Settings.TurboMode;
                 case "anim_cull": return Settings.SkipAnimationsInStrategicZoom;
                 case "no_shadows": return Settings.ForceDisableShadows;
                 case "battalions": return Settings.EnableBattalionCompression;
                 default: return false;
             }
+        }
+
+        public string ToggleTurboMode()
+        {
+            if (Settings == null) return "";
+            Settings.TurboMode = !Settings.TurboMode;
+            Settings.ForceDisableShadows = Settings.TurboMode;
+            Settings.Save(_declare.FolderPath);
+            RefreshLodState();
+            return Settings.TurboMode
+                ? "CoreScale Turbo Mode: ON (Aggressive particle, flash, flora & animation culling)"
+                : "CoreScale Turbo Mode: OFF";
         }
 
         public string ToggleAdaptiveLod()
@@ -155,13 +169,13 @@ namespace CoreScale
                 ToggleHud();
             }
 
-            if (_showOverlay)
+            float dt = Time.unscaledDeltaTime;
+            if (dt > 0.0001f)
             {
-                float dt = Time.unscaledDeltaTime;
-                if (dt > 0.0001f) _fpsSmoothed = Mathf.Lerp(_fpsSmoothed, 1f / dt, 0.08f);
+                _fpsSmoothed = Mathf.Lerp(_fpsSmoothed, 1f / dt, 0.05f);
             }
 
-            _statsTimer += Time.unscaledDeltaTime;
+            _statsTimer += dt;
             if (_statsTimer >= 0.75f)
             {
                 _statsTimer = 0f;
@@ -193,9 +207,10 @@ namespace CoreScale
                 ? world.units.units_only_alive.Count
                 : 0;
 
-            if (!Settings.EnableAdaptiveLOD)
+            if (!Settings.EnableAdaptiveLOD && !Settings.TurboMode)
             {
                 CurrentLodTier = 0;
+                EffectiveLodTier = 0;
                 return;
             }
 
@@ -203,6 +218,18 @@ namespace CoreScale
             else if (LivePopulation >= Settings.LodTier2Population) CurrentLodTier = 2;
             else if (LivePopulation >= Settings.LodTier1Population) CurrentLodTier = 1;
             else CurrentLodTier = 0;
+
+            int eff = CurrentLodTier;
+            if (Settings.TurboMode)
+            {
+                eff = Math.Max(eff, 2);
+            }
+            if (Settings.EnableFpsGovernor && !Config.paused)
+            {
+                if (_fpsSmoothed < 28f) eff = 3;
+                else if (_fpsSmoothed < 44f) eff = Math.Max(eff, 1);
+            }
+            EffectiveLodTier = eff;
         }
 
         private void DrawGui()

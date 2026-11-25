@@ -46,7 +46,7 @@ namespace CoreScale
         private static void UnitShadowsPostfix(ref bool __result)
         {
             if (!__result || Main.Settings == null) return;
-            if (Main.Settings.ForceDisableShadows || Main.CurrentLodTier >= 1)
+            if (Main.Settings.ForceDisableShadows || Main.Settings.TurboMode || Main.EffectiveLodTier >= 1)
             {
                 __result = false;
             }
@@ -57,7 +57,7 @@ namespace CoreScale
         private static void BuildingShadowsPostfix(ref bool __result)
         {
             if (!__result || Main.Settings == null) return;
-            if (Main.Settings.ForceDisableShadows || Main.CurrentLodTier >= 2)
+            if (Main.Settings.ForceDisableShadows || Main.Settings.TurboMode || Main.EffectiveLodTier >= 2)
             {
                 __result = false;
             }

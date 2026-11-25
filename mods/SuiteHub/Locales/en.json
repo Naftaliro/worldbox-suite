@@ -80,6 +80,10 @@
   "suite_drop_air_description": "Click anywhere on the map to launch Supersonic Jets and Attack Helicopters for the largest kingdom.",
   "suite_drop_air_tip": "Click on map to place",
 
+  "suite_tog_turbo": "Turbo Performance Mode",
+  "suite_tog_turbo_description": "Aggressive FPS boost: disables shadows, tile flash uploads, unit/building shake, and status/slash particles, and staggers flora spread and target scans.",
+  "suite_tog_turbo_tip": "Click to toggle ON/OFF",
+
   "suite_tog_lod": "Adaptive Simulation LOD",
   "suite_tog_lod_description": "Progressively throttle heavy background AI batches at 3k, 8k, and 15k population to keep giant worlds smooth.",
   "suite_tog_lod_tip": "Click to toggle ON/OFF",
@@ -147,10 +151,6 @@
   "suite_tog_ruins": "Centuries Ruin Decay",
   "suite_tog_ruins_description": "Fallen fortified cities preserve their walls and slowly weather into ancient mossy ruins.",
   "suite_tog_ruins_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_domains": "Feral Domain Borders",
-  "suite_tog_domains_description": "Display territory rings over large wild animal pack hunting grounds.",
-  "suite_tog_domains_tip": "Click to toggle ON/OFF",
 
   "suite_tog_eras": "Kingdom Era Progression",
   "suite_tog_eras_description": "Advance kingdoms through 5 era tiers with king and veteran army milestone bonuses.",

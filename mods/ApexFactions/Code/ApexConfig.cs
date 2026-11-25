@@ -15,7 +15,7 @@ namespace ApexFactions
 
         // Wild Sovereignty / Feral Pack Domains
         public bool EnableFeralDomains = true;
-        public bool ShowFeralDomainRings = true;
+        public bool ShowFeralDomainRings = false;
         public int MinPackSizeForDomain = 5;
         public float FeralDomainRadiusTiles = 26f;
 

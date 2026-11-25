@@ -57,9 +57,6 @@ namespace ApexFactions
         private static readonly MethodInfo SpeciesIdGetter =
             AccessTools.PropertyGetter(typeof(Subspecies), "species_id");
 
-        private static Texture2D _domainRingTex;
-        private static GUIStyle _domainLabelStyle;
-
         /// <summary>
         /// Spawns a pack of sapient Wolfkin (civ_wolf) ready to found a full Wolf Kingdom immediately.
         /// </summary>
@@ -298,60 +295,6 @@ namespace ApexFactions
                         warned++;
                     }
                 }
-            }
-        }
-
-        private static void EnsureVisuals()
-        {
-            if (_domainRingTex != null) return;
-            const int sz = 64;
-            _domainRingTex = new Texture2D(sz, sz, TextureFormat.RGBA32, false);
-            float half = (sz - 1) * 0.5f;
-            for (int y = 0; y < sz; y++)
-            {
-                for (int x = 0; x < sz; x++)
-                {
-                    float dist = Mathf.Sqrt((x - half) * (x - half) + (y - half) * (y - half)) / half;
-                    float alpha = 0f;
-                    if (dist >= 0.84f && dist <= 0.98f) alpha = 0.72f;
-                    else if (dist < 0.84f) alpha = 0.08f;
-                    // Catppuccin Teal (#94e2d5)
-                    _domainRingTex.SetPixel(x, y, new Color(0.580f, 0.886f, 0.835f, alpha));
-                }
-            }
-            _domainRingTex.Apply();
-
-            _domainLabelStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 11,
-                fontStyle = FontStyle.Bold
-            };
-            _domainLabelStyle.normal.textColor = new Color(0.580f, 0.886f, 0.835f);
-        }
-
-        public static void DrawDomainOverlays()
-        {
-            if (Main.Settings == null || !Main.Settings.ShowFeralDomainRings || ActiveDomains.Count == 0) return;
-            if (Event.current.type != EventType.Repaint) return;
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            EnsureVisuals();
-
-            for (int i = 0; i < ActiveDomains.Count; i++)
-            {
-                var d = ActiveDomains[i];
-                Vector3 centerScr = cam.WorldToScreenPoint(new Vector3(d.CenterX, d.CenterY, 0f));
-                if (centerScr.z < 0f) continue;
-
-                Vector3 edgeScr = cam.WorldToScreenPoint(new Vector3(d.CenterX + d.Radius, d.CenterY, 0f));
-                float radiusPx = Mathf.Clamp(Mathf.Abs(edgeScr.x - centerScr.x), 24f, 420f);
-                float sx = centerScr.x;
-                float sy = Screen.height - centerScr.y;
-
-                GUI.DrawTexture(new Rect(sx - radiusPx, sy - radiusPx, radiusPx * 2f, radiusPx * 2f), _domainRingTex);
-                GUI.Label(new Rect(sx - 95f, sy - radiusPx - 16f, 190f, 18f), $"{d.DomainTitle} ({d.PackCount})", _domainLabelStyle);
             }
         }
     }

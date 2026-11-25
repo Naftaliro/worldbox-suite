@@ -166,6 +166,10 @@ namespace SuiteHub
                     rulesTab.SetLayout(rGroups);
 
                     // Group 1: Performance (CoreScale)
+                    AddToggle(rulesTab, "r_perf", "suite_tog_turbo", iconScale,
+                        () => Main.GetCompanionState("CoreScale.Main", "turbo"),
+                        () => Main.InvokeCompanionAction("CoreScale.Main", "ToggleTurboMode"));
+
                     AddToggle(rulesTab, "r_perf", "suite_tog_lod", iconScale,
                         () => Main.GetCompanionState("CoreScale.Main", "lod"),
                         () => Main.InvokeCompanionAction("CoreScale.Main", "ToggleAdaptiveLod"));
@@ -236,10 +240,6 @@ namespace SuiteHub
                     AddToggle(rulesTab, "r_world", "suite_tog_ruins", iconRelics,
                         () => Main.GetCompanionState("WorldRelics.Main", "ruins"),
                         () => Main.InvokeCompanionAction("WorldRelics.Main", "ToggleRuinDecay"));
-
-                    AddToggle(rulesTab, "r_world", "suite_tog_domains", iconApex,
-                        () => Main.GetCompanionState("ApexFactions.Main", "domains"),
-                        () => Main.InvokeCompanionAction("ApexFactions.Main", "ToggleDomainRings"));
 
                     AddToggle(rulesTab, "r_world", "suite_tog_eras", iconChron,
                         () => Main.GetCompanionState("EraChronicle.Main", "eras"),

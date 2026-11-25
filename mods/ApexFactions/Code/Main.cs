@@ -16,7 +16,6 @@ namespace ApexFactions
         private Harmony _harmony;
 
         private bool _showHud = false;
-        private GuiOverlayRunner _overlayRunner;
         private GuiOverlayRunner _panelRunner;
         private float _wardenTimer = 0f;
         private float _wildTimer = 0f;
@@ -33,8 +32,6 @@ namespace ApexFactions
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
-            _overlayRunner = pGameObject.AddComponent<GuiOverlayRunner>();
-            _overlayRunner.Configure(false, WildSovereigntySystem.DrawDomainOverlays);
             _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
             _panelRunner.Configure(true, DrawPanelGui);
             Settings = ApexFactionsConfig.LoadOrCreate(_declare.FolderPath);
@@ -59,8 +56,6 @@ namespace ApexFactions
 
         private void SyncRunners()
         {
-            bool needOverlay = Settings != null && Settings.ShowFeralDomainRings && WildSovereigntySystem.ActiveDomains.Count > 0;
-            if (_overlayRunner != null) _overlayRunner.enabled = needOverlay;
             if (_panelRunner != null) _panelRunner.enabled = _showHud;
         }
 
@@ -73,7 +68,6 @@ namespace ApexFactions
         public bool GetState(string key)
         {
             if (Settings == null) return false;
-            if (key == "domains") return Settings.ShowFeralDomainRings;
             if (key == "wardens") return Settings.EnableWardenDoctrine;
             return false;
         }
@@ -241,15 +235,6 @@ namespace ApexFactions
             {
                 int n = WildSovereigntySystem.AwakenWildSubspecies(null);
                 _status = $"Awakened {n} wild animal subspecies!";
-            }
-
-            if (GameUiStyle.ToggleButton(
-                $"Feral Domain Borders: {(Settings.ShowFeralDomainRings ? "ON" : "OFF")}",
-                Settings.ShowFeralDomainRings,
-                "Feral Domain Rings|Draws territory rings and labels on the map over large wild pack hunting grounds (Land of the Wolves, Bears, etc.)."))
-            {
-                Settings.ShowFeralDomainRings = !Settings.ShowFeralDomainRings;
-                Settings.Save(_declare.FolderPath);
             }
 
             foreach (var d in WildSovereigntySystem.ActiveDomains)
