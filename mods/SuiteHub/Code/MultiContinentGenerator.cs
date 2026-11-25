@@ -234,6 +234,7 @@ namespace SuiteHub
                     }
                 }
 
+                world.allDirty();
                 world.redrawTiles();
 
                 if (_seedCivilizations && world.units != null)

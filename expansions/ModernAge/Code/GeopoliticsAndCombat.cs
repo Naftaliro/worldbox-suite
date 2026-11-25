@@ -371,7 +371,7 @@ namespace ModernAge
                 WorldTile tile = world.GetTile(x, y);
                 if (tile != null && tile.Type != null && !tile.Type.liquid && tile.Type.ground && tile.top_type != TopTileLibrary.road)
                 {
-                    tile.setTopTileType(TopTileLibrary.road);
+                    MapAction.terraformTop(tile, TopTileLibrary.road, false);
                     laid++;
                 }
             }

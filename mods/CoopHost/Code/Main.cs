@@ -232,20 +232,27 @@ namespace CoopHost
 
                     switch (brush)
                     {
-                        case "deep_ocean": t.setTileType(TileLibrary.deep_ocean); break;
-                        case "shallow": t.setTileType(TileLibrary.shallow_waters); break;
-                        case "sand": t.setTileType(TileLibrary.sand); break;
-                        case "mountains": t.setTileType(TileLibrary.mountains); break;
-                        case "jungle": t.setTileTypes(TileLibrary.soil_high, TopTileLibrary.jungle_high); break;
-                        case "permafrost": t.setTileTypes(TileLibrary.soil_high, TopTileLibrary.permafrost_high); break;
+                        case "deep_ocean": MapAction.terraformMain(t, TileLibrary.deep_ocean, false); break;
+                        case "shallow": MapAction.terraformMain(t, TileLibrary.shallow_waters, false); break;
+                        case "sand": MapAction.terraformMain(t, TileLibrary.sand, false); break;
+                        case "mountains": MapAction.terraformMain(t, TileLibrary.mountains, false); break;
+                        case "jungle":
+                            MapAction.terraformMain(t, TileLibrary.soil_high, false);
+                            MapAction.terraformTop(t, TopTileLibrary.jungle_high, false);
+                            break;
+                        case "permafrost":
+                            MapAction.terraformMain(t, TileLibrary.soil_high, false);
+                            MapAction.terraformTop(t, TopTileLibrary.permafrost_high, false);
+                            break;
                         case "road":
-                            if (t.Type != null && !t.Type.liquid) t.setTopTileType(TopTileLibrary.road);
+                            if (t.Type != null && !t.Type.liquid) MapAction.terraformTop(t, TopTileLibrary.road, false);
                             break;
                         case "wall":
-                            if (t.Type != null && !t.Type.liquid) t.setTopTileType(TopTileLibrary.wall_order);
+                            if (t.Type != null && !t.Type.liquid) MapAction.terraformTop(t, TopTileLibrary.wall_order, false);
                             break;
                         default:
-                            t.setTileTypes(TileLibrary.soil_high, TopTileLibrary.grass_high);
+                            MapAction.terraformMain(t, TileLibrary.soil_high, false);
+                            MapAction.terraformTop(t, TopTileLibrary.grass_high, false);
                             break;
                     }
                 }

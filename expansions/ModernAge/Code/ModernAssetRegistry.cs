@@ -224,6 +224,7 @@ namespace ModernAge
             ActorAsset a = lib.has(tpl) ? lib.clone(id, tpl) : null;
             if (a == null) return;
             a.ignore_tile_speed_multiplier = true;
+            a.shadow = false;
             cfg?.Invoke(a);
         }
     }

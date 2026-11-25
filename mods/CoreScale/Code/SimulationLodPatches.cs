@@ -50,7 +50,8 @@ namespace CoreScale
             if (Main.Settings == null || !Main.Settings.UnlockParallelism) return;
 
             Config.parallel_jobs_updater = true;
-            Config.parallel_chunk_manager = true;
+            // Keep parallel_chunk_manager off: enabling it races MapRegion rebuilds against RegionPathFinder
+            Config.parallel_chunk_manager = false;
 
             // Tune Unity incremental GC slice to 2ms so Mono avoids big stop-the-world hitches
             try

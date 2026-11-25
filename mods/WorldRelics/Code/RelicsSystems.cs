@@ -114,7 +114,7 @@ namespace WorldRelics
                 if (tile.building != null) continue;
                 if (tile.top_type == TopTileLibrary.road || IsWallTile(tile.top_type)) continue;
 
-                tile.setTopTileType(wallType);
+                MapAction.terraformTop(tile, wallType, false);
                 placed++;
             }
             return placed;
@@ -194,11 +194,13 @@ namespace WorldRelics
 
             foreach (WorldTile wt in waterSpan)
             {
-                wt.setTileTypes(TileLibrary.soil_low, TopTileLibrary.road);
+                MapAction.terraformMain(wt, TileLibrary.soil_low, false);
+                MapAction.terraformTop(wt, TopTileLibrary.road, false);
                 WorldTile adj = world.GetTile(wt.x + 1, wt.y);
                 if (adj != null && adj.Type != null && adj.Type.liquid)
                 {
-                    adj.setTileTypes(TileLibrary.soil_low, TopTileLibrary.road);
+                    MapAction.terraformMain(adj, TileLibrary.soil_low, false);
+                    MapAction.terraformTop(adj, TopTileLibrary.road, false);
                 }
             }
             return true;
@@ -328,20 +330,20 @@ namespace WorldRelics
 
                     if (targetStage == 1)
                     {
-                        if (hash < 28) tile.setTopTileType(TopTileLibrary.grass_low); // cracked breach
-                        else tile.setTopTileType(TopTileLibrary.wall_ancient);
+                        if (hash < 28) MapAction.terraformTop(tile, TopTileLibrary.grass_low, false); // cracked breach
+                        else MapAction.terraformTop(tile, TopTileLibrary.wall_ancient, false);
                         tilesChanged++;
                     }
                     else if (targetStage == 2)
                     {
-                        if (hash < 48) tile.setTopTileType(TopTileLibrary.grass_high);
-                        else tile.setTopTileType(TopTileLibrary.wall_green); // mossy ancient stone!
+                        if (hash < 48) MapAction.terraformTop(tile, TopTileLibrary.grass_high, false);
+                        else MapAction.terraformTop(tile, TopTileLibrary.wall_green, false); // mossy ancient stone!
                         tilesChanged++;
                     }
                     else if (targetStage == 3)
                     {
-                        if (hash < 76) tile.setTopTileType(TopTileLibrary.grass_high);
-                        else tile.setTopTileType(hash % 2 == 0 ? TopTileLibrary.wall_wild : TopTileLibrary.wall_green);
+                        if (hash < 76) MapAction.terraformTop(tile, TopTileLibrary.grass_high, false);
+                        else MapAction.terraformTop(tile, hash % 2 == 0 ? TopTileLibrary.wall_wild : TopTileLibrary.wall_green, false);
                         tilesChanged++;
                     }
                 }
@@ -356,7 +358,7 @@ namespace WorldRelics
                     int hash = ((tx * 83492791) ^ (ty * 297121507)) & 0xFF;
                     if ((targetStage == 1 && hash < 60) || (targetStage == 2 && hash < 130) || (targetStage == 3 && hash < 185))
                     {
-                        tile.setTopTileType(TopTileLibrary.grass_low);
+                        MapAction.terraformTop(tile, TopTileLibrary.grass_low, false);
                         tilesChanged++;
                     }
                 }
