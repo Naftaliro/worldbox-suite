@@ -2035,6 +2035,270 @@ def make_btn_tectonic_speed() -> Canvas:
     return c
 
 
+def make_btn_espionage() -> Canvas:
+    """Espionage toggle: Hooded midnight-purple spy cowl with glowing golden-amber eyes & silver stiletto."""
+    c = Canvas(32, 32)
+
+    # Midnight-purple cowl palette
+    mid_0: Color = (24, 12, 46, 255)
+    mid_1: Color = (48, 22, 86, 255)
+    mid_2: Color = (78, 36, 134, 255)
+    mid_3: Color = (122, 62, 192, 255)
+    mid_4: Color = (172, 110, 236, 255)
+
+    cowl_pal: dict[str, Color] = {
+        ".": TRANSPARENT,
+        "K": OUTLINE_DARK,
+        "v": OBS_0,
+        "0": mid_0,
+        "1": mid_1,
+        "2": mid_2,
+        "3": mid_3,
+        "4": mid_4,
+        "a": ORG_1,
+        "o": ORG_2,
+        "g": GOLD_2,
+        "y": GOLD_3,
+        "w": GOLD_4,
+    }
+
+    # Pointed midnight-purple spy cowl, deep shadowed hood opening, glowing golden-amber eyes & draped mantle
+    rows = [
+        "................................",
+        "................................",
+        "...............32...............",
+        ".............43211..............",
+        "............4322110.............",
+        "...........432221100............",
+        "..........43211221100...........",
+        ".........4321000001100..........",
+        ".........3210KKKKKK0110.........",
+        "........3210KvvvvvvK0110........",
+        "........321KvKKKKKKvK110........",
+        "........321KoKvvvvKoK110........",
+        "........210KywgKKgwyK100........",
+        "........210KKoaKKaoKK100........",
+        ".......3210KKKvvvvKKK0100.......",
+        ".......321001222222100100.......",
+        "......4321012332232101100.......",
+        ".....432210012211221012100......",
+        ".....322110001211210012100......",
+        "....32210121001221001211000.....",
+        "....22101232100110012210100.....",
+        "....21001221001221001100100.....",
+        ".....100111001111110000110......",
+        "......0000000000000000000.......",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+    ]
+    c.stamp(rows, cowl_pal)
+    c.add_outline(OUTLINE_DARK)
+
+    # Sleek silver stiletto dagger crossed beneath the cowl (crisp 2:1 angle, separate outlined layer)
+    dagger = Canvas(32, 32)
+
+    # Faceted silver needle blade sweeping from guard (10, 24) to gleaming tip (29, 15)
+    for step in range(20):
+        bx = 10 + step
+        by = 24 - (step // 2)
+        if step < 15:
+            dagger.px(bx, by, STL_4 if step % 2 == 0 else STL_3)
+            dagger.px(bx, by + 1, STL_2 if step < 11 else STL_3)
+        elif step < 18:
+            dagger.px(bx, by, STL_4)
+            if step == 15:
+                dagger.px(bx, by + 1, STL_2)
+        else:
+            dagger.px(bx, by, STL_4)
+    # Extra razor highlight glint along upper spine & tip
+    for gx, gy in [(12, 23), (16, 21), (20, 19), (24, 17), (28, 15), (29, 15)]:
+        dagger.px(gx, gy, STL_4)
+
+    # Ornate swept golden stiletto crossguard centered at (9, 25)
+    guard_pts = [
+        (7, 22, GOLD_4),
+        (7, 23, GOLD_3),
+        (8, 23, GOLD_2),
+        (8, 24, GOLD_3),
+        (9, 24, GOLD_4),
+        (9, 25, GOLD_3),
+        (10, 25, GOLD_2),
+        (10, 26, GOLD_2),
+        (11, 26, GOLD_3),
+        (11, 27, GOLD_2),
+        (12, 27, GOLD_1),
+        (12, 28, GOLD_1),
+    ]
+    for gx, gy, gcol in guard_pts:
+        dagger.px(gx, gy, gcol)
+
+    # Wrapped dark grip & golden pommel on bottom-left
+    grip_pts = [
+        (8, 26, OBS_1),
+        (7, 26, OBS_2),
+        (7, 27, OBS_1),
+        (6, 27, GOLD_2),
+        (5, 27, OBS_2),
+        (5, 28, OBS_1),
+    ]
+    for gx, gy, gcol in grip_pts:
+        dagger.px(gx, gy, gcol)
+
+    # Pommel jewel
+    dagger.px(4, 28, GOLD_3)
+    dagger.px(3, 28, GOLD_4)
+    dagger.px(4, 29, GOLD_1)
+    dagger.px(3, 29, GOLD_2)
+
+    dagger.add_outline(OUTLINE_DARK)
+    c.blit(dagger)
+    return c
+
+
+def make_btn_dispatch_spy() -> Canvas:
+    """Dispatch Spy power: Wax-sealed royal parchment letter with tiny golden crown pierced by silver dagger."""
+    c = Canvas(32, 32)
+
+    # 1. Folded royal parchment letter/envelope (x=2..23, y=10..26)
+    letter = Canvas(32, 32)
+    letter.fill_rect(2, 10, 23, 26, PAR_2)
+    letter.fill_rect(3, 11, 22, 25, PAR_3)
+    # Warm top-left ivory highlight & soft right/bottom parchment shading
+    letter.hline(2, 22, 10, PAR_4)
+    letter.vline(2, 10, 25, PAR_4)
+    letter.vline(23, 11, 26, PAR_1)
+    letter.hline(3, 23, 26, PAR_1)
+    letter.hline(3, 22, 25, PAR_2)
+
+    # Lower envelope fold creases (subtle recessed diagonals)
+    letter.line(3, 25, 10, 19, PAR_1)
+    letter.line(22, 25, 15, 19, PAR_1)
+    letter.line(3, 24, 9, 19, PAR_2)
+
+    # Upper triangular royal flap fold creases (crisp V meeting at wax seal)
+    letter.line(3, 11, 11, 19, PAR_1)
+    letter.line(22, 11, 14, 19, PAR_1)
+    letter.line(3, 12, 10, 19, PAR_0)
+    letter.line(22, 12, 15, 19, PAR_0)
+    # Crisp bright bevel just above left flap crease
+    letter.line(4, 11, 11, 18, PAR_4)
+
+    # Tiny golden royal crown emblem centered on the upper flap (x=9..15, y=11..14)
+    crown_pal: dict[str, Color] = {
+        ".": TRANSPARENT,
+        "k": OUTLINE_WARM,
+        "b": GOLD_0,
+        "a": GOLD_1,
+        "g": GOLD_2,
+        "y": GOLD_3,
+        "w": GOLD_4,
+        "r": RED_2,
+    }
+    crown_rows = [
+        "g..g..g",
+        "gy.w.yg",
+        "gygrygb",
+        "baaaaab",
+    ]
+    letter.stamp(crown_rows, crown_pal, ox=9, oy=11)
+    # Crisp dark bronze drop-shadow line under crown band
+    letter.hline(9, 15, 15, PAR_0)
+
+    # Rich crimson wax seal at flap apex (cx=12.5, cy=19.5)
+    letter.circle(12.8, 20.0, 3.3, PAR_0)   # cast shadow on parchment
+    letter.circle(12.5, 19.5, 3.2, RED_0)   # dark wax rim
+    letter.circle(12.5, 19.5, 2.5, RED_1)   # wax body shadow
+    letter.circle(12.1, 19.1, 2.0, RED_2)   # vivid crimson wax
+    letter.px(11, 18, RED_4)
+    letter.px(12, 18, RED_3)
+    letter.px(11, 19, RED_3)
+    # Scalloped melted wax edge drips
+    letter.px(11, 23, RED_1)
+    letter.px(13, 23, RED_0)
+
+    letter.add_outline(OUTLINE_WARM)
+    c.blit(letter)
+
+    # 2. Emerging lower silver blade tip poking out of lower-left parchment (x=4..9, y=24..29)
+    tip = Canvas(32, 32)
+    tip_steps = [
+        (9, 24, True),
+        (8, 25, True),
+        (7, 26, False),
+        (6, 27, False),
+        (5, 28, False),
+        (4, 29, False),
+    ]
+    for tx, ty, wide in tip_steps:
+        tip.px(tx, ty, STL_4)
+        if wide:
+            tip.px(tx - 1, ty, STL_3)
+            tip.px(tx, ty + 1, STL_2)
+        elif tx >= 6:
+            tip.px(tx, ty + 1, STL_2)
+    tip.add_outline(OUTLINE_DARK)
+    c.blit(tip)
+
+    # Crisp dark puncture tear shadow where the emerging tip cuts through the lower-left envelope
+    c.px(9, 23, OUTLINE_DARK)
+    c.px(10, 24, OUTLINE_DARK)
+    c.px(8, 23, PAR_0)
+
+    # 3. Upper gleaming silver dagger plunging diagonally down-left into the crimson wax seal
+    dagger = Canvas(32, 32)
+
+    # Gleaming faceted blade from crossguard (23, 10) down-left into wax seal (15, 18)
+    for i in range(9):
+        bx = 23 - i
+        by = 10 + i
+        dagger.px(bx, by, STL_4)       # bright center ridge
+        dagger.px(bx - 1, by, STL_3)   # upper-left bevel
+        dagger.px(bx, by + 1, STL_2)   # lower-right bevel
+        if i < 6:
+            dagger.px(bx + 1, by + 1, STL_1)
+
+    # Swept golden crossguard centered at (24, 9), spanning (21, 6) to (27, 12)
+    for d in range(-3, 4):
+        gx = 24 + d
+        gy = 9 + d
+        col = GOLD_4 if d == -3 else (GOLD_3 if d <= 0 else (GOLD_2 if d < 3 else GOLD_1))
+        dagger.px(gx, gy, col)
+        dagger.px(gx + 1, gy, GOLD_2 if d < 2 else GOLD_1)
+    dagger.px(24, 9, GOLD_4)
+
+    # Midnight-purple wrapped spy grip from (25, 8) to (27, 6)
+    mid_grip_hi: Color = (122, 62, 192, 255)
+    mid_grip_lo: Color = (48, 22, 86, 255)
+    for i in range(3):
+        hx = 25 + i
+        hy = 8 - i
+        dagger.px(hx, hy, mid_grip_hi if i % 2 == 0 else GOLD_2)
+        dagger.px(hx + 1, hy, mid_grip_lo)
+        dagger.px(hx, hy - 1, mid_grip_hi)
+
+    # Ornate golden pommel at (28, 5)-(29, 4)
+    dagger.px(28, 4, GOLD_3)
+    dagger.px(29, 4, GOLD_4)
+    dagger.px(28, 5, GOLD_2)
+    dagger.px(29, 5, GOLD_1)
+
+    dagger.add_outline(OUTLINE_DARK)
+    c.blit(dagger)
+
+    # Crimson wax lip overlapping the entry puncture so the blade reads genuinely sunk into the wax seal
+    c.px(14, 18, RED_2)
+    c.px(14, 19, RED_1)
+    c.px(15, 19, OUTLINE_DARK)
+    c.px(15, 20, RED_0)
+    return c
+
+
 # =============================================================================
 # 4. MULTI-FRAME WARDEN SENTINEL ANIMATION SUITE (34 frames, 32x32 RGBA)
 # =============================================================================
@@ -3156,6 +3420,8 @@ def main() -> None:
         ("btn_pangaea_drift", make_btn_pangaea_drift()),
         ("btn_tectonic_rift", make_btn_tectonic_rift()),
         ("btn_tectonic_speed", make_btn_tectonic_speed()),
+        ("btn_espionage", make_btn_espionage()),
+        ("btn_dispatch_spy", make_btn_dispatch_spy()),
     ]
 
     for name, img in wardens + warden_anims:

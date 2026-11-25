@@ -260,27 +260,40 @@ namespace SuiteHub
         {
             if (w == null) return "Unknown";
 
-            // 1. Check companion mod custom causes first (Warden Retaliation, Snake Betrayal, etc.)
+            // 1. Check companion mod custom causes first (Warden Retaliation, Snake Betrayal, Caught Spy, etc.)
+            string apexCause = "";
             if (Main.IsCompanionLoaded("ApexFactions.Main"))
             {
                 string custom = Main.InvokeCompanionAction("ApexFactions.Main", "GetWarCause", w.id);
                 if (!string.IsNullOrEmpty(custom) && !custom.EndsWith("is not loaded.", StringComparison.Ordinal))
                 {
-                    if (HasDefensePactInvolvement(w) && custom.IndexOf("Pact", StringComparison.OrdinalIgnoreCase) < 0)
-                    {
-                        return custom + " + Defense Pact";
-                    }
-                    return custom;
+                    apexCause = custom;
                 }
             }
 
+            string gwCause = "";
             if (Main.IsCompanionLoaded("GrandWarfare.Main"))
             {
-                string gwCause = Main.InvokeCompanionAction("GrandWarfare.Main", "GetWarCause", w.id);
-                if (!string.IsNullOrEmpty(gwCause) && !gwCause.EndsWith("is not loaded.", StringComparison.Ordinal))
+                string custom = Main.InvokeCompanionAction("GrandWarfare.Main", "GetWarCause", w.id);
+                if (!string.IsNullOrEmpty(custom) && !custom.EndsWith("is not loaded.", StringComparison.Ordinal))
                 {
-                    return gwCause;
+                    gwCause = custom;
                 }
+            }
+
+            if (!string.IsNullOrEmpty(apexCause) || !string.IsNullOrEmpty(gwCause))
+            {
+                string combined;
+                if (!string.IsNullOrEmpty(apexCause) && !string.IsNullOrEmpty(gwCause))
+                    combined = $"{apexCause} · {gwCause}";
+                else
+                    combined = !string.IsNullOrEmpty(apexCause) ? apexCause : gwCause;
+
+                if (HasDefensePactInvolvement(w) && combined.IndexOf("Pact", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    return combined + " + Defense Pact";
+                }
+                return combined;
             }
 
             // 2. Inspect vanilla WarTypeAsset ID
@@ -340,6 +353,7 @@ namespace SuiteHub
                 return "Warden Strike";
             }
             if (full.StartsWith("Snake Betrayal", StringComparison.OrdinalIgnoreCase)) return "Snake Betrayal";
+            if (full.StartsWith("Caught Spy", StringComparison.OrdinalIgnoreCase)) return "Caught Spy";
             if (full.StartsWith("Territorial Conquest", StringComparison.OrdinalIgnoreCase)) return "Conquest";
             if (full.StartsWith("City Rebellion", StringComparison.OrdinalIgnoreCase)) return "Rebellion";
             if (full.StartsWith("Inspired Rebellion", StringComparison.OrdinalIgnoreCase)) return "Inspired";

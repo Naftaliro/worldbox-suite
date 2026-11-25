@@ -26,9 +26,11 @@ namespace GrandWarfare
 
         private bool _showWarRoom = false;
         private GuiOverlayRunner _panelRunner;
+        private int _warRoomTab = 0; // 0 = Warfare & Logistics, 1 = Intelligence & Spies
+        private Vector2 _intelScroll;
         private float _supplyTimer = 0f;
         private float _navalTimer = 0f;
-        private Rect _windowRect = new Rect(610, 86, 325, 325);
+        private Rect _windowRect = new Rect(610, 86, 365, 420);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -77,6 +79,8 @@ namespace GrandWarfare
                 case "blockades": return Settings.EnableNavalBlockades;
                 case "supply": return Settings.EnableSupplyAttrition;
                 case "pacts": return Settings.EnableDefensePacts;
+                case "espionage": return Settings.EnableEspionage;
+                case "espionage_chaotic": return Settings.ChaoticEspionageMode;
                 default: return false;
             }
         }
@@ -116,6 +120,30 @@ namespace GrandWarfare
             return $"Mutual Defense Pacts: {(Settings.EnableDefensePacts ? "ON" : "OFF")}";
         }
 
+        public string ToggleEspionage()
+        {
+            Settings.EnableEspionage = !Settings.EnableEspionage;
+            Settings.Save(_declare.FolderPath);
+            return $"Kingdom Espionage & Counter-Intel: {(Settings.EnableEspionage ? "ON" : "OFF")}";
+        }
+
+        public string ToggleEspionageIntensity()
+        {
+            Settings.ChaoticEspionageMode = !Settings.ChaoticEspionageMode;
+            Settings.Save(_declare.FolderPath);
+            return $"Espionage Intensity: {(Settings.ChaoticEspionageMode ? "Active / Chaotic" : "Rare / Balanced")}";
+        }
+
+        public string DispatchSpyNow()
+        {
+            return EspionageSystem.DispatchSpyNow();
+        }
+
+        public string GetWarCause(long warId)
+        {
+            return EspionageSystem.GetWarCause(warId);
+        }
+
         public string FormTopDefensePact()
         {
             int before = DefensePacts.Count;
@@ -127,6 +155,8 @@ namespace GrandWarfare
         {
             if (Settings == null) return;
 
+            EspionageSystem.EnsureAssetsRegistered();
+
             if (Input.GetKeyDown(Settings.WarRoomKey))
             {
                 ToggleHud();
@@ -135,6 +165,8 @@ namespace GrandWarfare
             if (Config.paused || MapBox.instance == null) return;
 
             float dt = Time.deltaTime;
+            EspionageSystem.Tick(dt);
+
             if (Settings.EnableNavalCombat)
             {
                 _navalTimer += dt;
@@ -171,6 +203,41 @@ namespace GrandWarfare
         private void DrawWarRoom(int id)
         {
             GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
+
+            GUILayout.BeginHorizontal();
+            if (GameUiStyle.ToggleButton(
+                "Warfare & Logistics",
+                _warRoomTab == 0,
+                "Warfare & Logistics|Naval broadsides, coastal shelling, port blockades, supply attrition, and mutual defense pacts."))
+            {
+                _warRoomTab = 0;
+            }
+            if (GameUiStyle.ToggleButton(
+                "Intelligence & Spies",
+                _warRoomTab == 1,
+                "Intelligence & Counter-Intelligence|Manage covert spy infiltration, palace coups, counter-intelligence, and peaceful throne takeovers."))
+            {
+                _warRoomTab = 1;
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6);
+
+            if (_warRoomTab == 0)
+            {
+                DrawWarfareTab();
+            }
+            else
+            {
+                DrawIntelligenceTab();
+            }
+
+            GameUiStyle.CaptureTooltip();
+            GUI.DragWindow();
+        }
+
+        private void DrawWarfareTab()
+        {
             var world = MapBox.instance;
             long activeWars = world?.wars != null ? world.wars.countActiveWars() : 0;
 
@@ -230,9 +297,79 @@ namespace GrandWarfare
             {
                 DiplomacyPactSystem.TryLinkTopPeacefulKingdoms();
             }
+        }
 
-            GameUiStyle.CaptureTooltip();
-            GUI.DragWindow();
+        private void DrawIntelligenceTab()
+        {
+            GameUiStyle.Label(
+                $"Active Spies: {EspionageSystem.ActiveMissions.Count}  |  Caught: {EspionageSystem.SpiesCaught}  |  Takeovers: {EspionageSystem.PeacefulTakeovers}",
+                "Intelligence Overview|Live covert agents currently operating abroad, spies caught by counter-intelligence, and completed peaceful kingdom takeovers.",
+                isHeader: true);
+
+            if (GameUiStyle.ToggleButton(
+                $"Espionage & Counter-Intel: {(Settings.EnableEspionage ? "ON" : "OFF")}",
+                Settings.EnableEspionage,
+                "Kingdom Espionage|Allows rival kingdoms to infiltrate agents into target capitals, rise to city leader, stage palace coups, and unite kingdoms peacefully — or get caught by counter-intelligence.|Saved automatically"))
+            {
+                ToggleEspionage();
+            }
+
+            string intensityLabel = Settings.ChaoticEspionageMode ? "Active / Chaotic" : "Rare / Balanced";
+            if (GameUiStyle.ToggleButton(
+                $"Intensity: {intensityLabel}",
+                Settings.ChaoticEspionageMode,
+                "Espionage Intensity|Rare/Balanced: up to 4 global spies, 180s cooldown, slower consolidation.\nActive/Chaotic: up to 8 global spies, 60s cooldown, faster coups and unions.|Saved automatically"))
+            {
+                ToggleEspionageIntensity();
+            }
+
+            if (GameUiStyle.Button(
+                "Dispatch Spy Now",
+                "Manual Covert Operation|Immediately infiltrate a covert agent from a rival kingdom into a stronger target capital."))
+            {
+                string msg = DispatchSpyNow();
+                try { WorldTip.showNowTop(msg, false); } catch { }
+            }
+
+            GUILayout.Space(5);
+            _intelScroll = GUILayout.BeginScrollView(_intelScroll, GUILayout.Height(210));
+
+            GameUiStyle.Label($"Active Operations ({EspionageSystem.ActiveMissions.Count})", "Active Spy Cells|Live missions with current infiltration stage, influence progress, and cover integrity.", isHeader: true);
+            if (EspionageSystem.ActiveMissions.Count == 0)
+            {
+                GameUiStyle.Subtle("No active covert agents in the field.");
+            }
+            else
+            {
+                var missionsSnapshot = new List<SpyMission>(EspionageSystem.ActiveMissions);
+                for (int i = 0; i < missionsSnapshot.Count; i++)
+                {
+                    SpyMission m = missionsSnapshot[i];
+                    string stage = EspionageSystem.FormatStage(m.Stage);
+                    string line = $"{m.SpyName} ({m.OriginName} → {m.TargetName})";
+                    string detail = $"   {stage}  |  Inf: {m.Influence:0}%  |  Cover: {m.Cover:0}%";
+                    string tip = $"{m.SpyName}|Origin: {m.OriginName}\nTarget: {m.TargetName}\nStage: {stage}\nInfluence: {m.Influence:0}%  |  Cover: {m.Cover:0}%";
+                    GameUiStyle.Label(line, tip);
+                    GameUiStyle.Subtle(detail, tip);
+                }
+            }
+
+            GUILayout.Space(6);
+            GameUiStyle.Label("Recent Intelligence Log", "Intelligence Feed|Latest dispatches, promotions, palace coups, executions, and peaceful unions.", isHeader: true);
+            if (EspionageSystem.RecentEvents.Count == 0)
+            {
+                GameUiStyle.Subtle("No intelligence reports yet.");
+            }
+            else
+            {
+                var eventsSnapshot = new List<string>(EspionageSystem.RecentEvents);
+                for (int i = eventsSnapshot.Count - 1; i >= 0; i--)
+                {
+                    GameUiStyle.Subtle("• " + eventsSnapshot[i]);
+                }
+            }
+
+            GUILayout.EndScrollView();
         }
     }
 
@@ -306,9 +443,28 @@ namespace GrandWarfare
             }
         }
 
+        private static readonly FieldInfo ActorInsideBoatField = AccessTools.Field(typeof(Actor), "is_inside_boat");
+        private static readonly AccessTools.FieldRef<Actor, bool> ActorInsideBoatRef = InitInsideBoatRef();
+
+        private static AccessTools.FieldRef<Actor, bool> InitInsideBoatRef()
+        {
+            try { return AccessTools.FieldRefAccess<Actor, bool>("is_inside_boat"); }
+            catch { return null; }
+        }
+
         public static bool IsInsideBoat(Actor a)
         {
-            return a != null && a.is_inside_boat;
+            if (a == null) return false;
+            if (ActorInsideBoatRef != null) return ActorInsideBoatRef(a);
+            if (ActorInsideBoatField == null) return false;
+            try
+            {
+                return ActorInsideBoatField.GetValue(a) is bool b && b;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static Actor FindEnemyNearCoast(Actor ship, List<Actor> alive, float maxDistSq)

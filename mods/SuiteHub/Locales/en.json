@@ -52,6 +52,10 @@
   "suite_form_pact_description": "Link the two largest peaceful kingdoms into a mutual defense treaty so they join wars to protect each other.",
   "suite_form_pact_tip": "GrandWarfare",
 
+  "suite_dispatch_spy": "Dispatch Covert Spy",
+  "suite_dispatch_spy_description": "Infiltrate a covert agent from a rival kingdom into a stronger target capital to climb the court, stage a palace coup, and unite the realm peacefully.",
+  "suite_dispatch_spy_tip": "GrandWarfare · War Room: F10",
+
   "suite_compress_armies": "Compress Mega-Armies",
   "suite_compress_armies_description": "Fold oversized armies into stronger veteran champions right now to boost FPS during huge wars.",
   "suite_compress_armies_tip": "CoreScale",
@@ -163,6 +167,10 @@
   "suite_tog_pacts": "Mutual Defense Pacts",
   "suite_tog_pacts_description": "Automatically pull pact allies into defensive wars whenever a member is attacked.",
   "suite_tog_pacts_tip": "Click to toggle ON/OFF",
+
+  "suite_tog_espionage": "Kingdom Espionage & Counter-Intel",
+  "suite_tog_espionage_description": "Allow rival kingdoms to plant covert spies in enemy capitals, stage palace coups, and unite realms peacefully — or suffer diplomatic scandals and retaliation wars when counter-intelligence catches them.",
+  "suite_tog_espionage_tip": "GrandWarfare · Details: F10",
 
   "suite_tog_auto_kingdoms": "Auto Animal Kingdoms",
   "suite_tog_auto_kingdoms_description": "Automatically awaken wild animal packs over time so they can form sapient animal kingdoms across the map.",

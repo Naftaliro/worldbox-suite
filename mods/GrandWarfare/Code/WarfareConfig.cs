@@ -22,6 +22,8 @@ namespace GrandWarfare
         public int AttritionHealthLoss = 4;
 
         public bool EnableDefensePacts = true;
+        public bool EnableEspionage = true;
+        public bool ChaoticEspionageMode = false;
         public KeyCode WarRoomKey = KeyCode.F10;
 
         public static GrandWarfareConfig LoadOrCreate(string modFolder)

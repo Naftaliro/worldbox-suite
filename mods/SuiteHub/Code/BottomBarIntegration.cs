@@ -39,6 +39,8 @@ namespace SuiteHub
                 Sprite iconAlwaysDay      = LoadButtonSprite(Path.Combine(resDir, "btn_always_day.png")) ?? iconVisual;
                 Sprite iconAgeHope        = LoadButtonSprite(Path.Combine(resDir, "btn_age_hope.png")) ?? iconVisual;
                 Sprite iconWarTicker      = LoadButtonSprite(Path.Combine(resDir, "btn_war_ticker.png")) ?? iconWar;
+                Sprite iconEspionage      = LoadButtonSprite(Path.Combine(resDir, "btn_espionage.png")) ?? iconWar;
+                Sprite iconDispatchSpy    = LoadButtonSprite(Path.Combine(resDir, "btn_dispatch_spy.png")) ?? iconWar;
                 Sprite iconSpeciesPanel   = LoadButtonSprite(Path.Combine(resDir, "btn_species_panel.png")) ?? iconApex;
                 Sprite iconChron          = LoadButtonSprite(Path.Combine(resDir, "btn_chronicle.png")) ?? tabIcon;
                 Sprite iconRelics         = LoadButtonSprite(Path.Combine(resDir, "btn_relics.png")) ?? tabIcon;
@@ -121,6 +123,9 @@ namespace SuiteHub
 
                     AddAction(powersTab, "p_war", "suite_form_pact", iconWar,
                         () => Main.ShowToast(Main.InvokeCompanionAction("GrandWarfare.Main", "FormTopDefensePact")));
+
+                    AddAction(powersTab, "p_war", "suite_dispatch_spy", iconDispatchSpy,
+                        () => Main.ShowToast(Main.InvokeCompanionAction("GrandWarfare.Main", "DispatchSpyNow")));
 
                     AddAction(powersTab, "p_war", "suite_compress_armies", iconScale,
                         () => Main.ShowToast(Main.InvokeCompanionAction("CoreScale.Main", "CompressArmiesNow")));
@@ -258,6 +263,10 @@ namespace SuiteHub
                     AddToggle(rulesTab, "r_war", "suite_tog_pacts", iconWar,
                         () => Main.GetCompanionState("GrandWarfare.Main", "pacts"),
                         () => Main.InvokeCompanionAction("GrandWarfare.Main", "ToggleDefensePacts"));
+
+                    AddToggle(rulesTab, "r_war", "suite_tog_espionage", iconEspionage,
+                        () => Main.GetCompanionState("GrandWarfare.Main", "espionage"),
+                        () => Main.InvokeCompanionAction("GrandWarfare.Main", "ToggleEspionage"));
 
                     // Group 4: Factions & Species Rules (ApexFactions)
                     AddToggle(rulesTab, "r_factions", "suite_tog_auto_kingdoms", iconAnimalKingdoms,
