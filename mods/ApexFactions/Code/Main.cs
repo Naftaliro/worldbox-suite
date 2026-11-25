@@ -80,14 +80,20 @@ namespace ApexFactions
 
         public string SpawnWardenAtTile(WorldTile tile)
         {
-            int n = WardenSystem.SpawnWardenColonyAtTile(tile);
-            return n > 0 ? $"Dropped {n} Warden settlers!" : "Click on solid ground to drop Wardens.";
+            int n = WardenSystem.SpawnWardenColonyAtTile(tile, out string kName);
+            if (n <= 0) return "Click on solid land to drop Wardens.";
+            return !string.IsNullOrEmpty(kName)
+                ? $"Founded Warden Kingdom: {kName} ({n} Wardens)!"
+                : $"Dropped {n} Wardens (drop on unclaimed land to found a new kingdom immediately).";
         }
 
         public string SpawnWolfkinAtTile(WorldTile tile)
         {
-            int n = WildSovereigntySystem.SpawnWolfkinAtTile(tile, 12);
-            return n > 0 ? $"Dropped {n} sapient Wolfkin!" : "Click on solid ground to drop Wolfkin.";
+            int n = WildSovereigntySystem.SpawnWolfkinAtTile(tile, 12, out string kName);
+            if (n <= 0) return "Click on solid land to drop Wolfkin.";
+            return !string.IsNullOrEmpty(kName)
+                ? $"Founded Wolfkin Kingdom: {kName} ({n} Wolfkin)!"
+                : $"Dropped {n} sapient Wolfkin (drop on unclaimed land to found a kingdom immediately).";
         }
 
         public string AnointTopKingdom()

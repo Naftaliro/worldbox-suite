@@ -52,34 +52,83 @@ namespace ApexFactions
             Debug.Log($"[ApexFactions] {k.name} anointed with the Warden Sleeping Giant Doctrine.");
         }
 
+        private static readonly System.Reflection.MethodInfo SetCityMethod =
+            AccessTools.Method(typeof(Actor), "setCity", new[] { typeof(City) });
+
         public static void SpawnWardenColonyAtCamera()
         {
             WorldTile center = FindSafeLandNearCamera();
             SpawnWardenColonyAtTile(center);
         }
 
-        public static int SpawnWardenColonyAtTile(WorldTile center)
+        public static int SpawnWardenColonyAtTile(WorldTile center, out string foundedKingdomName)
         {
+            foundedKingdomName = null;
             var world = MapBox.instance;
             if (world?.units == null || center == null) return 0;
 
-            int spawned = 0;
+            var settlers = new List<Actor>(14);
             for (int i = 0; i < 14; i++)
             {
-                Actor u = world.units.spawnNewUnit("human", center);
+                WorldTile spawnTile = center;
+                if (i > 0)
+                {
+                    int ox = (i % 3) - 1;
+                    int oy = ((i / 3) % 3) - 1;
+                    WorldTile cand = world.GetTile(center.x + ox, center.y + oy);
+                    if (cand != null && cand.Type != null && !cand.Type.liquid && cand.Type.ground)
+                        spawnTile = cand;
+                }
+
+                Actor u = world.units.spawnNewUnit("human", spawnTile);
                 if (u == null) continue;
                 ApplyWardenPeacetimeTraits(u);
-                spawned++;
+                settlers.Add(u);
             }
 
-            // Remember tile so we auto-anoint their newly founded kingdom on next tick
+            if (settlers.Count == 0) return 0;
+
+            // Immediately found a brand-new Warden city & kingdom if placed on unclaimed buildable land
+            Actor leader = settlers[0];
+            try
+            {
+                if (leader.buildCityAndStartCivilization() && leader.city != null && leader.kingdom != null && leader.kingdom.isCiv())
+                {
+                    City newCity = leader.city;
+                    Kingdom newKingdom = leader.kingdom;
+                    for (int i = 1; i < settlers.Count; i++)
+                    {
+                        if (SetCityMethod != null)
+                        {
+                            try { SetCityMethod.Invoke(settlers[i], new object[] { newCity }); } catch { }
+                        }
+                    }
+                    AnointKingdomAsWardens(newKingdom);
+                    foundedKingdomName = newKingdom.name;
+                    Debug.Log($"[ApexFactions] Founded Warden Kingdom '{newKingdom.name}' at ({center.x},{center.y}) with {settlers.Count} settlers.");
+                    return settlers.Count;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[ApexFactions] Immediate city founding deferred: {e.Message}");
+            }
+
+            // Fallback: remember tile & leader so we auto-anoint their kingdom as soon as they claim land
             _pendingWardenSpawnTile = center;
-            _pendingWardenTimer = 25f;
-            Debug.Log($"[ApexFactions] Spawned {spawned} Warden settlers at ({center.x},{center.y}).");
-            return spawned;
+            _pendingWardenLeader = leader;
+            _pendingWardenTimer = 45f;
+            Debug.Log($"[ApexFactions] Spawned {settlers.Count} Warden settlers at ({center.x},{center.y}).");
+            return settlers.Count;
+        }
+
+        public static int SpawnWardenColonyAtTile(WorldTile center)
+        {
+            return SpawnWardenColonyAtTile(center, out _);
         }
 
         private static WorldTile _pendingWardenSpawnTile;
+        private static Actor _pendingWardenLeader;
         private static float _pendingWardenTimer;
 
         private static void ApplyWardenPeacetimeTraits(Actor u)
@@ -137,15 +186,25 @@ namespace ApexFactions
             var world = MapBox.instance;
             if (world == null || Main.Settings == null || !Main.Settings.EnableWardenDoctrine) return;
 
-            // Auto-anoint freshly founded kingdom from SpawnWardenColonyAtCamera
-            if (_pendingWardenSpawnTile != null)
+            // Auto-anoint freshly founded kingdom from SpawnWardenColonyAtTile
+            if (_pendingWardenSpawnTile != null || _pendingWardenLeader != null)
             {
                 _pendingWardenTimer -= dt;
-                if (_pendingWardenTimer <= 0f)
+                if (_pendingWardenLeader != null && _pendingWardenLeader.isAlive() && _pendingWardenLeader.kingdom != null && _pendingWardenLeader.kingdom.isCiv())
+                {
+                    if (!WardenKingdomIds.Contains(_pendingWardenLeader.kingdom.id))
+                    {
+                        AnointKingdomAsWardens(_pendingWardenLeader.kingdom);
+                    }
+                    _pendingWardenSpawnTile = null;
+                    _pendingWardenLeader = null;
+                }
+                else if (_pendingWardenTimer <= 0f)
                 {
                     _pendingWardenSpawnTile = null;
+                    _pendingWardenLeader = null;
                 }
-                else if (world.kingdoms != null)
+                else if (_pendingWardenSpawnTile != null && world.kingdoms != null)
                 {
                     foreach (var k in world.kingdoms)
                     {
@@ -159,6 +218,7 @@ namespace ApexFactions
                             {
                                 AnointKingdomAsWardens(k);
                                 _pendingWardenSpawnTile = null;
+                                _pendingWardenLeader = null;
                                 break;
                             }
                         }

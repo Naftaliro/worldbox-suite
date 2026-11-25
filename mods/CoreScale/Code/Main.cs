@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using HarmonyLib;
 using NeoModLoader.api;
+using NeoModLoader.General;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace CoreScale
@@ -49,6 +53,7 @@ namespace CoreScale
                     MapSizePatches.RegisterCustomSizes(AssetManager.map_sizes);
                 }
 
+                LoadLocales(_declare.FolderPath);
                 SimulationLodPatches.ApplyParallelSettings();
                 Debug.Log($"[CoreScale] Loaded v{_declare.Version} (threads={Environment.ProcessorCount})");
             }
@@ -56,6 +61,23 @@ namespace CoreScale
             {
                 Debug.LogError($"[CoreScale] Init failed: {e}");
             }
+        }
+
+        private static void LoadLocales(string modFolder)
+        {
+            try
+            {
+                string enPath = Path.Combine(modFolder, "Locales", "en.json");
+                if (!File.Exists(enPath)) return;
+                var dict = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(enPath));
+                if (dict == null || dict.Count == 0) return;
+                foreach (var kv in dict)
+                {
+                    if (!string.IsNullOrEmpty(kv.Key)) LM.AddToCurrentLocale(kv.Key, kv.Value);
+                }
+                LM.ApplyLocale(false);
+            }
+            catch { }
         }
 
         public void OnUnload()

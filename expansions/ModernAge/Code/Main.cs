@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using HarmonyLib;
 using NeoModLoader.api;
+using NeoModLoader.General;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace ModernAge
@@ -45,12 +48,30 @@ namespace ModernAge
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
                 ModernAssetRegistry.RegisterAll();
                 VehicleSpritePatches.LoadSprites(_declare.FolderPath);
+                LoadLocales(_declare.FolderPath);
                 Debug.Log($"[ModernAge] Expansion loaded v{_declare.Version}");
             }
             catch (Exception e)
             {
                 Debug.LogError($"[ModernAge] Failed to initialize: {e}");
             }
+        }
+
+        private static void LoadLocales(string modFolder)
+        {
+            try
+            {
+                string enPath = Path.Combine(modFolder, "Locales", "en.json");
+                if (!File.Exists(enPath)) return;
+                var dict = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(enPath));
+                if (dict == null || dict.Count == 0) return;
+                foreach (var kv in dict)
+                {
+                    if (!string.IsNullOrEmpty(kv.Key)) LM.AddToCurrentLocale(kv.Key, kv.Value);
+                }
+                LM.ApplyLocale(false);
+            }
+            catch { }
         }
 
         public void OnUnload()

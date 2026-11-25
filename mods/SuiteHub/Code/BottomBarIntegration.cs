@@ -4,6 +4,7 @@ using System.IO;
 using NeoModLoader.General;
 using NeoModLoader.General.UI.Tab;
 using NeoModLoader.utils;
+using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,6 +21,8 @@ namespace SuiteHub
             if (_initialized) return;
             try
             {
+                EnsureLocalesLoaded(modFolder);
+
                 string resDir = Path.Combine(modFolder, "GameResources");
                 Sprite tabIcon      = LoadButtonSprite(Path.Combine(modFolder, "icon.png"));
                 Sprite iconHub      = LoadButtonSprite(Path.Combine(resDir, "btn_hub.png")) ?? tabIcon;
@@ -341,6 +344,31 @@ namespace SuiteHub
             catch { }
         }
 
+        private static void EnsureLocalesLoaded(string modFolder)
+        {
+            try
+            {
+                string enPath = Path.Combine(modFolder, "Locales", "en.json");
+                if (!File.Exists(enPath)) return;
+                var dict = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(enPath));
+                if (dict == null || dict.Count == 0) return;
+
+                foreach (var kv in dict)
+                {
+                    if (string.IsNullOrEmpty(kv.Key)) continue;
+                    LM.AddToCurrentLocale(kv.Key, kv.Value);
+                }
+                LM.ApplyLocale(false);
+                bool ok = LocalizedTextManager.stringExists("suite_drop_wardens");
+                string sample = ok ? LocalizedTextManager.getText("suite_drop_wardens") : "MISSING";
+                Debug.Log($"[SuiteHub] Loaded {dict.Count} tooltip locale strings (verified={ok}, sample='{sample}').");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SuiteHub] Failed to apply locales: {e.Message}");
+            }
+        }
+
         private static void WireNativeTooltip(PowerButton btn, string id)
         {
             try
@@ -351,7 +379,7 @@ namespace SuiteHub
                     tip.textOnClick = id;
                     tip.textOnClickDescription = id + "_description";
                     tip.text_description_2 = id + "_tip";
-                    tip.type = "normal";
+                    // Keep PowerButtonCreator's native tip.type ("tip" for simple/toggle buttons, "normal" for GodPower buttons)
                 }
             }
             catch { }

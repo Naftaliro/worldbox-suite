@@ -63,25 +63,78 @@ namespace ApexFactions
         /// <summary>
         /// Spawns a pack of sapient Wolfkin (civ_wolf) ready to found a full Wolf Kingdom immediately.
         /// </summary>
+        private static readonly MethodInfo SetCityMethod =
+            AccessTools.Method(typeof(Actor), "setCity", new[] { typeof(City) });
+
         public static int SpawnWolfkinKingdomAtCamera(int count = 12)
         {
-            return SpawnWolfkinAtTile(WardenSystem.FindSafeLandNearCamera(), count);
+            return SpawnWolfkinAtTile(WardenSystem.FindSafeLandNearCamera(), count, out _);
+        }
+
+        public static int SpawnWolfkinAtTile(WorldTile center, int count, out string foundedKingdomName)
+        {
+            foundedKingdomName = null;
+            var world = MapBox.instance;
+            if (world?.units == null || center == null) return 0;
+
+            string speciesId = (AssetManager.actor_library != null && AssetManager.actor_library.has("civ_wolf"))
+                ? "civ_wolf"
+                : "wolf";
+
+            var settlers = new List<Actor>(count);
+            for (int i = 0; i < count; i++)
+            {
+                WorldTile spawnTile = center;
+                if (i > 0)
+                {
+                    int ox = (i % 3) - 1;
+                    int oy = ((i / 3) % 3) - 1;
+                    WorldTile cand = world.GetTile(center.x + ox, center.y + oy);
+                    if (cand != null && cand.Type != null && !cand.Type.liquid && cand.Type.ground)
+                        spawnTile = cand;
+                }
+
+                Actor u = world.units.spawnNewUnit(speciesId, spawnTile);
+                if (u != null) settlers.Add(u);
+            }
+
+            if (settlers.Count == 0) return 0;
+
+            Actor leader = settlers[0];
+            try
+            {
+                if (speciesId == "wolf" && leader.subspecies != null && !leader.subspecies.isSapient())
+                {
+                    leader.subspecies.makeSapient();
+                }
+
+                if (leader.buildCityAndStartCivilization() && leader.city != null && leader.kingdom != null && leader.kingdom.isCiv())
+                {
+                    City newCity = leader.city;
+                    for (int i = 1; i < settlers.Count; i++)
+                    {
+                        if (SetCityMethod != null)
+                        {
+                            try { SetCityMethod.Invoke(settlers[i], new object[] { newCity }); } catch { }
+                        }
+                    }
+                    foundedKingdomName = leader.kingdom.name;
+                    Debug.Log($"[ApexFactions] Founded Wolfkin Kingdom '{foundedKingdomName}' at ({center.x},{center.y}) with {settlers.Count} settlers.");
+                    return settlers.Count;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[ApexFactions] Wolfkin immediate city founding deferred: {e.Message}");
+            }
+
+            Debug.Log($"[ApexFactions] Spawned {settlers.Count} sapient Wolfkin at ({center.x},{center.y}).");
+            return settlers.Count;
         }
 
         public static int SpawnWolfkinAtTile(WorldTile center, int count = 12)
         {
-            var world = MapBox.instance;
-            if (world?.units == null || center == null) return 0;
-
-            int spawned = 0;
-            for (int i = 0; i < count; i++)
-            {
-                Actor u = world.units.spawnNewUnit("civ_wolf", center);
-                if (u != null) spawned++;
-            }
-
-            Debug.Log($"[ApexFactions] Spawned {spawned} sapient Wolfkin at ({center.x},{center.y}).");
-            return spawned;
+            return SpawnWolfkinAtTile(center, count, out _);
         }
 
         /// <summary>
