@@ -80,8 +80,10 @@ namespace ApexFactions
             var world = MapBox.instance;
             if (world?.kingdoms == null) return WardenKingdomIds.Count;
             int count = 0;
-            foreach (Kingdom k in world.kingdoms)
+            var kingdoms = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdoms.Count; i++)
             {
+                Kingdom k = kingdoms[i];
                 if (k != null && k.isAlive() && k.isCiv() && IsWardenKingdom(k))
                     count++;
             }
@@ -93,9 +95,10 @@ namespace ApexFactions
             if (k == null || !k.isCiv()) return;
             WardenKingdomIds.Add(k.id);
 
-            var alive = MapBox.instance?.units?.units_only_alive;
-            if (alive != null)
+            var aliveRaw = MapBox.instance?.units?.units_only_alive;
+            if (aliveRaw != null && aliveRaw.Count > 0)
             {
+                var alive = new List<Actor>(aliveRaw);
                 for (int i = 0; i < alive.Count; i++)
                 {
                     Actor u = alive[i];
@@ -201,9 +204,10 @@ namespace ApexFactions
 
         private static void RallyWardenWarriors(Kingdom warden)
         {
-            var alive = MapBox.instance?.units?.units_only_alive;
-            if (alive == null) return;
+            var aliveRaw = MapBox.instance?.units?.units_only_alive;
+            if (aliveRaw == null || aliveRaw.Count == 0) return;
 
+            var alive = new List<Actor>(aliveRaw);
             int rallied = 0;
             for (int i = 0; i < alive.Count; i++)
             {
@@ -222,9 +226,10 @@ namespace ApexFactions
 
         private static void StandDownWardenWarriors(Kingdom warden)
         {
-            var alive = MapBox.instance?.units?.units_only_alive;
-            if (alive == null) return;
+            var aliveRaw = MapBox.instance?.units?.units_only_alive;
+            if (aliveRaw == null || aliveRaw.Count == 0) return;
 
+            var alive = new List<Actor>(aliveRaw);
             for (int i = 0; i < alive.Count; i++)
             {
                 Actor u = alive[i];
@@ -243,11 +248,15 @@ namespace ApexFactions
             var world = MapBox.instance;
             if (world == null || Main.Settings == null || !Main.Settings.EnableWardenDoctrine) return;
 
+            List<Kingdom> kingdomsSnapshot = null;
+
             // Keep save-loaded Warden kingdoms synchronized in WardenKingdomIds
             if (world.kingdoms != null)
             {
-                foreach (Kingdom k in world.kingdoms)
+                kingdomsSnapshot = new List<Kingdom>(world.kingdoms);
+                for (int i = 0; i < kingdomsSnapshot.Count; i++)
                 {
+                    Kingdom k = kingdomsSnapshot[i];
                     if (k != null && k.isAlive() && k.isCiv())
                         IsWardenKingdom(k);
                 }
@@ -271,10 +280,11 @@ namespace ApexFactions
                     _pendingWardenSpawnTile = null;
                     _pendingWardenLeader = null;
                 }
-                else if (_pendingWardenSpawnTile != null && world.kingdoms != null)
+                else if (_pendingWardenSpawnTile != null && kingdomsSnapshot != null)
                 {
-                    foreach (var k in world.kingdoms)
+                    for (int i = 0; i < kingdomsSnapshot.Count; i++)
                     {
+                        Kingdom k = kingdomsSnapshot[i];
                         if (k == null || !k.isCiv() || !k.isAlive() || IsWardenKingdom(k)) continue;
                         WorldTile cap = k.capital?.getTile();
                         if (cap != null)
@@ -297,8 +307,10 @@ namespace ApexFactions
             if (ActiveRetaliations.Count == 0 || world.wars == null || world.kingdoms == null) return;
 
             var finished = new List<long>();
-            foreach (var kv in ActiveRetaliations)
+            var retaliationSnapshot = new List<KeyValuePair<long, RetaliationTracker>>(ActiveRetaliations);
+            for (int i = 0; i < retaliationSnapshot.Count; i++)
             {
+                var kv = retaliationSnapshot[i];
                 RetaliationTracker tr = kv.Value;
                 War war = world.wars.get(tr.WarId);
                 Kingdom aggressor = world.kingdoms.get(tr.AggressorKingdomId);

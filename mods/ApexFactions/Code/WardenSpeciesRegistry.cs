@@ -34,6 +34,17 @@ namespace ApexFactions
 
             if (lib.has(WardenAssetId))
             {
+                ActorAsset existing = lib.get(WardenAssetId);
+                ActorAsset humanRef = lib.get("human");
+                if (existing != null)
+                {
+                    if (existing.architecture_asset == null)
+                        existing.architecture_asset = humanRef?.architecture_asset ?? AssetManager.architecture_library?.get("human");
+                    if (existing.texture_asset == null && humanRef != null)
+                        existing.texture_asset = humanRef.texture_asset;
+                    if (existing.base_stats != null)
+                        existing.base_stats["scale"] = 0.10f;
+                }
                 _registered = true;
                 return true;
             }
@@ -51,6 +62,8 @@ namespace ApexFactions
 
                 warden.texture_id = "human";
                 warden.architecture_id = "human";
+                warden.architecture_asset = human.architecture_asset ?? AssetManager.architecture_library?.get("human");
+                warden.texture_asset = human.texture_asset;
                 warden.kingdom_id_civilization = "human";
                 warden.kingdom_id_wild = "nomads_human";
 
@@ -115,7 +128,7 @@ namespace ApexFactions
                 warden.base_stats["targets"] = 3f;
                 warden.base_stats["area_of_effect"] = 0.55f;
                 warden.base_stats["knockback"] = 2.2f;
-                warden.base_stats["scale"] = 0.135f;
+                warden.base_stats["scale"] = 0.10f;
                 warden.base_stats["mass"] = 4f;
                 warden.base_stats["mass_2"] = 160f;
                 warden.base_stats["accuracy"] = 5f;

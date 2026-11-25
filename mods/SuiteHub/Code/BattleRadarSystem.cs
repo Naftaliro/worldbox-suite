@@ -112,11 +112,13 @@ namespace SuiteHub
             if (mainAtk != null) atkIds.Add(mainAtk.id);
             if (mainDef != null) defIds.Add(mainDef.id);
 
-            foreach (Kingdom k in w.getAttackers())
+            var atkSnapshot = new List<Kingdom>(w.getAttackers());
+            foreach (Kingdom k in atkSnapshot)
             {
                 if (k != null) atkIds.Add(k.id);
             }
-            foreach (Kingdom k in w.getDefenders())
+            var defSnapshot = new List<Kingdom>(w.getDefenders());
+            foreach (Kingdom k in defSnapshot)
             {
                 if (k != null) defIds.Add(k.id);
             }

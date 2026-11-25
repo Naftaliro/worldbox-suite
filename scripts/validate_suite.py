@@ -382,6 +382,8 @@ def _validate_sprite_loader_cs(cs_path: Path, mod_dir: Path, errors: list[str]) 
     # 2. Direct literal .png references in Path.Combine(...)
     for lit_m in re.finditer(r'Path\s*\.\s*Combine\s*\(([^)]*"([^"]+\.png)"[^)]*)\)', code):
         args_str, fname = lit_m.group(1), lit_m.group(2)
+        if "{" in fname or "}" in fname:
+            continue
         if "modFolder" in args_str and "GameResources" not in args_str:
             png_path = mod_dir / fname
         else:
@@ -391,6 +393,17 @@ def _validate_sprite_loader_cs(cs_path: Path, mod_dir: Path, errors: list[str]) 
             errors.append(f"{_rel(cs_path)}: referenced PNG '{_rel(png_path)}' does not exist")
         elif not _is_valid_png(png_path):
             errors.append(f"{_rel(png_path)}: invalid PNG header")
+
+    # 3. Sequence loaders: LoadSequence(dir, "prefix", count) -> prefix_0.png .. prefix_{count-1}.png
+    for seq_m in re.finditer(r'LoadSequence\s*\([^,]+,\s*"([A-Za-z0-9_]+)"\s*,\s*(\d+)\s*\)', code):
+        prefix, count = seq_m.group(1), int(seq_m.group(2))
+        for idx in range(count):
+            png_path = base_dir / f"{prefix}_{idx}.png"
+            checked += 1
+            if not png_path.is_file():
+                errors.append(f"{_rel(cs_path)}: referenced animation frame '{_rel(png_path)}' does not exist")
+            elif not _is_valid_png(png_path):
+                errors.append(f"{_rel(png_path)}: invalid PNG header")
 
     return checked
 

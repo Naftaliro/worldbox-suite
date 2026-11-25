@@ -164,6 +164,10 @@
   "suite_tog_snake_mode_description": "Enable scheming betrayal diplomacy where opportunistic kingdoms can backstab rivals and spark Snake Betrayal wars.",
   "suite_tog_snake_mode_tip": "ApexFactions: F12",
 
+  "suite_tog_dense_cities": "Dense Cities (Condensed Buildings)",
+  "suite_tog_dense_cities_description": "Tighten city building footprints, boost residential and hall housing capacity (up to 2.5x on manors and halls), and speed up complex upgrades by 30%. Fully reversible.",
+  "suite_tog_dense_cities_tip": "Click to toggle ON/OFF",
+
   "suite_tog_walls": "Auto City Walls",
   "suite_tog_walls_description": "Cities with 85+ population automatically build gated stone and iron perimeter walls.",
   "suite_tog_walls_tip": "Click to toggle ON/OFF",

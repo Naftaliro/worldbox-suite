@@ -237,8 +237,10 @@ namespace EraChronicle
             var world = MapBox.instance;
             if (world?.kingdoms == null) return;
 
-            foreach (var k in world.kingdoms)
+            var kingdoms = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdoms.Count; i++)
             {
+                Kingdom k = kingdoms[i];
                 if (k == null || !k.isCiv() || !k.isAlive()) continue;
 
                 int tier = ComputeEraTier(k);
@@ -266,8 +268,9 @@ namespace EraChronicle
                 if (tier >= 4) k.king.addTrait("blessed");
             }
 
-            var alive = MapBox.instance?.units?.units_only_alive;
-            if (alive == null) return;
+            var aliveRaw = MapBox.instance?.units?.units_only_alive;
+            if (aliveRaw == null || aliveRaw.Count == 0) return;
+            var alive = new List<Actor>(aliveRaw);
             int buffed = 0;
             for (int i = 0; i < alive.Count && buffed < 30; i++)
             {
@@ -315,8 +318,10 @@ namespace EraChronicle
 
             if (world.kingdoms != null)
             {
-                foreach (var k in world.kingdoms)
+                var kingdoms = new List<Kingdom>(world.kingdoms);
+                for (int i = 0; i < kingdoms.Count; i++)
                 {
+                    Kingdom k = kingdoms[i];
                     if (k == null || !k.isCiv() || !k.isAlive()) continue;
                     int tier = _kingdomEraTier.TryGetValue(k.id, out int t) ? t : ComputeEraTier(k);
                     entry.Kingdoms.Add(new KingdomSnapshot
@@ -333,15 +338,21 @@ namespace EraChronicle
 
             if (world.wars != null)
             {
-                foreach (var w in world.wars.getActiveWars())
+                var activeWars = world.wars.getActiveWars();
+                if (activeWars != null)
                 {
-                    if (w == null) continue;
-                    entry.ActiveWars.Add(new WarSnapshot
+                    var wars = new List<War>(activeWars);
+                    for (int i = 0; i < wars.Count; i++)
                     {
-                        Id = w.id,
-                        Name = w.name,
-                        TotalDeaths = w.getDeadAttackers() + w.getDeadDefenders()
-                    });
+                        War w = wars[i];
+                        if (w == null) continue;
+                        entry.ActiveWars.Add(new WarSnapshot
+                        {
+                            Id = w.id,
+                            Name = w.name,
+                            TotalDeaths = w.getDeadAttackers() + w.getDeadDefenders()
+                        });
+                    }
                 }
             }
 

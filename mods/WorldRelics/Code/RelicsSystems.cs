@@ -47,7 +47,8 @@ namespace WorldRelics
             if (world?.cities == null || cfg == null || (!force && !cfg.EnableCityWalls)) return 0;
 
             int builtNow = 0;
-            foreach (City city in world.cities)
+            var citiesSnapshot = new List<City>(world.cities);
+            foreach (City city in citiesSnapshot)
             {
                 var zones = GetCityZones(city);
                 if (city == null || !city.isAlive() || zones == null || zones.Count < 4) continue;
@@ -58,14 +59,15 @@ namespace WorldRelics
                     ? TopTileLibrary.wall_iron
                     : TopTileLibrary.wall_order;
 
+                var zoneSnapshot = new List<TileZone>(zones);
                 var ownedZones = new HashSet<(int, int)>();
-                foreach (TileZone z in zones)
+                foreach (TileZone z in zoneSnapshot)
                 {
                     if (z != null) ownedZones.Add((z.x, z.y));
                 }
 
                 int cityWallsThisPass = 0;
-                foreach (TileZone z in zones)
+                foreach (TileZone z in zoneSnapshot)
                 {
                     if (z == null || cityWallsThisPass >= 24) break;
                     bool edgeN = !ownedZones.Contains((z.x, z.y + 1));
@@ -130,7 +132,8 @@ namespace WorldRelics
             if (world?.cities == null || cfg == null || (!force && !cfg.EnableSeaBridges)) return 0;
 
             var cities = new List<City>();
-            foreach (City c in world.cities)
+            var citiesSnapshot = new List<City>(world.cities);
+            foreach (City c in citiesSnapshot)
             {
                 if (c != null && c.isAlive() && c.getTile() != null) cities.Add(c);
             }
@@ -247,8 +250,9 @@ namespace WorldRelics
 
             var walls = new List<(int x, int y)>();
             var roads = new List<(int x, int y)>();
+            var zoneSnapshot = new List<TileZone>(zones);
 
-            foreach (TileZone z in zones)
+            foreach (TileZone z in zoneSnapshot)
             {
                 if (z == null) continue;
                 int x0 = z.x * 8;
@@ -307,7 +311,8 @@ namespace WorldRelics
             int year = CurrentYear();
             int tilesChanged = 0;
 
-            foreach (var site in RuinSites)
+            var sitesSnapshot = new List<FallenRuinSite>(RuinSites);
+            foreach (var site in sitesSnapshot)
             {
                 if (bonusAgeYears > 0) site.FallYear -= bonusAgeYears;
                 int age = Math.Max(0, year - site.FallYear);

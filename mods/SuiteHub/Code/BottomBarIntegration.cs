@@ -42,6 +42,7 @@ namespace SuiteHub
                 Sprite iconSpeciesPanel   = LoadButtonSprite(Path.Combine(resDir, "btn_species_panel.png")) ?? iconApex;
                 Sprite iconChron          = LoadButtonSprite(Path.Combine(resDir, "btn_chronicle.png")) ?? tabIcon;
                 Sprite iconRelics         = LoadButtonSprite(Path.Combine(resDir, "btn_relics.png")) ?? tabIcon;
+                Sprite iconDenseCities    = LoadButtonSprite(Path.Combine(resDir, "btn_dense_cities.png")) ?? iconRelics;
                 Sprite iconCoop           = LoadButtonSprite(Path.Combine(resDir, "btn_coop.png")) ?? tabIcon;
                 Sprite iconModern         = LoadButtonSprite(Path.Combine(resDir, "btn_modern.png")) ?? tabIcon;
 
@@ -258,7 +259,11 @@ namespace SuiteHub
                         () => Main.GetAnyCompanionState("ApexFactions.Main", "snake_deceitful", "snake_mode", "snake", "snakes"),
                         () => Main.InvokeFirstCompanionAction("ApexFactions.Main", new[] { "ToggleSnakeMode", "ToggleSnakes" }));
 
-                    // Group 4: World Systems
+                    // Group 5: World Systems
+                    AddToggle(rulesTab, "r_world", "suite_tog_dense_cities", iconDenseCities,
+                        () => Main.GetCompanionState("WorldRelics.Main", "dense_cities"),
+                        () => Main.InvokeCompanionAction("WorldRelics.Main", "ToggleDenseCities"));
+
                     AddToggle(rulesTab, "r_world", "suite_tog_walls", iconRelics,
                         () => Main.GetCompanionState("WorldRelics.Main", "walls"),
                         () => Main.InvokeCompanionAction("WorldRelics.Main", "ToggleCityWalls"));

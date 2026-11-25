@@ -5,6 +5,7 @@ Pure Python standard library only (struct, zlib, math, pathlib).
 
 from __future__ import annotations
 
+import argparse
 import math
 import struct
 import tempfile
@@ -17,6 +18,7 @@ HUB_RES_DIR = REPO_ROOT / "mods" / "SuiteHub" / "GameResources"
 HUB_MOD_ICON = REPO_ROOT / "mods" / "SuiteHub" / "icon.png"
 APEX_MOD_ICON = REPO_ROOT / "mods" / "ApexFactions" / "icon.png"
 DEFAULT_SHEET_PATH = Path(tempfile.gettempdir()) / "worldbox_suite_art_review_sheet.png"
+DEFAULT_ANIM_SHEET_PATH = Path(tempfile.gettempdir()) / "worldbox_warden_anim_sheet.png"
 
 Color = tuple[int, int, int, int]
 
@@ -1494,6 +1496,1079 @@ def make_btn_species_panel() -> Canvas:
     return c
 
 
+def make_btn_dense_cities() -> Canvas:
+    """Dense Cities: Tightly clustered medieval stone houses, terracotta/slate roofs, glowing windows & central keep."""
+    c = Canvas(32, 32)
+
+    # Central tall stone keep & slate spire rising in the center-back (x=11..20, y=2..19)
+    # Golden spire finial & tiny crimson pennant
+    c.vline(15, 2, 4, GOLD_3)
+    c.px(15, 2, GOLD_4)
+    c.hline(16, 18, 3, RED_2)
+    c.px(16, 3, RED_3)
+    # Steep slate-blue keep spire roof
+    c.poly([(15.5, 4.0), (20.5, 10.0), (10.5, 10.0)], BLU_1)
+    c.poly([(15.5, 4.0), (15.5, 10.0), (10.5, 10.0)], BLU_2)
+    c.line(15, 4, 11, 9, BLU_3)
+    c.hline(10, 21, 10, OUTLINE_WARM)
+
+    # Crenellated stone battlements & keep tower body
+    c.fill_rect(11, 10, 20, 19, STN_2)
+    c.fill_rect(11, 11, 15, 19, STN_3)
+    c.fill_rect(17, 11, 20, 19, STN_1)
+    c.hline(11, 20, 10, STN_0)
+    # Merlons (battlement teeth)
+    for mx in (11, 14, 17, 20):
+        c.px(mx, 9, STN_3 if mx < 16 else STN_2)
+    # Keep arched glowing windows
+    c.fill_rect(14, 12, 15, 14, GOLD_3)
+    c.px(14, 12, GOLD_4)
+    c.fill_rect(17, 12, 18, 14, GOLD_2)
+    c.px(17, 12, GOLD_3)
+
+    # Back-left multi-story slate-roof townhouse (x=4..11, y=10..24)
+    c.poly([(7.5, 9.5), (11.8, 14.2), (3.2, 14.2)], OBS_2)
+    c.poly([(7.5, 9.5), (7.5, 14.2), (3.2, 14.2)], OBS_3)
+    c.line(7, 10, 4, 14, STL_3)
+    c.fill_rect(4, 14, 10, 24, PAR_2)
+    c.fill_rect(4, 14, 7, 24, PAR_3)
+    c.hline(4, 10, 14, OUTLINE_WARM)
+    c.hline(4, 10, 15, PAR_1)
+    c.vline(10, 14, 24, STN_0)
+    # Glowing stacked townhouse windows
+    c.fill_rect(5, 16, 6, 17, GOLD_3)
+    c.px(5, 16, GOLD_4)
+    c.fill_rect(8, 16, 9, 17, GOLD_2)
+
+    # Back-right multi-story terracotta-roof townhouse (x=20..27, y=9..24)
+    # Little chimney & smoke wisp
+    c.fill_rect(25, 8, 26, 11, STN_1)
+    c.px(25, 8, STN_3)
+    c.px(26, 6, STL_3)
+    c.px(27, 5, STL_4)
+    c.poly([(23.5, 9.5), (27.8, 14.2), (19.2, 14.2)], RED_1)
+    c.poly([(23.5, 9.5), (23.5, 14.2), (19.2, 14.2)], RED_2)
+    c.line(23, 10, 20, 14, ORG_3)
+    c.fill_rect(21, 14, 27, 24, STN_1)
+    c.fill_rect(21, 14, 24, 24, STN_2)
+    c.hline(21, 27, 14, OUTLINE_WARM)
+    c.hline(21, 27, 15, STN_0)
+    c.vline(21, 14, 24, STN_0)
+    c.fill_rect(22, 16, 23, 17, GOLD_3)
+    c.px(22, 16, GOLD_4)
+    c.fill_rect(25, 16, 26, 17, GOLD_2)
+
+    # Front-left cozy terracotta gable house (x=2..10, y=17..28)
+    c.poly([(6.0, 16.5), (10.5, 21.2), (1.5, 21.2)], ORG_1)
+    c.poly([(6.0, 16.5), (6.0, 21.2), (1.5, 21.2)], RED_2)
+    c.line(6, 17, 2, 21, ORG_3)
+    c.hline(2, 10, 21, OUTLINE_WARM)
+    c.fill_rect(3, 21, 10, 28, STN_2)
+    c.fill_rect(3, 21, 6, 28, STN_3)
+    c.vline(10, 21, 28, OUTLINE_WARM)
+    # Warm windows & timber door
+    c.fill_rect(4, 22, 5, 23, GOLD_3)
+    c.px(4, 22, GOLD_4)
+    c.fill_rect(7, 22, 8, 23, GOLD_3)
+    c.fill_rect(4, 25, 5, 27, BRN_1)
+    c.px(4, 25, BRN_2)
+    c.fill_rect(7, 25, 8, 26, GOLD_2)
+
+    # Front-right slate gable house (x=21..29, y=17..28)
+    c.poly([(25.0, 16.5), (29.5, 21.2), (20.5, 21.2)], OBS_1)
+    c.poly([(25.0, 16.5), (25.0, 21.2), (20.5, 21.2)], OBS_3)
+    c.line(25, 17, 21, 21, STL_3)
+    c.hline(21, 29, 21, OUTLINE_WARM)
+    c.fill_rect(21, 21, 28, 28, STN_1)
+    c.fill_rect(21, 21, 25, 28, STN_2)
+    c.vline(21, 21, 28, OUTLINE_WARM)
+    # Warm glowing multi-story windows
+    c.fill_rect(22, 22, 23, 23, GOLD_3)
+    c.px(22, 22, GOLD_4)
+    c.fill_rect(26, 22, 27, 23, GOLD_2)
+    c.fill_rect(22, 25, 23, 26, GOLD_3)
+    c.fill_rect(26, 25, 27, 27, BRN_1)
+
+    # Front-center packed terracotta guildhall & arched city gate (x=10..21, y=16..28)
+    c.poly([(15.5, 15.8), (21.2, 20.5), (9.8, 20.5)], RED_1)
+    c.poly([(15.5, 15.8), (15.5, 20.5), (9.8, 20.5)], ORG_2)
+    c.line(15, 16, 11, 20, GOLD_3)
+    c.hline(10, 21, 20, OUTLINE_WARM)
+    c.fill_rect(11, 20, 20, 28, STN_2)
+    c.fill_rect(11, 20, 15, 28, STN_3)
+    c.fill_rect(17, 20, 20, 28, STN_1)
+    # Glowing upper windows flanking the center
+    c.fill_rect(12, 21, 13, 22, GOLD_3)
+    c.px(12, 21, GOLD_4)
+    c.fill_rect(18, 21, 19, 22, GOLD_3)
+    c.px(18, 21, GOLD_4)
+    # Arched medieval city gate with warm inner lantern glow
+    c.fill_rect(14, 24, 17, 28, OUTLINE_WARM)
+    c.fill_rect(15, 23, 16, 28, OBS_0)
+    c.fill_rect(15, 25, 16, 27, ORG_2)
+    c.px(15, 25, GOLD_4)
+    c.px(16, 25, GOLD_3)
+
+    # Compact cobblestone city foundation base
+    c.hline(3, 28, 28, STN_0)
+    for sx in range(4, 28, 3):
+        c.px(sx, 28, STN_2)
+
+    c.add_outline(OUTLINE_WARM)
+    return c
+
+
+# =============================================================================
+# 4. MULTI-FRAME WARDEN SENTINEL ANIMATION SUITE (34 frames, 32x32 RGBA)
+# =============================================================================
+
+WARDEN_ANIM_PAL: dict[str, Color] = {
+    **WARDEN_PAL,
+    "R": RED_0,                  # deepest royal crimson cloak shadow
+    "x": (255, 255, 248, 255),   # luminous white-gold flash / glint core
+    "W": BLU_0,                  # deep water ripple trough
+    "u": BLU_1,                  # mid ocean ripple
+    "v": BLU_2,                  # bright cyan wave
+    "z": BLU_3,                  # light foam cyan
+    "f": BLU_4,                  # crisp white-cyan crest
+}
+
+
+def _warden_cloak_colors(role: str) -> tuple[Color, Color, Color, Color]:
+    if role == "leader":
+        return (RED_0, RED_1, RED_2, GOLD_3)
+    return (OBS_0, OBS_1, OBS_2, GOLD_2)
+
+
+def _draw_warden_cloak(
+    c: Canvas,
+    cx: int,
+    torso_dy: int,
+    role: str,
+    pose: str,
+) -> None:
+    """Flowing obsidian (citizen/warrior) or royal crimson (leader) cloak behind the body."""
+    c0, c1, c2, trim = _warden_cloak_colors(role)
+    y0 = 12 + torso_dy
+
+    if pose in ("stand", "stand_sway"):
+        sway = -1 if pose == "stand_sway" else 0
+        # Symmetrical stately cloak framing both sides of the armored silhouette
+        for dy in range(15):
+            y = y0 + dy
+            if y > 27:
+                break
+            w_left = 6 + (dy // 4) + (-sway if dy > 6 else 0)
+            w_right = 5 + (dy // 5)
+            # Left flowing wing
+            for x in range(cx - w_left, cx - 2):
+                col = c2 if x == cx - w_left + 1 else (c1 if x < cx - 4 else c0)
+                if dy >= 13 and x <= cx - w_left + 2:
+                    col = trim
+                c.px(x, y, col)
+            # Right wing (slightly tucked behind weapon on warrior/leader)
+            r_lim = cx + (w_right if role == "citizen" else w_right - 1)
+            for x in range(cx + 3, r_lim + 1):
+                col = c2 if x == r_lim - 1 else c1
+                if dy >= 13 and x >= r_lim - 1:
+                    col = trim
+                c.px(x, y, col)
+            if dy == 14:
+                c.px(cx - w_left + 1, y, trim)
+    elif pose in ("walk_0", "walk_1", "walk_2", "walk_3"):
+        # Billowing cloak streaming dynamically behind-left with smooth continuous wave ripple
+        wave_map = {
+            "walk_0": (9, 12, 0, -1.0),
+            "walk_1": (7, 13, 1, 0.0),
+            "walk_2": (10, 12, -1, 1.0),
+            "walk_3": (8, 13, 0, 0.5),
+        }
+        reach, height, fold_phase, flutter = wave_map[pose]
+        for dy in range(height):
+            y = y0 + dy
+            if y > 26:
+                continue
+            t = dy / max(1.0, float(height - 1))
+            wave_curve = math.sin(t * math.pi) * flutter
+            left_x = int(round(cx - 4 - reach * (0.25 + 0.75 * t) + wave_curve))
+            right_x = cx - 1 + (2 if dy < 4 else 0)
+            for x in range(max(1, left_x), right_x + 1):
+                ridge = (x + dy + fold_phase) % 3 == 0
+                if x <= left_x + 1 and dy >= height - 3:
+                    col = trim
+                elif ridge and x < cx - 4:
+                    col = c2
+                elif x < cx - 3:
+                    col = c1
+                else:
+                    col = c0
+                c.px(x, y, col)
+        # Fluttering tail edge accent
+        tx = max(1, cx - 4 - reach)
+        ty = min(25, y0 + height - 1)
+        c.px(tx, ty, trim)
+        c.px(tx + 1, ty, c2)
+    elif pose == "attack_windup":
+        # Cloak swung slightly down & behind braced legs
+        for dy in range(14):
+            y = y0 + dy
+            if y > 26:
+                break
+            lx = max(2, cx - 6 - (dy // 3))
+            for x in range(lx, cx + 1):
+                col = trim if (dy >= 12 and x <= lx + 1) else (c2 if x == lx + 1 else c1)
+                c.px(x, y, col)
+    elif pose == "attack_lunge":
+        # Cloak whipped fiercely straight back-left by forward lunge!
+        for dy in range(11):
+            y = y0 + dy - (1 if dy > 6 else 0)
+            lx = max(1, cx - 5 - int(dy * 0.65))
+            rx = cx - 2
+            for x in range(lx, rx + 1):
+                if dy >= 8 and x <= lx + 1:
+                    col = trim
+                elif (x + dy) % 2 == 0 and x <= lx + 3:
+                    col = c2
+                else:
+                    col = c1 if x < cx - 3 else c0
+                c.px(x, y, col)
+    elif pose in ("happy_0", "happy_1"):
+        # Cheerfully flared cloak (extra lifted during hop on happy_1)
+        flare = 2 if pose == "happy_1" else 1
+        for dy in range(13):
+            y = y0 + dy
+            if y > 26:
+                break
+            wl = 6 + (dy // 3) + (flare if dy > 5 else 0)
+            wr = 5 + (dy // 4) + (1 if pose == "happy_1" and dy > 5 else 0)
+            for x in range(max(1, cx - wl), cx - 2):
+                col = trim if (dy >= 11 and x <= cx - wl + 1) else (c2 if x == cx - wl + 1 else c1)
+                c.px(x, y, col)
+            for x in range(cx + 3, min(30, cx + wr + 1)):
+                col = trim if (dy >= 11 and x >= cx + wr - 1) else (c2 if x == cx + wr - 1 else c1)
+                c.px(x, y, col)
+    elif pose in ("swim_0", "swim_1"):
+        # Upper mantle shoulders floating above the waterline
+        for dy in range(8):
+            y = y0 + dy
+            if y >= 21:
+                break
+            wl = 6 + (dy // 3)
+            wr = 5 + (dy // 4)
+            for x in range(max(2, cx - wl), cx - 2):
+                c.px(x, y, c2 if x == cx - wl + 1 else c1)
+            for x in range(cx + 3, min(29, cx + wr)):
+                c.px(x, y, c2 if x == cx + wr - 2 else c1)
+
+
+def _draw_armored_leg(
+    c: Canvas,
+    hip_x: int,
+    hip_y: int,
+    knee_x: int,
+    knee_y: int,
+    foot_x: int,
+    foot_y: int,
+    bright: bool = True,
+    boot_dir: int = 1,
+    lifted_heel: bool = False,
+) -> None:
+    """Draw a crisp 3px-wide obsidian-and-gold armored leg with boot anchored exactly at foot_y."""
+    d_col = OBS_1 if bright else OBS_0
+    m_col = OBS_2 if bright else OBS_1
+    hi_col = OBS_3 if bright else OBS_2
+    g_col = GOLD_2 if bright else GOLD_1
+    y_col = GOLD_3 if bright else GOLD_2
+    sole_col = GOLD_0
+
+    # Thigh (hip -> knee)
+    steps_u = max(1, abs(knee_y - hip_y))
+    for i in range(steps_u + 1):
+        t = i / steps_u
+        x = int(round(hip_x + (knee_x - hip_x) * t))
+        y = int(round(hip_y + (knee_y - hip_y) * t))
+        c.px(x - 1, y, d_col)
+        c.px(x, y, m_col)
+        c.px(x + 1, y, hi_col if boot_dir >= 0 else d_col)
+
+    # Shin (knee -> ankle above foot_y)
+    ankle_y = max(knee_y + 1, foot_y - 2)
+    steps_l = max(1, abs(ankle_y - knee_y))
+    for i in range(steps_l + 1):
+        t = i / steps_l
+        x = int(round(knee_x + (foot_x - knee_x) * t))
+        y = int(round(knee_y + (ankle_y - knee_y) * t))
+        c.px(x - 1, y, d_col)
+        c.px(x, y, m_col)
+        c.px(x + 1, y, hi_col if boot_dir >= 0 else d_col)
+
+    # Gleaming golden knee guard
+    c.px(knee_x - 1, knee_y, d_col)
+    c.px(knee_x, knee_y, y_col)
+    c.px(knee_x + 1, knee_y, g_col)
+
+    # Armored boot cuff & toe (sole strictly anchored at foot_y!)
+    if boot_dir > 0:
+        # Right-facing stride boot
+        c.px(foot_x - 1, foot_y - 2, g_col)
+        c.px(foot_x, foot_y - 2, m_col)
+        c.px(foot_x + 1, foot_y - 2, g_col)
+        c.px(foot_x - 1, foot_y - 1, g_col)
+        c.px(foot_x, foot_y - 1, d_col)
+        c.px(foot_x + 1, foot_y - 1, m_col)
+        c.px(foot_x + 2, foot_y - 1, g_col)
+        if lifted_heel:
+            c.px(foot_x - 1, foot_y - 1, sole_col)
+            c.hline(foot_x, foot_x + 2, foot_y, sole_col)
+        else:
+            c.hline(foot_x - 1, foot_x + 2, foot_y, sole_col)
+    elif boot_dir < 0:
+        # Left-angled braced boot
+        c.px(foot_x - 1, foot_y - 2, g_col)
+        c.px(foot_x, foot_y - 2, m_col)
+        c.px(foot_x + 1, foot_y - 2, g_col)
+        c.px(foot_x - 2, foot_y - 1, g_col)
+        c.px(foot_x - 1, foot_y - 1, m_col)
+        c.px(foot_x, foot_y - 1, d_col)
+        c.px(foot_x + 1, foot_y - 1, g_col)
+        c.hline(foot_x - 2, foot_x + 1, foot_y, sole_col)
+    else:
+        # Symmetrical grounded standing boot
+        c.px(foot_x - 1, foot_y - 2, g_col)
+        c.px(foot_x, foot_y - 2, d_col)
+        c.px(foot_x + 1, foot_y - 2, g_col)
+        c.px(foot_x - 1, foot_y - 1, g_col)
+        c.px(foot_x, foot_y - 1, m_col)
+        c.px(foot_x + 1, foot_y - 1, g_col)
+        c.hline(foot_x - 1, foot_x + 1, foot_y, sole_col)
+
+
+def _draw_warden_legs(c: Canvas, cx: int, pose: str) -> None:
+    """Draw Warden legs with exact ground pivot at y=28 (outline at y=29) for zero jitter."""
+    gy = 28
+    if pose == "stand":
+        # Crisp symmetrical grounded Sentinel stance
+        _draw_armored_leg(c, cx - 2, 20, cx - 2, 23, cx - 2, gy, bright=True, boot_dir=0)
+        _draw_armored_leg(c, cx + 2, 20, cx + 2, 23, cx + 2, gy, bright=True, boot_dir=0)
+    elif pose == "hop":
+        # Joyful 2px hop off ground (soles at y=26, slightly kicked out)
+        _draw_armored_leg(c, cx - 2, 18, cx - 3, 21, cx - 3, 26, bright=True, boot_dir=-1)
+        _draw_armored_leg(c, cx + 2, 18, cx + 3, 21, cx + 3, 26, bright=True, boot_dir=1)
+    elif pose == "walk_0":
+        # Wide Stride A: Left/far leg pushing back-left, Right/near leg striding boldly forward-right
+        _draw_armored_leg(c, cx - 1, 20, cx - 3, 23, cx - 5, gy, bright=False, boot_dir=1, lifted_heel=True)
+        _draw_armored_leg(c, cx + 1, 20, cx + 3, 23, cx + 4, gy, bright=True, boot_dir=1)
+    elif pose == "walk_1":
+        # Passing A: Near leg planted straight down center, Far leg tucked/lifted behind
+        _draw_armored_leg(c, cx - 2, 20, cx - 3, 23, cx - 4, 26, bright=False, boot_dir=1, lifted_heel=True)
+        _draw_armored_leg(c, cx, 20, cx, 23, cx, gy, bright=True, boot_dir=1)
+    elif pose == "walk_2":
+        # Wide Stride B (opposite!): Far leg striding forward-right, Near leg kicking back-left
+        _draw_armored_leg(c, cx + 1, 20, cx + 3, 23, cx + 4, gy, bright=False, boot_dir=1)
+        _draw_armored_leg(c, cx - 1, 20, cx - 3, 23, cx - 5, gy, bright=True, boot_dir=1, lifted_heel=True)
+    elif pose == "walk_3":
+        # Passing B (opposite!): Far leg planted straight down center, Near leg lifted forward-right
+        _draw_armored_leg(c, cx, 20, cx, 23, cx, gy, bright=False, boot_dir=1)
+        _draw_armored_leg(c, cx + 1, 20, cx + 3, 23, cx + 3, 26, bright=True, boot_dir=1)
+    elif pose == "attack_windup":
+        # Braced combat stance shifted slightly back-left
+        _draw_armored_leg(c, cx - 2, 20, cx - 3, 23, cx - 3, gy, bright=False, boot_dir=-1)
+        _draw_armored_leg(c, cx + 1, 20, cx + 2, 23, cx + 2, gy, bright=True, boot_dir=1)
+    elif pose == "attack_lunge":
+        # Dynamic deep forward lunge!
+        _draw_armored_leg(c, cx - 2, 20, cx - 4, 23, cx - 5, gy, bright=False, boot_dir=1, lifted_heel=True)
+        _draw_armored_leg(c, cx + 2, 20, cx + 4, 23, cx + 4, gy, bright=True, boot_dir=1)
+
+
+def _draw_warden_torso(
+    c: Canvas,
+    cx: int,
+    torso_dy: int,
+    role: str,
+    lean_right: bool = False,
+) -> None:
+    """Obsidian plate cuirass, glowing golden chest sigil, ornate waist belt & role pauldrons."""
+    ox = cx - 6 + (1 if lean_right else 0)
+    oy = 10 + torso_dy
+
+    if role == "citizen":
+        rows = [
+            ".gg..agga..gg",
+            "gyygdssssdgyg",
+            "ylsddgwwgddsl",
+            "dlsdsgwwgsdsl",
+            "dddsdsgagsddd",
+            "..dsdssssds..",
+            "..ddggggdd...",
+            "..dgywwygd...",
+            "...dsgagsd...",
+            "...dsggsd....",
+        ]
+    elif role == "warrior":
+        rows = [
+            "ggg..agga..gg",
+            "ywwgdssssdgwy",
+            "lssddgwwwgdss",
+            "lssdsgwwwgsds",
+            "dddsdsgagsddd",
+            "..dsdssssds..",
+            "..ddggggdd...",
+            "..dgywwygd...",
+            "...dsgagsd...",
+            "...dsggsd....",
+        ]
+    else:  # leader
+        rows = [
+            "ggg..agga..gg",
+            "ywwgdssssdgwy",
+            "ryssddgwgddsr",
+            "rcdsdsgwgsdsr",
+            "dddsdsgagsddd",
+            "..gsdssssdg..",
+            "..ddggggdd...",
+            "..dgywwygd...",
+            "...dsgagsd...",
+            "...dsggsd....",
+        ]
+    c.stamp(rows, WARDEN_ANIM_PAL, ox=ox, oy=oy)
+
+
+def _draw_warden_helm(
+    c: Canvas,
+    cx: int,
+    head_dy: int,
+    role: str,
+    bright_visor: bool = False,
+    head_dx: int = 0,
+    happy_tilt: bool = False,
+) -> None:
+    """Crisp Sentinel helm (citizen crest, warrior twin horns, leader 3-point golden crown)."""
+    ox = cx - 4 + head_dx
+
+    if role == "citizen":
+        oy = max(1, 2 + head_dy)
+        v_hi = "x" if bright_visor else "w"
+        v_mid = "w" if bright_visor else "y"
+        if happy_tilt:
+            rows = [
+                "...gg....",
+                "..gyyg...",
+                ".gdlldg..",
+                "KdlhhldK.",
+                f"gdK{v_hi}{v_hi}Kdg.",
+                f"gdg{v_mid}{v_mid}gdg.",
+                ".gdggdg..",
+                "..agga...",
+            ]
+        else:
+            rows = [
+                "...gg....",
+                "..gyyg...",
+                ".gdlldg..",
+                "KdlhhldK.",
+                "KdssssdK.",
+                f"gdK{v_hi}{v_hi}Kdg.",
+                f"gdg{v_mid}{v_mid}gdg.",
+                ".gdggdg..",
+            ]
+        c.stamp(rows, WARDEN_ANIM_PAL, ox=ox, oy=oy)
+    elif role == "warrior":
+        oy = max(1, 2 + head_dy)
+        v_core = "x" if bright_visor else "q"
+        v_glow = "q" if bright_visor else "p"
+        if happy_tilt:
+            rows = [
+                ".g...g...",
+                "gy...yg..",
+                "gdlhhdg..",
+                f"dK{v_glow}{v_core}{v_glow}Kd..",
+                f"dg{v_core}{v_glow}{v_core}gd..",
+                ".gdggdg..",
+                "..agga...",
+            ]
+        else:
+            rows = [
+                ".g...g...",
+                "gy...yg..",
+                "gdllldg..",
+                "dlhhhld..",
+                "dsssssd..",
+                f"dK{v_glow}{v_core}{v_glow}Kd..",
+                f"dg{v_core}{v_glow}{v_core}gd..",
+                ".gdggdg..",
+            ]
+        c.stamp(rows, WARDEN_ANIM_PAL, ox=ox, oy=oy)
+    else:  # leader
+        oy = max(1, 2 + head_dy)
+        v_hi = "x" if bright_visor else "w"
+        cr_tip = "x" if bright_visor else "w"
+        if happy_tilt:
+            rows = [
+                f"{cr_tip}..{cr_tip}..{cr_tip}..",
+                "gygpgyg..",
+                "gywywyg..",
+                "gdlhldg..",
+                f"gdK{v_hi}Kdg..",
+                "gdgwgdf..",
+                ".gdggd...",
+            ]
+        else:
+            rows = [
+                f"{cr_tip}..{cr_tip}..{cr_tip}..",
+                "gygpgyg..",
+                "gywywyg..",
+                "gdlhldg..",
+                "gdsssdg..",
+                f"gdK{v_hi}Kdg..",
+                "gdgwgdf..",
+                ".gdggd...",
+            ]
+        rows = [r.replace("f", "g") for r in rows]
+        c.stamp(rows, WARDEN_ANIM_PAL, ox=ox, oy=oy)
+
+
+def _draw_gauntlet_arm(
+    c: Canvas,
+    x0: int,
+    y0: int,
+    x1: int,
+    y1: int,
+    bright: bool = True,
+) -> None:
+    """Draw a 2px-thick armored obsidian-and-gold arm terminating in a golden gauntlet fist."""
+    d_col = OBS_1 if bright else OBS_0
+    m_col = OBS_2 if bright else OBS_1
+    hi_col = OBS_3 if bright else OBS_2
+    g_col = GOLD_2 if bright else GOLD_1
+    y_col = GOLD_3 if bright else GOLD_2
+
+    steps = max(1, max(abs(x1 - x0), abs(y1 - y0)))
+    for i in range(steps + 1):
+        t = i / steps
+        x = int(round(x0 + (x1 - x0) * t))
+        y = int(round(y0 + (y1 - y0) * t))
+        c.px(x, y, m_col if i < steps - 1 else g_col)
+        c.px(x + 1, y, hi_col if bright else d_col)
+    # Golden gauntlet fist cuff
+    c.px(x1, y1, y_col)
+    c.px(x1 + 1, y1, g_col)
+    c.px(x1, y1 + 1, g_col)
+    c.px(x1 + 1, y1 + 1, d_col)
+
+
+def _draw_warrior_halberd(
+    c: Canvas,
+    pose: str,
+    dy: int = 0,
+    glint: bool = False,
+) -> None:
+    """Tall gold-edged steel crescent halberd across idle, walk, swim, attack, and happy poses."""
+    tip_col = WARDEN_ANIM_PAL["x"] if glint else STL_4
+
+    if pose == "idle":
+        sx = 22
+        ty = max(1, 2 + dy)
+        # Vertical golden shaft
+        c.vline(sx, ty + 6, 28, GOLD_2)
+        c.vline(sx + 1, ty + 6, 28, GOLD_1)
+        c.px(sx, 28, GOLD_0)
+        # Tall spear point
+        c.px(sx, ty, tip_col)
+        c.fill_rect(sx - 1, ty + 1, sx + 1, ty + 2, STL_3)
+        c.px(sx, ty + 1, STL_4)
+        c.fill_rect(sx - 1, ty + 3, sx, ty + 6, STL_2)
+        c.vline(sx - 1, ty + 3, ty + 6, STL_3)
+        # Crescent axe blade curving cleanly right
+        blade = [
+            "gg...",
+            "gywg.",
+            "gtetg",
+            "gtemg",
+            "gywg.",
+            "gbg..",
+        ]
+        c.stamp(blade, WARDEN_ANIM_PAL, ox=sx + 1, oy=ty + 2)
+    elif pose in ("walk_0", "walk_1", "walk_2", "walk_3"):
+        # Angled charging carry! Forward tilt slightly stronger on contact frames 0 & 2
+        tilt = 1 if pose in ("walk_0", "walk_2") else 0
+        bob = 0 if pose in ("walk_0", "walk_2") else -1
+        x_bot, y_bot = 17, 25 + bob
+        x_top, y_top = 24 + tilt, 5 + bob
+        c.line(x_bot, y_bot, x_top, y_top, GOLD_1)
+        c.line(x_bot + 1, y_bot, x_top + 1, y_top, GOLD_3)
+        # Spear tip (stays cleanly >= y=1)
+        c.px(x_top + 1, max(1, y_top - 3), tip_col)
+        c.px(x_top, max(2, y_top - 2), STL_3)
+        c.px(x_top + 1, max(2, y_top - 2), STL_4)
+        c.px(x_top, y_top - 1, STL_2)
+        c.px(x_top + 1, y_top - 1, STL_3)
+        # Gold-edged crescent axe blade facing forward-right
+        blade = [
+            ".gyg.",
+            "gyetg",
+            "gtemg",
+            "gyetg",
+            ".gbg.",
+        ]
+        c.stamp(blade, WARDEN_ANIM_PAL, ox=x_top + 1, oy=y_top - 1)
+    elif pose == "swim":
+        # Held angled cleanly up above the waves on the right
+        x_bot, y_bot = 20, 20 + dy
+        x_top, y_top = 24, 5 + dy
+        c.line(x_bot, y_bot, x_top, y_top, GOLD_1)
+        c.line(x_bot + 1, y_bot, x_top + 1, y_top, GOLD_3)
+        c.px(x_top + 1, y_top - 2, tip_col)
+        c.px(x_top, y_top - 1, STL_3)
+        c.px(x_top + 1, y_top - 1, STL_4)
+        blade = [
+            "gyg.",
+            "getg",
+            "gemg",
+            "gyg.",
+        ]
+        c.stamp(blade, WARDEN_ANIM_PAL, ox=x_top + 1, oy=y_top)
+    elif pose == "attack_0":
+        # Dramatic wind-up cleanly poised high behind-left, keeping visor 100% unobstructed!
+        c.line(18, 21, 5, 6, GOLD_1)
+        c.line(19, 21, 6, 6, GOLD_3)
+        # Gleaming upward-poised spear tip & overhead crescent axe blade in open left space
+        c.px(3, 3, tip_col)
+        c.px(4, 4, STL_4)
+        c.px(5, 5, STL_3)
+        c.poly([(5, 5), (9, 2), (10, 6), (6, 10), (2, 8)], STL_2)
+        c.line(4, 4, 9, 2, STL_4)
+        c.line(2, 8, 5, 5, STL_3)
+        c.line(5, 6, 8, 7, GOLD_3)
+        c.px(9, 2, tip_col)
+    elif pose == "attack_1":
+        # Dramatic forward cleave! Shaft thrusts forward-right, gleaming blade clearly readable inside arc
+        c.line(11, 14, 23, 18, GOLD_1)
+        c.line(11, 13, 23, 17, GOLD_3)
+        # Forward spear tip + broad gleaming crescent axe head
+        c.px(26, 19, tip_col)
+        c.px(25, 18, STL_4)
+        c.px(24, 18, STL_3)
+        c.poly([(19, 16), (24, 11), (26, 16), (22, 20)], STL_2)
+        c.line(24, 11, 26, 16, STL_4)
+        c.line(20, 15, 23, 13, GOLD_3)
+        c.px(24, 12, WARDEN_ANIM_PAL["x"])
+    elif pose in ("happy_0", "happy_1"):
+        # Victorious high salute (tip cleanly at y >= 1 so top dark outline is preserved!)
+        if pose == "happy_0":
+            sx = 22
+            c.vline(sx, 7, 26, GOLD_2)
+            c.vline(sx + 1, 7, 26, GOLD_3)
+            by = 2
+            c.px(sx, by, tip_col)
+            c.fill_rect(sx - 1, by + 1, sx + 1, by + 2, STL_3)
+            c.px(sx, by + 1, STL_4)
+            blade = [
+                "gywg.",
+                "gtetg",
+                "gtemg",
+                "gywg.",
+                "gbg..",
+            ]
+            c.stamp(blade, WARDEN_ANIM_PAL, ox=sx + 1, oy=by + 1)
+        else:
+            # Tilted celebratory victory raise!
+            c.line(20, 22, 23, 5, GOLD_2)
+            c.line(21, 22, 24, 5, GOLD_3)
+            c.px(24, 1, tip_col)
+            c.fill_rect(23, 2, 25, 3, STL_3)
+            c.px(24, 2, STL_4)
+            blade = [
+                "gywg.",
+                "gtetg",
+                "gtemg",
+                "gywg.",
+                "gbg..",
+            ]
+            c.stamp(blade, WARDEN_ANIM_PAL, ox=25, oy=2)
+
+
+def _draw_leader_spear(
+    c: Canvas,
+    pose: str,
+    dy: int = 0,
+    glint: bool = False,
+) -> None:
+    """Ornate sovereign golden halberd-spear with glowing ruby core."""
+    tip_col = WARDEN_ANIM_PAL["x"] if glint else STL_4
+
+    if pose == "idle":
+        sx = 23
+        ty = max(1, 2 + dy)
+        c.vline(sx, ty + 7, 28, GOLD_2)
+        c.vline(sx + 1, ty + 7, 28, GOLD_1)
+        c.px(sx, 28, GOLD_0)
+        head = [
+            "...e...",
+            "..tet..",
+            ".gteyg.",
+            "gytetyg",
+            ".gtmtg.",
+            ".gypyg.",
+            "gggyggg",
+            "..gbg..",
+        ]
+        c.stamp(head, WARDEN_ANIM_PAL, ox=sx - 3, oy=ty)
+        if glint:
+            c.px(sx, ty, tip_col)
+            c.px(sx, ty + 5, RED_4)
+    elif pose in ("walk_0", "walk_1", "walk_2", "walk_3"):
+        tilt = 1 if pose in ("walk_0", "walk_2") else 0
+        bob = 0 if pose in ("walk_0", "walk_2") else -1
+        x_bot, y_bot = 18, 25 + bob
+        x_top, y_top = 24 + tilt, 6 + bob
+        c.line(x_bot, y_bot, x_top, y_top, GOLD_1)
+        c.line(x_bot + 1, y_bot, x_top + 1, y_top, GOLD_3)
+        hy = max(1, y_top - 4)
+        head = [
+            "..e..",
+            ".tet.",
+            "gtytg",
+            "gypyg",
+            ".ggg.",
+        ]
+        c.stamp(head, WARDEN_ANIM_PAL, ox=x_top - 1, oy=hy)
+        if glint:
+            c.px(x_top + 1, hy, tip_col)
+    elif pose == "swim":
+        x_bot, y_bot = 20, 20 + dy
+        x_top, y_top = 24, 6 + dy
+        c.line(x_bot, y_bot, x_top, y_top, GOLD_1)
+        c.line(x_bot + 1, y_bot, x_top + 1, y_top, GOLD_3)
+        head = [
+            "..e..",
+            ".tet.",
+            "gtytg",
+            "gypyg",
+            ".ggg.",
+        ]
+        c.stamp(head, WARDEN_ANIM_PAL, ox=x_top - 1, oy=y_top - 4)
+    elif pose == "attack_0":
+        # Drawn back cleanly high-left behind shoulder, crown & visor 100% unobstructed!
+        c.line(18, 21, 6, 7, GOLD_1)
+        c.line(19, 21, 7, 7, GOLD_3)
+        head = [
+            "e....",
+            "te...",
+            "gty..",
+            ".gypg",
+            "..ggg",
+        ]
+        c.stamp(head, WARDEN_ANIM_PAL, ox=2, oy=3)
+        c.px(2, 3, tip_col)
+        c.px(4, 6, RED_4)
+    elif pose == "attack_1":
+        # Commanding forward golden spear thrust/cleave
+        c.line(11, 15, 22, 16, GOLD_1)
+        c.line(11, 14, 22, 15, GOLD_3)
+        # Winged golden spearhead thrust right (clearly readable inside the radiant arc!)
+        c.poly([(20, 12), (27, 15), (20, 19), (22, 15)], GOLD_3)
+        c.line(21, 15, 27, 15, tip_col)
+        c.px(23, 15, RED_3)
+        c.px(22, 14, GOLD_4)
+        c.px(21, 12, GOLD_4)
+        c.px(21, 18, GOLD_2)
+    elif pose in ("happy_0", "happy_1"):
+        if pose == "happy_0":
+            sx = 23
+            c.vline(sx, 7, 26, GOLD_2)
+            c.vline(sx + 1, 7, 26, GOLD_3)
+            head = [
+                "..x..",
+                ".tet.",
+                "gywyg",
+                "gypyg",
+                "ggggg",
+            ]
+            c.stamp(head, WARDEN_ANIM_PAL, ox=sx - 2, oy=2)
+        else:
+            # Tilted celebratory royal staff salute with full top margin!
+            c.line(20, 22, 23, 6, GOLD_2)
+            c.line(21, 22, 24, 6, GOLD_3)
+            head = [
+                "..x..",
+                ".tet.",
+                "gywyg",
+                "gypyg",
+                "ggggg",
+            ]
+            c.stamp(head, WARDEN_ANIM_PAL, ox=22, oy=1)
+
+
+def _draw_slash_arc(c: Canvas, golden_sovereign: bool = False) -> None:
+    """Luminous continuous tapered crescent slash arc sweeping cleanly around attack_1."""
+    hot = WARDEN_ANIM_PAL["x"]
+    trail_col = RED_3 if golden_sovereign else GOLD_2
+    edge_col = GOLD_3 if not golden_sovereign else GOLD_4
+
+    # Smooth continuous elliptical crescent (cx=17.5, cy=14.5, rx=12.5, ry=10.8) across right arc
+    cx_a, cy_a = 17.5, 14.5
+    for y in range(3, 27):
+        for x in range(21, 31):
+            nx = (x - cx_a) / 12.5
+            ny = (y - cy_a) / 10.8
+            d = math.hypot(nx, ny)
+            ang = math.degrees(math.atan2(y - cy_a, x - cx_a))
+            if -64.0 <= ang <= 64.0:
+                # Taper width smoothly toward razor tips at +/-64 deg
+                taper = math.cos(math.radians(ang * (90.0 / 68.0)))
+                inner_r = 1.0 - (0.24 * taper + 0.04)
+                if inner_r <= d <= 1.02:
+                    if d >= 0.92:
+                        c.px(x, y, hot if abs(ang) < 42.0 else GOLD_4)
+                    elif d >= 0.84:
+                        c.px(x, y, edge_col)
+                    else:
+                        c.px(x, y, trail_col)
+
+    # Crisp impact glint star on the cleave apex
+    c.px(29, 15, hot)
+    c.px(30, 15, hot)
+    c.px(28, 15, hot)
+    c.px(29, 14, hot)
+    c.px(29, 16, hot)
+
+
+def _draw_water_ripples(c: Canvas, frame: int) -> None:
+    """Crisp animated cyan-and-white water ripples across y=20..25 for swim frames."""
+    if frame == 0:
+        rows = [
+            ".......f...........ff...........",
+            "....ffzzzz..ffff..zzzzff........",
+            "..fzvvuuvvzzffffzzvvuuuvzf......",
+            "...WuuuvvvzzzzzzzzvvvuuuW.......",
+            ".....WWuuvvzzzzvvuuWW...........",
+            "........WWWWWWWWWWWW............",
+        ]
+    else:
+        rows = [
+            "..........ff...........f........",
+            "...f..zzzzffff..zzzzff..........",
+            ".ffzzvuuuvvzzzzzzvuuuvvzzf......",
+            "..WuuuvvvzzffffffzzvvvuuuW......",
+            "....WWuuuvvvzzzzvvvuuuWW........",
+            ".......WWWWWWWWWWWWWW...........",
+        ]
+    c.stamp(rows, WARDEN_ANIM_PAL, ox=0, oy=20)
+    if frame == 0:
+        c.px(6, 18, BLU_4)
+        c.px(25, 19, BLU_3)
+    else:
+        c.px(5, 19, BLU_3)
+        c.px(26, 18, BLU_4)
+
+
+def _draw_sparkle(c: Canvas, x: int, y: int, big: bool = False) -> None:
+    """Crisp warm golden cheer sparkle star."""
+    hot = WARDEN_ANIM_PAL["x"]
+    if big:
+        c.px(x, y, hot)
+        c.px(x - 1, y, GOLD_3)
+        c.px(x + 1, y, GOLD_3)
+        c.px(x, y - 1, GOLD_3)
+        c.px(x, y + 1, GOLD_3)
+        c.px(x, y - 2, GOLD_4)
+    else:
+        c.px(x, y, hot)
+        c.px(x - 1, y, GOLD_2)
+        c.px(x + 1, y, GOLD_2)
+        c.px(x, y - 1, GOLD_3)
+        c.px(x, y + 1, GOLD_3)
+
+
+def make_warden_anim_frame(role: str, anim: str, frame: int) -> Canvas:
+    """Render one 32x32 RGBA animation frame for a Warden Sentinel role."""
+    c = Canvas(32, 32)
+    cx = 15 if role == "citizen" else 14
+
+    if anim == "idle":
+        dy = -1 if frame == 1 else 0
+        _draw_warden_cloak(c, cx, dy, role, "stand_sway" if frame == 1 else "stand")
+        _draw_warden_legs(c, cx, "stand")
+        _draw_warden_torso(c, cx, dy, role, lean_right=False)
+        _draw_gauntlet_arm(c, cx - 5, 13 + dy, cx - 6, 19 + dy, bright=False)
+        if role == "citizen":
+            _draw_gauntlet_arm(c, cx + 5, 13 + dy, cx + 6, 19 + dy, bright=True)
+        else:
+            _draw_gauntlet_arm(c, cx + 5, 13 + dy, cx + 7, 17 + dy, bright=True)
+        _draw_warden_helm(c, cx, dy, role, bright_visor=(frame == 1))
+        if role == "warrior":
+            _draw_warrior_halberd(c, "idle", dy=dy, glint=(frame == 1))
+        elif role == "leader":
+            _draw_leader_spear(c, "idle", dy=dy, glint=(frame == 1))
+        c.add_outline(OUTLINE_DARK)
+        return c
+
+    if anim == "walk":
+        pose = f"walk_{frame}"
+        torso_dy = 0 if frame in (0, 2) else -1
+        head_dx = 1 if frame in (0, 2) else 0
+        _draw_warden_cloak(c, cx, torso_dy, role, pose)
+        _draw_warden_legs(c, cx, pose)
+        _draw_warden_torso(c, cx, torso_dy, role, lean_right=True)
+
+        # Swinging gauntlets opposite to legs!
+        if role == "citizen":
+            if frame == 0:
+                # Left arm back, Right arm forward-right
+                _draw_gauntlet_arm(c, cx - 4, 13 + torso_dy, cx - 7, 18 + torso_dy, bright=False)
+                _draw_gauntlet_arm(c, cx + 5, 13 + torso_dy, cx + 7, 17 + torso_dy, bright=True)
+            elif frame == 1:
+                _draw_gauntlet_arm(c, cx - 4, 13 + torso_dy, cx - 5, 19 + torso_dy, bright=False)
+                _draw_gauntlet_arm(c, cx + 4, 13 + torso_dy, cx + 5, 19 + torso_dy, bright=True)
+            elif frame == 2:
+                # Opposite swing! Left/far arm forward-right, Right/near arm swinging back-left!
+                _draw_gauntlet_arm(c, cx + 5, 13 + torso_dy, cx + 7, 16 + torso_dy, bright=False)
+                _draw_gauntlet_arm(c, cx - 4, 13 + torso_dy, cx - 6, 19 + torso_dy, bright=True)
+            else:
+                _draw_gauntlet_arm(c, cx - 4, 13 + torso_dy, cx - 5, 19 + torso_dy, bright=False)
+                _draw_gauntlet_arm(c, cx + 4, 13 + torso_dy, cx + 6, 18 + torso_dy, bright=True)
+        else:
+            l_end_x = cx - 7 if frame == 0 else (cx - 4 if frame == 2 else cx - 6)
+            l_end_y = 18 + torso_dy if frame in (0, 2) else 19 + torso_dy
+            _draw_gauntlet_arm(c, cx - 4, 13 + torso_dy, l_end_x, l_end_y, bright=False)
+            _draw_gauntlet_arm(c, cx + 5, 13 + torso_dy, cx + 7, 16 + torso_dy, bright=True)
+
+        _draw_warden_helm(c, cx, torso_dy, role, bright_visor=(frame == 2), head_dx=head_dx)
+        if role == "warrior":
+            _draw_warrior_halberd(c, pose, glint=(frame == 0))
+        elif role == "leader":
+            _draw_leader_spear(c, pose, glint=(frame == 0))
+        c.add_outline(OUTLINE_DARK)
+        return c
+
+    if anim == "swim":
+        bob_dy = 3 if frame == 0 else 2
+        _draw_warden_cloak(c, cx, bob_dy, role, f"swim_{frame}")
+        _draw_warden_torso(c, cx, bob_dy, role, lean_right=(frame == 1))
+        if role == "citizen":
+            if frame == 0:
+                _draw_gauntlet_arm(c, cx - 5, 13 + bob_dy, cx - 7, 19 + bob_dy, bright=False)
+                _draw_gauntlet_arm(c, cx + 5, 13 + bob_dy, cx + 8, 17 + bob_dy, bright=True)
+            else:
+                _draw_gauntlet_arm(c, cx - 5, 13 + bob_dy, cx - 8, 17 + bob_dy, bright=False)
+                _draw_gauntlet_arm(c, cx + 5, 13 + bob_dy, cx + 7, 19 + bob_dy, bright=True)
+        else:
+            _draw_gauntlet_arm(c, cx - 5, 13 + bob_dy, cx - 7, 18 + bob_dy, bright=False)
+            _draw_gauntlet_arm(c, cx + 5, 13 + bob_dy, cx + 7, 16 + bob_dy, bright=True)
+
+        _draw_warden_helm(c, cx, bob_dy, role, bright_visor=(frame == 1))
+        if role == "warrior":
+            _draw_warrior_halberd(c, "swim", dy=(1 if frame == 0 else 0), glint=(frame == 1))
+        elif role == "leader":
+            _draw_leader_spear(c, "swim", dy=(1 if frame == 0 else 0), glint=(frame == 1))
+
+        # Cleanly submerge lower body below waterline y=21
+        for y in range(21, 32):
+            for x in range(32):
+                c.px(x, y, TRANSPARENT)
+
+        c.add_outline(OUTLINE_DARK)
+        _draw_water_ripples(c, frame)
+        return c
+
+    if anim == "attack":
+        if frame == 0:
+            # Coiled wind-up: draw weapon cleanly off left shoulder behind torso/helm so visor shines!
+            acx = cx + 2
+            _draw_warden_cloak(c, acx, 0, role, "attack_windup")
+            if role == "warrior":
+                _draw_warrior_halberd(c, "attack_0", glint=True)
+            else:
+                _draw_leader_spear(c, "attack_0", glint=True)
+            _draw_warden_legs(c, acx, "attack_windup")
+            _draw_warden_torso(c, acx, 0, role, lean_right=False)
+            _draw_gauntlet_arm(c, acx - 5, 13, acx - 7, 11, bright=False)
+            _draw_gauntlet_arm(c, acx + 4, 13, acx + 1, 16, bright=True)
+            _draw_warden_helm(c, acx, 0, role, bright_visor=True, head_dx=-1)
+            c.add_outline(OUTLINE_DARK)
+            return c
+        else:
+            # Explosive forward cleave / thrust + radiant golden-white slash arc!
+            _draw_warden_cloak(c, cx, 0, role, "attack_lunge")
+            _draw_warden_legs(c, cx, "attack_lunge")
+            _draw_warden_torso(c, cx, 0, role, lean_right=True)
+            _draw_gauntlet_arm(c, cx - 4, 13, cx - 2, 16, bright=False)
+            _draw_gauntlet_arm(c, cx + 5, 13, cx + 7, 16, bright=True)
+            _draw_warden_helm(c, cx, 0, role, bright_visor=True, head_dx=1)
+            if role == "warrior":
+                _draw_warrior_halberd(c, "attack_1", glint=True)
+            else:
+                _draw_leader_spear(c, "attack_1", glint=True)
+            c.add_outline(OUTLINE_DARK)
+            _draw_slash_arc(c, golden_sovereign=(role == "leader"))
+            return c
+
+    if anim == "happy":
+        hop_dy = -2 if frame == 1 else 0
+        _draw_warden_cloak(c, cx, hop_dy, role, "happy_1" if frame == 1 else "happy_0")
+        _draw_warden_legs(c, cx, "hop" if frame == 1 else "stand")
+        _draw_warden_torso(c, cx, hop_dy, role, lean_right=False)
+
+        if role == "citizen":
+            if frame == 0:
+                _draw_gauntlet_arm(c, cx - 5, 13, cx - 6, 18, bright=False)
+                _draw_gauntlet_arm(c, cx + 5, 13, cx + 8, 10, bright=True)
+            else:
+                _draw_gauntlet_arm(c, cx - 5, 11, cx - 8, 9, bright=False)
+                _draw_gauntlet_arm(c, cx + 5, 11, cx + 8, 6, bright=True)
+        else:
+            if frame == 0:
+                _draw_gauntlet_arm(c, cx - 5, 13, cx - 7, 16, bright=False)
+                _draw_gauntlet_arm(c, cx + 5, 13, cx + 7, 11, bright=True)
+            else:
+                # Joyful raised victory fist + lifted halberd/staff!
+                _draw_gauntlet_arm(c, cx - 5, 11, cx - 8, 7, bright=False)
+                _draw_gauntlet_arm(c, cx + 5, 11, cx + 7, 9, bright=True)
+
+        _draw_warden_helm(
+            c,
+            cx,
+            hop_dy,
+            role,
+            bright_visor=True,
+            happy_tilt=(frame == 1),
+        )
+        if role == "warrior":
+            _draw_warrior_halberd(c, f"happy_{frame}", glint=(frame == 1))
+        elif role == "leader":
+            _draw_leader_spear(c, f"happy_{frame}", glint=(frame == 1))
+
+        c.add_outline(OUTLINE_DARK)
+
+        # Warm golden cheer sparkles cleanly in open air beside helm / crown / weapon
+        if frame == 0:
+            _draw_sparkle(c, cx - 7, 6, big=False)
+        else:
+            _draw_sparkle(c, cx - 9, 4, big=True)
+            if role == "citizen":
+                _draw_sparkle(c, cx + 10, 4, big=False)
+            else:
+                _draw_sparkle(c, 28, 7, big=False)
+        return c
+
+    raise ValueError(f"Unsupported animation state: {anim}")
+
+
+def make_warden_anim_frames() -> list[tuple[str, Canvas]]:
+    """Generate all 34 multi-frame Warden Sentinel animation sprites."""
+    frames: list[tuple[str, Canvas]] = []
+    specs: list[tuple[str, list[tuple[str, int]]]] = [
+        ("citizen", [("idle", 2), ("walk", 4), ("swim", 2), ("happy", 2)]),
+        ("warrior", [("idle", 2), ("walk", 4), ("swim", 2), ("attack", 2), ("happy", 2)]),
+        ("leader", [("idle", 2), ("walk", 4), ("swim", 2), ("attack", 2), ("happy", 2)]),
+    ]
+    for role, anims in specs:
+        for anim, count in anims:
+            for idx in range(count):
+                frames.append((f"{role}_{anim}_{idx}", make_warden_anim_frame(role, anim, idx)))
+    return frames
+
+
 # =============================================================================
 # CONTACT SHEET RENDERER (for visual inspection)
 # =============================================================================
@@ -1558,8 +2633,13 @@ def draw_label(canvas: Canvas, x: int, y: int, text: str, col: Color, scale: int
         cx += 4 * scale
 
 
-def render_contact_sheet(items: list[tuple[str, Canvas]], out_path: Path, zoom: int = 4) -> None:
-    cols = 6
+def render_contact_sheet(
+    items: list[tuple[str, Canvas] | None],
+    out_path: Path,
+    zoom: int = 4,
+    cols: int = 6,
+    show_ground_ticks: bool = False,
+) -> None:
     rows = math.ceil(len(items) / cols)
     tile_w = 32 * zoom
     tile_h = 32 * zoom
@@ -1574,7 +2654,10 @@ def render_contact_sheet(items: list[tuple[str, Canvas]], out_path: Path, zoom: 
     sheet = Canvas(sheet_w, sheet_h)
     sheet.fill_rect(0, 0, sheet_w - 1, sheet_h - 1, (18, 20, 30, 255))
 
-    for idx, (label, img) in enumerate(items):
+    for idx, entry in enumerate(items):
+        if entry is None:
+            continue
+        label, img = entry
         col = idx % cols
         row = idx // cols
         ox = margin + col * cell_w
@@ -1593,19 +2676,34 @@ def render_contact_sheet(items: list[tuple[str, Canvas]], out_path: Path, zoom: 
         sheet.vline(ox - 1, oy - 1, oy + tile_h, border)
         sheet.vline(ox + tile_w, oy - 1, oy + tile_h, border)
 
+        # Optional ground-line reference tick at y=29 (bottom edge of feet outline)
+        if show_ground_ticks:
+            gy = oy + 29 * zoom + (zoom - 1)
+            sheet.hline(ox - 5, ox - 2, gy, (248, 206, 74, 255))
+            sheet.hline(ox + tile_w + 2, ox + tile_w + 5, gy, (248, 206, 74, 255))
+
         # 4x zoomed sprite
         zoomed = img.scale_nn(zoom)
         sheet.blit(zoomed, ox, oy)
 
-        # 1x actual-size preview in top-right corner of cell frame? Keep tile clean, put 1x next to label or clean label below
         short_label = label.replace("btn_", "").replace("warden_", "W_")
-        draw_label(sheet, ox, oy + tile_h + 6, short_label[:15], (224, 230, 248, 255), scale=2)
+        draw_label(sheet, ox, oy + tile_h + 6, short_label[:16], (224, 230, 248, 255), scale=2)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(sheet.to_png_bytes())
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate WorldBox Suite pixel-art sprites and icons.")
+    parser.add_argument("--sheet", type=Path, default=DEFAULT_SHEET_PATH, help="Output path for icon contact sheet.")
+    parser.add_argument(
+        "--anim-sheet",
+        type=Path,
+        default=DEFAULT_ANIM_SHEET_PATH,
+        help="Output path for 4x Warden animation + Dense Cities contact sheet.",
+    )
+    args = parser.parse_args()
+
     WARDEN_DIR.mkdir(parents=True, exist_ok=True)
     HUB_RES_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -1615,6 +2713,7 @@ def main() -> None:
         ("warden_leader", make_warden_leader()),
         ("warden_icon", make_warden_icon()),
     ]
+    warden_anims: list[tuple[str, Canvas]] = make_warden_anim_frames()
 
     buttons: list[tuple[str, Canvas]] = [
         ("btn_hub", make_btn_hub()),
@@ -1636,9 +2735,10 @@ def main() -> None:
         ("btn_age_hope", make_btn_age_hope()),
         ("btn_war_ticker", make_btn_war_ticker()),
         ("btn_species_panel", make_btn_species_panel()),
+        ("btn_dense_cities", make_btn_dense_cities()),
     ]
 
-    for name, img in wardens:
+    for name, img in wardens + warden_anims:
         out = WARDEN_DIR / f"{name}.png"
         out.write_bytes(img.to_png_bytes())
         print(f"Wrote {out.relative_to(REPO_ROOT)} (32x32 RGBA)")
@@ -1657,9 +2757,53 @@ def main() -> None:
     APEX_MOD_ICON.write_bytes(apex_64.to_png_bytes())
     print(f"Wrote {APEX_MOD_ICON.relative_to(REPO_ROOT)} (64x64 RGBA)")
 
-    # Generate 4x review contact sheet
-    render_contact_sheet(wardens + buttons, DEFAULT_SHEET_PATH, zoom=4)
-    print(f"Wrote review sheet: {DEFAULT_SHEET_PATH}")
+    # Generate 4x review contact sheets
+    render_contact_sheet(wardens + buttons, args.sheet, zoom=4, cols=6)
+    print(f"Wrote review sheet: {args.sheet}")
+
+    # Structured 6x6 animation contact sheet (all 34 Warden frames + btn_dense_cities)
+    anim_map = dict(warden_anims)
+    btn_dense = dict(buttons)["btn_dense_cities"]
+    anim_grid: list[tuple[str, Canvas] | None] = [
+        ("citizen_idle_0", anim_map["citizen_idle_0"]),
+        ("citizen_idle_1", anim_map["citizen_idle_1"]),
+        ("citizen_walk_0", anim_map["citizen_walk_0"]),
+        ("citizen_walk_1", anim_map["citizen_walk_1"]),
+        ("citizen_walk_2", anim_map["citizen_walk_2"]),
+        ("citizen_walk_3", anim_map["citizen_walk_3"]),
+        ("citizen_swim_0", anim_map["citizen_swim_0"]),
+        ("citizen_swim_1", anim_map["citizen_swim_1"]),
+        ("citizen_happy_0", anim_map["citizen_happy_0"]),
+        ("citizen_happy_1", anim_map["citizen_happy_1"]),
+        None,
+        ("btn_dense_cities", btn_dense),
+        ("warrior_idle_0", anim_map["warrior_idle_0"]),
+        ("warrior_idle_1", anim_map["warrior_idle_1"]),
+        ("warrior_walk_0", anim_map["warrior_walk_0"]),
+        ("warrior_walk_1", anim_map["warrior_walk_1"]),
+        ("warrior_walk_2", anim_map["warrior_walk_2"]),
+        ("warrior_walk_3", anim_map["warrior_walk_3"]),
+        ("warrior_swim_0", anim_map["warrior_swim_0"]),
+        ("warrior_swim_1", anim_map["warrior_swim_1"]),
+        ("warrior_attack_0", anim_map["warrior_attack_0"]),
+        ("warrior_attack_1", anim_map["warrior_attack_1"]),
+        ("warrior_happy_0", anim_map["warrior_happy_0"]),
+        ("warrior_happy_1", anim_map["warrior_happy_1"]),
+        ("leader_idle_0", anim_map["leader_idle_0"]),
+        ("leader_idle_1", anim_map["leader_idle_1"]),
+        ("leader_walk_0", anim_map["leader_walk_0"]),
+        ("leader_walk_1", anim_map["leader_walk_1"]),
+        ("leader_walk_2", anim_map["leader_walk_2"]),
+        ("leader_walk_3", anim_map["leader_walk_3"]),
+        ("leader_swim_0", anim_map["leader_swim_0"]),
+        ("leader_swim_1", anim_map["leader_swim_1"]),
+        ("leader_attack_0", anim_map["leader_attack_0"]),
+        ("leader_attack_1", anim_map["leader_attack_1"]),
+        ("leader_happy_0", anim_map["leader_happy_0"]),
+        ("leader_happy_1", anim_map["leader_happy_1"]),
+    ]
+    render_contact_sheet(anim_grid, args.anim_sheet, zoom=4, cols=6, show_ground_ticks=True)
+    print(f"Wrote animation review sheet: {args.anim_sheet}")
 
 
 if __name__ == "__main__":

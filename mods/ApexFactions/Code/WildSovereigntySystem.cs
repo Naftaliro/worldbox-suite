@@ -17,6 +17,7 @@ namespace ApexFactions
         public int PackCount;
     }
 
+    [HarmonyPatch]
     public static class WildSovereigntySystem
     {
         public static readonly List<FeralPackDomain> ActiveDomains = new List<FeralPackDomain>();
@@ -28,6 +29,41 @@ namespace ApexFactions
 
         private static readonly MethodInfo SpeciesIdGetter =
             AccessTools.PropertyGetter(typeof(Subspecies), "species_id");
+
+        public static bool EnsureValidArchitecture(ActorAsset asset)
+        {
+            if (asset == null) return false;
+            if (asset.architecture_asset != null) return true;
+
+            ArchitectureAsset arch = null;
+            var archLib = AssetManager.architecture_library;
+            if (archLib != null)
+            {
+                if (!string.IsNullOrEmpty(asset.architecture_id))
+                    arch = archLib.get(asset.architecture_id);
+
+                if (arch == null)
+                    arch = archLib.get("civ_bandit") ?? archLib.get("human");
+            }
+
+            if (arch == null) return false;
+
+            asset.architecture_asset = arch;
+            if (string.IsNullOrEmpty(asset.architecture_id))
+                asset.architecture_id = arch.id;
+            return true;
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(BuildOrder), nameof(BuildOrder.getBuildingAsset))]
+        private static void BuildOrderEnsureArchPrefix(City pCity)
+        {
+            ActorAsset asset = pCity?.getActorAsset();
+            if (asset != null && asset.architecture_asset == null)
+            {
+                EnsureValidArchitecture(asset);
+            }
+        }
 
         private static bool IsEligibleWildAnimal(ActorAsset asset)
         {
@@ -91,7 +127,7 @@ namespace ApexFactions
             float radSq = radius * radius;
 
             var wildBySpecies = new Dictionary<string, List<Actor>>(StringComparer.OrdinalIgnoreCase);
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
 
             for (int i = 0; i < alive.Count; i++)
             {
@@ -181,6 +217,7 @@ namespace ApexFactions
             {
                 Subspecies sub = leader.subspecies;
                 if (sub == null) return false;
+                if (!EnsureValidArchitecture(leader.asset)) return false;
 
                 // Keep literal animal sprite — only awaken sapience on the animal's own subspecies
                 if (!sub.isSapient())
@@ -255,6 +292,9 @@ namespace ApexFactions
                 ? "civ_wolf"
                 : "wolf";
 
+            ActorAsset wolfAsset = AssetManager.actor_library?.get(speciesId);
+            EnsureValidArchitecture(wolfAsset);
+
             var settlers = new List<Actor>(count);
             for (int i = 0; i < count; i++)
             {
@@ -281,6 +321,7 @@ namespace ApexFactions
             Actor leader = settlers[0];
             try
             {
+                EnsureValidArchitecture(leader.asset);
                 if (leader.subspecies != null)
                 {
                     if (!leader.subspecies.isSapient())
@@ -339,20 +380,23 @@ namespace ApexFactions
                 : SpeciesPersonalityRegistry.NormalizeSpecies(filterSpecies);
 
             int awakened = 0;
-            foreach (Subspecies sub in world.subspecies)
+            var subs = new List<Subspecies>(world.subspecies);
+            for (int i = 0; i < subs.Count; i++)
             {
+                Subspecies sub = subs[i];
                 if (sub == null || !sub.isAlive() || sub.isSapient()) continue;
                 string rawSid = SpeciesIdGetter?.Invoke(sub, null) as string ?? "";
                 string normSid = SpeciesPersonalityRegistry.NormalizeSpecies(rawSid);
 
+                // Only awaken our 30 verified normal animal species
+                if (string.IsNullOrEmpty(normSid) || !SpeciesPersonalityRegistry.Profiles.ContainsKey(normSid))
+                    continue;
                 if (!string.IsNullOrEmpty(normFilter) && !string.Equals(normSid, normFilter, StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (string.IsNullOrEmpty(normFilter))
-                {
-                    ActorAsset asset = AssetManager.actor_library?.get(rawSid);
-                    if (!IsEligibleWildAnimal(asset) && !SpeciesPersonalityRegistry.Profiles.ContainsKey(normSid))
-                        continue;
-                }
+
+                ActorAsset asset = AssetManager.actor_library?.get(rawSid);
+                if (!EnsureValidArchitecture(asset))
+                    continue;
 
                 try
                 {
@@ -380,7 +424,7 @@ namespace ApexFactions
             if (world?.units?.units_only_alive == null || settings == null || !settings.EnableFeralDomains) return;
 
             var wildBySpecies = new Dictionary<string, List<Actor>>(StringComparer.OrdinalIgnoreCase);
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
 
             for (int i = 0; i < alive.Count; i++)
             {
@@ -466,10 +510,11 @@ namespace ApexFactions
 
         private static void DefendDomainBorders(List<Actor> alive)
         {
-            if (ActiveDomains.Count == 0) return;
+            if (ActiveDomains.Count == 0 || alive == null) return;
 
-            foreach (var domain in ActiveDomains)
+            for (int d = 0; d < ActiveDomains.Count; d++)
             {
+                var domain = ActiveDomains[d];
                 if (domain.Alpha == null || !domain.Alpha.isAlive()) continue;
                 float rSq = domain.Radius * domain.Radius;
 

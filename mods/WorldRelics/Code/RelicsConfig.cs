@@ -20,6 +20,8 @@ namespace WorldRelics
         public int MossyStageYears = 120;
         public int WildOvergrowthYears = 210;
 
+        public bool EnableDenseCities = false;
+
         public static WorldRelicsConfig LoadOrCreate(string modFolder)
         {
             string path = Path.Combine(modFolder, "worldrelics_config.json");

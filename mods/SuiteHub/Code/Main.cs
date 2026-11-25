@@ -260,7 +260,8 @@ namespace SuiteHub
             var world = MapBox.instance;
             if (world?.wars != null)
             {
-                foreach (var w in world.wars.getActiveWars())
+                var warsSnapshot = new List<War>(world.wars.getActiveWars());
+                foreach (var w in warsSnapshot)
                 {
                     if (w != null && DiplomacyWarOverlay.JumpToWar(w))
                     {

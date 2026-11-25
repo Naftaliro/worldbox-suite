@@ -708,13 +708,15 @@ namespace ApexFactions
             if (wars == null || SpeciesWarReasons.Count == 0) return;
 
             List<long> dead = null;
-            foreach (var kv in SpeciesWarReasons)
+            var warIds = new List<long>(SpeciesWarReasons.Keys);
+            for (int i = 0; i < warIds.Count; i++)
             {
-                War w = wars.get(kv.Key);
+                long id = warIds[i];
+                War w = wars.get(id);
                 if (w == null || !w.isAlive())
                 {
                     if (dead == null) dead = new List<long>();
-                    dead.Add(kv.Key);
+                    dead.Add(id);
                 }
             }
             if (dead != null)
@@ -731,8 +733,10 @@ namespace ApexFactions
             var world = MapBox.instance;
             if (world?.kingdoms == null || world.diplomacy == null || world.wars == null) return;
 
-            foreach (Kingdom snakeKingdom in world.kingdoms)
+            var kingdoms = new List<Kingdom>(world.kingdoms);
+            for (int kIdx = 0; kIdx < kingdoms.Count; kIdx++)
             {
+                Kingdom snakeKingdom = kingdoms[kIdx];
                 if (snakeKingdom == null || !snakeKingdom.isAlive() || !snakeKingdom.isCiv()) continue;
                 if (WardenSystem.IsWardenKingdom(snakeKingdom)) continue;
                 if (GetKingdomSpecies(snakeKingdom) != "snake") continue;
@@ -744,9 +748,10 @@ namespace ApexFactions
                 int snakeWarriors = Math.Max(1, snakeKingdom.countTotalWarriors());
                 Kingdom victim = null;
 
-                for (int i = 0; i < alliance.kingdoms_list.Count; i++)
+                var allies = new List<Kingdom>(alliance.kingdoms_list);
+                for (int i = 0; i < allies.Count; i++)
                 {
-                    Kingdom ally = alliance.kingdoms_list[i];
+                    Kingdom ally = allies[i];
                     if (ally == null || ally == snakeKingdom || !ally.isAlive() || !ally.isCiv()) continue;
                     if (WardenSystem.IsWardenKingdom(ally)) continue;
                     if (GetKingdomSpecies(ally) == "penguin") continue;
@@ -800,9 +805,11 @@ namespace ApexFactions
             var world = MapBox.instance;
             if (world?.kingdoms == null || world.cities == null) return;
 
+            var kingdoms = new List<Kingdom>(world.kingdoms);
             var thiefKingdoms = new List<Kingdom>();
-            foreach (Kingdom k in world.kingdoms)
+            for (int i = 0; i < kingdoms.Count; i++)
             {
+                Kingdom k = kingdoms[i];
                 if (k == null || !k.isAlive() || !k.isCiv()) continue;
                 string sp = GetKingdomSpecies(k);
                 if (TryGetProfile(sp, out var prof) && prof.IsThiefRaider)
@@ -813,20 +820,23 @@ namespace ApexFactions
 
             if (thiefKingdoms.Count == 0) return;
 
+            var allCities = new List<City>(world.cities);
             const float maxDistSq = 70f * 70f;
 
             for (int t = 0; t < thiefKingdoms.Count; t++)
             {
                 Kingdom thief = thiefKingdoms[t];
-                if (thief.cities == null || thief.cities.Count == 0) continue;
+                if (thief == null || !thief.isAlive() || thief.cities == null || thief.cities.Count == 0) continue;
 
+                var myCities = new List<City>(thief.cities);
                 Alliance thiefAlliance = thief.hasAlliance() ? thief.getAlliance() : null;
                 City bestThiefCity = null;
                 City bestVictimCity = null;
                 float bestDistSq = maxDistSq;
 
-                foreach (City victimCity in world.cities)
+                for (int vIdx = 0; vIdx < allCities.Count; vIdx++)
                 {
+                    City victimCity = allCities[vIdx];
                     if (victimCity == null || !victimCity.isAlive()) continue;
                     Kingdom victimKingdom = GetCityKingdom(victimCity);
                     if (victimKingdom == null || victimKingdom == thief || !victimKingdom.isCiv()) continue;
@@ -835,9 +845,9 @@ namespace ApexFactions
                     WorldTile vTile = victimCity.getTile();
                     if (vTile == null) continue;
 
-                    for (int c = 0; c < thief.cities.Count; c++)
+                    for (int c = 0; c < myCities.Count; c++)
                     {
-                        City myCity = thief.cities[c];
+                        City myCity = myCities[c];
                         if (myCity == null || !myCity.isAlive()) continue;
                         WorldTile mTile = myCity.getTile();
                         if (mTile == null) continue;
@@ -878,8 +888,9 @@ namespace ApexFactions
             }
 
             // Bounded unit-level pickpocket pass for raccoons & foxes near rival units
-            var alive = world.units?.units_only_alive;
-            if (alive == null || alive.Count == 0) return;
+            var aliveRaw = world.units?.units_only_alive;
+            if (aliveRaw == null || aliveRaw.Count == 0) return;
+            var alive = new List<Actor>(aliveRaw);
 
             var thieves = new List<Actor>(16);
             for (int i = 0; i < alive.Count && thieves.Count < 24; i++)

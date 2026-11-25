@@ -28,7 +28,8 @@ namespace SuiteHub
             catch
             {
                 int count = 0;
-                foreach (var w in world.wars.getActiveWars())
+                var activeSnapshot = new List<War>(world.wars.getActiveWars());
+                foreach (var w in activeSnapshot)
                 {
                     if (w != null) count++;
                 }
@@ -43,7 +44,8 @@ namespace SuiteHub
             if (world?.wars == null) return;
 
             _warsBuf.Clear();
-            foreach (var w in world.wars.getActiveWars())
+            var activeSnapshot = new List<War>(world.wars.getActiveWars());
+            foreach (var w in activeSnapshot)
             {
                 if (w != null) _warsBuf.Add(w);
             }

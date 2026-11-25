@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using NeoModLoader.api;
@@ -40,6 +41,10 @@ namespace WorldRelics
             {
                 _harmony = new Harmony(_declare.UID);
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
+                if (Settings.EnableDenseCities)
+                {
+                    DenseCitiesSystem.Apply(true);
+                }
                 Debug.Log($"[WorldRelics] Loaded v{_declare.Version}");
             }
             catch (Exception e)
@@ -50,6 +55,7 @@ namespace WorldRelics
 
         public void OnUnload()
         {
+            DenseCitiesSystem.RestoreVanilla();
             _harmony?.UnpatchSelf();
             Debug.Log("[WorldRelics] Unloaded.");
         }
@@ -68,8 +74,19 @@ namespace WorldRelics
                 case "walls": return Settings.EnableCityWalls;
                 case "bridges": return Settings.EnableSeaBridges;
                 case "ruins": return Settings.EnableRuinDecay;
+                case "dense_cities": return Settings.EnableDenseCities;
                 default: return false;
             }
+        }
+
+        public string ToggleDenseCities()
+        {
+            Settings.EnableDenseCities = !Settings.EnableDenseCities;
+            DenseCitiesSystem.Apply(Settings.EnableDenseCities);
+            Settings.Save(_declare.FolderPath);
+            return Settings.EnableDenseCities
+                ? "Dense Cities: ON (compact footprints + 2.5x manor housing)"
+                : "Dense Cities: OFF (vanilla footprints & housing restored)";
         }
 
         public string ToggleCityWalls()
@@ -115,6 +132,13 @@ namespace WorldRelics
         {
             if (Settings == null) return;
 
+            if (DenseCitiesSystem.NeedsSync(Settings.EnableDenseCities)
+                && AssetManager.buildings?.list != null
+                && AssetManager.buildings.list.Count > 0)
+            {
+                DenseCitiesSystem.Apply(Settings.EnableDenseCities);
+            }
+
             if ((Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)) && Input.GetKeyDown(KeyCode.R))
             {
                 ToggleHud();
@@ -155,6 +179,14 @@ namespace WorldRelics
             GameUiStyle.Label($"Walls Built: {InfrastructureBuilder.WallsBuilt}  |  Bridges: {InfrastructureBuilder.BridgesBuilt}", "Infrastructure Built|Total city perimeter wall tiles and stone sea bridges constructed in this session.", isHeader: true);
             GameUiStyle.Label($"Tracked Ruin Sites: {RuinsDecaySystem.RuinSites.Count}", "Fallen Empires|Ruined cities whose abandoned walls and roads are slowly weathering over centuries.");
             GUILayout.Space(6);
+
+            if (GameUiStyle.ToggleButton(
+                $"Dense Cities (Condensed): {(Settings.EnableDenseCities ? "ON" : "OFF")}",
+                Settings.EnableDenseCities,
+                "Dense Cities Mode|Tightens city building footprints, boosts residential and hall housing capacity (up to 2.5x on manors/halls), and speeds up building upgrades by 30%. Fully reversible to vanilla.|Saved automatically"))
+            {
+                _status = ToggleDenseCities();
+            }
 
             if (GameUiStyle.ToggleButton(
                 $"Auto City Walls (85+ pop): {(Settings.EnableCityWalls ? "ON" : "OFF")}",
@@ -212,7 +244,8 @@ namespace WorldRelics
             {
                 GUILayout.Space(8);
                 GameUiStyle.Label("Fallen Empire Ruins:", "Historical Ruin Sites|Click Go to pan the camera directly to any fallen city's overgrown remains.", isHeader: true);
-                foreach (var site in RuinsDecaySystem.RuinSites)
+                var sitesSnapshot = new List<FallenRuinSite>(RuinsDecaySystem.RuinSites);
+                foreach (var site in sitesSnapshot)
                 {
                     GUILayout.BeginHorizontal();
                     GameUiStyle.Label($"• {site.CityName} ({RuinsDecaySystem.StageLabel(site)})", $"Ruin Site|{site.CityName} is currently in the {RuinsDecaySystem.StageLabel(site)} decay stage.");

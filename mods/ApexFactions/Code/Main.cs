@@ -354,8 +354,10 @@ namespace ApexFactions
             {
                 GUILayout.Space(4);
                 GameUiStyle.Label("Active Sleeping Giant Retaliations:", "Active Warden Wars|Live retaliation trackers showing strike number and remaining aggressor population.", isHeader: true);
-                foreach (var tr in WardenSystem.ActiveRetaliations.Values)
+                var retaliations = new List<RetaliationTracker>(WardenSystem.ActiveRetaliations.Values);
+                for (int i = 0; i < retaliations.Count; i++)
                 {
+                    var tr = retaliations[i];
                     string mercyTxt = tr.EffectiveMercyPercent > 0f
                         ? $"ceasefire @ {tr.MercyTargetPop} ({tr.EffectiveMercyPercent:0}%)"
                         : "NO MERCY";
@@ -410,8 +412,10 @@ namespace ApexFactions
             }
             GUILayout.EndHorizontal();
 
-            foreach (var d in WildSovereigntySystem.ActiveDomains)
+            var domains = new List<FeralPackDomain>(WildSovereigntySystem.ActiveDomains);
+            for (int i = 0; i < domains.Count; i++)
             {
+                var d = domains[i];
                 GUILayout.BeginHorizontal();
                 GameUiStyle.Label($"• {d.DomainTitle} ({d.PackCount})", $"Feral Territory|{d.DomainTitle} holds a pack of {d.PackCount} wild animals led by an Alpha.");
                 if (GameUiStyle.Button("Go", $"Inspect {d.DomainTitle}|Center the camera on this feral hunting ground.", GUILayout.Width(42)))
@@ -544,8 +548,10 @@ namespace ApexFactions
             var world = MapBox.instance;
             if (world?.kingdoms == null) return result;
 
-            foreach (Kingdom k in world.kingdoms)
+            var kingdoms = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdoms.Count; i++)
             {
+                Kingdom k = kingdoms[i];
                 if (k == null || !k.isAlive() || !k.isCiv()) continue;
                 string sp = SpeciesPersonalityRegistry.GetKingdomSpecies(k);
                 if (SpeciesPersonalityRegistry.TryGetProfile(sp, out var prof))
@@ -578,8 +584,10 @@ namespace ApexFactions
             var world = MapBox.instance;
             if (world?.kingdoms == null) return null;
             Kingdom best = null;
-            foreach (var k in world.kingdoms)
+            var kingdoms = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdoms.Count; i++)
             {
+                Kingdom k = kingdoms[i];
                 if (k == null || !k.isCiv() || !k.isAlive() || WardenSystem.IsWardenKingdom(k)) continue;
                 if (best == null || k.getPopulationPeople() > best.getPopulationPeople()) best = k;
             }
