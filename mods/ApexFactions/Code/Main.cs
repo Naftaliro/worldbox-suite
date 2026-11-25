@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using NeoModLoader.api;
@@ -16,11 +17,18 @@ namespace ApexFactions
         private Harmony _harmony;
 
         private bool _showHud = false;
+        private int _activeTab = 0; // 0 = Wardens & Rules, 1 = Species Manager
         private GuiOverlayRunner _panelRunner;
+
         private float _wardenTimer = 0f;
+        private float _autoFoundTimer = 0f;
         private float _wildTimer = 0f;
-        private Rect _windowRect = new Rect(695, 320, 365, 440);
-        private Vector2 _scroll;
+        private float _thiefRaidTimer = 0f;
+        private float _snakeBetrayalTimer = 0f;
+
+        private Rect _windowRect = new Rect(640, 200, 420, 500);
+        private Vector2 _rulesScroll;
+        private Vector2 _speciesScroll;
         private string _status = "";
 
         public ModDeclare GetDeclaration() => _declare;
@@ -32,15 +40,20 @@ namespace ApexFactions
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+
             _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
             _panelRunner.Configure(true, DrawPanelGui);
+
             Settings = ApexFactionsConfig.LoadOrCreate(_declare.FolderPath);
+            WardenSprites.Load(_declare.FolderPath);
+            WardenSpeciesRegistry.EnsureRegistered();
+            SpeciesPersonalityRegistry.EnsureOpinionsRegistered();
 
             try
             {
                 _harmony = new Harmony(_declare.UID);
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
-                Debug.Log($"[ApexFactions] Loaded v{_declare.Version} (mercy={Settings.MercyThresholdPercent}%)");
+                Debug.Log($"[ApexFactions] Loaded v{_declare.Version} (mercy={Settings.MercyThresholdPercent}%, autoFound={Settings.AutoFoundAnimalKingdoms}, preset={Settings.AnimalFoundingPreset})");
             }
             catch (Exception e)
             {
@@ -65,11 +78,36 @@ namespace ApexFactions
             SyncRunners();
         }
 
+        // Public cross-mod API for SuiteHub
         public bool GetState(string key)
         {
-            if (Settings == null) return false;
-            if (key == "wardens") return Settings.EnableWardenDoctrine;
-            return false;
+            if (Settings == null || string.IsNullOrEmpty(key)) return false;
+            switch (key)
+            {
+                case "warden_doctrine":
+                case "wardens":
+                    return Settings.EnableWardenDoctrine;
+                case "auto_kingdoms":
+                case "auto_animal_kingdoms":
+                case "animal_kingdoms":
+                    return Settings.AutoFoundAnimalKingdoms;
+                case "snake_deceitful":
+                case "snake_mode":
+                case "snake":
+                case "snakes":
+                    return Settings.DeceitfulSnakesMode;
+                case "domain_rings":
+                    return Settings.ShowFeralDomainRings;
+                default:
+                    return false;
+            }
+        }
+
+        public string GetWarCause(long warId)
+        {
+            string wardenCause = WardenSystem.GetWarCauseAnnotation(warId);
+            if (!string.IsNullOrEmpty(wardenCause)) return wardenCause;
+            return SpeciesPersonalityRegistry.GetWarCauseAnnotation(warId);
         }
 
         public string SpawnWardenAtTile(WorldTile tile)
@@ -78,7 +116,7 @@ namespace ApexFactions
             if (n <= 0) return "Click on solid land to drop Wardens.";
             return !string.IsNullOrEmpty(kName)
                 ? $"Founded Warden Kingdom: {kName} ({n} Wardens)!"
-                : $"Dropped {n} Wardens (drop on unclaimed land to found a new kingdom immediately).";
+                : $"Dropped {n} elite Wardens (drop on unclaimed land to found a new kingdom immediately).";
         }
 
         public string SpawnWolfkinAtTile(WorldTile tile)
@@ -110,8 +148,44 @@ namespace ApexFactions
             return n > 0 ? $"Awakened {n} wild animal subspecies into sapience!" : "No wild animal subspecies found.";
         }
 
+        public string ToggleAutoAnimalKingdoms()
+        {
+            if (Settings == null) return "Config not ready.";
+            Settings.AutoFoundAnimalKingdoms = !Settings.AutoFoundAnimalKingdoms;
+            Settings.Save(_declare.FolderPath);
+            string msg = $"Auto Animal Kingdoms: {(Settings.AutoFoundAnimalKingdoms ? "ON" : "OFF")}";
+            _status = msg;
+            return msg;
+        }
+
+        public string ToggleSnakeMode()
+        {
+            if (Settings == null) return "Config not ready.";
+            Settings.DeceitfulSnakesMode = !Settings.DeceitfulSnakesMode;
+            Settings.Save(_declare.FolderPath);
+            string msg = Settings.DeceitfulSnakesMode
+                ? "Snakes: Serpent's Guile (Betrayers)"
+                : "Snakes: Peaceful Ambush (Isolationist)";
+            _status = msg;
+            return msg;
+        }
+
+        public string CycleFoundingPreset()
+        {
+            if (Settings == null) return "Config not ready.";
+            string next = Settings.AnimalFoundingPreset == "AllEligible"
+                ? "ApexAndSmart"
+                : (Settings.AnimalFoundingPreset == "ApexAndSmart" ? "Custom" : "AllEligible");
+            Settings.ApplyPreset(next);
+            Settings.Save(_declare.FolderPath);
+            string msg = $"Animal Founding Preset: {FormatPresetName(next)}";
+            _status = msg;
+            return msg;
+        }
+
         public string ToggleDomainRings()
         {
+            if (Settings == null) return "Config not ready.";
             Settings.ShowFeralDomainRings = !Settings.ShowFeralDomainRings;
             Settings.Save(_declare.FolderPath);
             SyncRunners();
@@ -127,9 +201,16 @@ namespace ApexFactions
                 ToggleHud();
             }
 
-            if (Config.paused || MapBox.instance == null) return;
+            if (MapBox.instance == null) return;
+
+            // Ensure species & diplomacy opinions register as soon as AssetManager finishes initializing
+            WardenSpeciesRegistry.EnsureRegistered();
+            SpeciesPersonalityRegistry.EnsureOpinionsRegistered();
+
+            if (Config.paused) return;
 
             float dt = Time.deltaTime;
+
             _wardenTimer += dt;
             if (_wardenTimer >= 2.0f)
             {
@@ -137,12 +218,34 @@ namespace ApexFactions
                 _wardenTimer = 0f;
             }
 
+            _autoFoundTimer += dt;
+            if (_autoFoundTimer >= 4.0f)
+            {
+                _autoFoundTimer = 0f;
+                WildSovereigntySystem.ScanAndAutoFoundAnimalKingdoms();
+            }
+
             _wildTimer += dt;
             if (_wildTimer >= 10.0f)
             {
                 _wildTimer = 0f;
                 WildSovereigntySystem.ScanFeralDomains();
+                SpeciesPersonalityRegistry.CleanupFinishedWars();
                 SyncRunners();
+            }
+
+            _thiefRaidTimer += dt;
+            if (_thiefRaidTimer >= 27.0f)
+            {
+                _thiefRaidTimer = 0f;
+                SpeciesPersonalityRegistry.TickThiefRaids();
+            }
+
+            _snakeBetrayalTimer += dt;
+            if (_snakeBetrayalTimer >= 45.0f)
+            {
+                _snakeBetrayalTimer = 0f;
+                SpeciesPersonalityRegistry.TickSnakeBetrayals();
             }
         }
 
@@ -157,18 +260,75 @@ namespace ApexFactions
         private void DrawHud(int id)
         {
             GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(390));
 
-            GameUiStyle.Label($"Warden Doctrine ({WardenSystem.WardenKingdomIds.Count} kingdoms)", "Sleeping Giant Wardens|Peaceful powerhouse kingdoms that never start wars, rally fiercely when attacked, and track a 3-strikes grudge per aggressor.", isHeader: true);
+            // 2-Tab Navigation Bar
+            GUILayout.BeginHorizontal();
+            if (GameUiStyle.ToggleButton(
+                "Wardens & Rules",
+                _activeTab == 0,
+                "Wardens & Rules|Manage Sleeping Giant Warden kingdoms, mercy thresholds, and wild sovereignty actions."))
+            {
+                _activeTab = 0;
+            }
+            if (GameUiStyle.ToggleButton(
+                "Species Manager (30)",
+                _activeTab == 1,
+                "Species Manager|Configure auto-founding animal kingdoms, presets, cluster size, snake doctrine, and all 30 species toggles."))
+            {
+                _activeTab = 1;
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(4);
+
+            if (_activeTab == 0)
+            {
+                DrawWardensAndRulesTab();
+            }
+            else
+            {
+                DrawSpeciesManagerTab();
+            }
+
+            if (!string.IsNullOrEmpty(_status))
+            {
+                GUILayout.Space(4);
+                GameUiStyle.Label(_status, null, isHeader: true);
+            }
+
+            GameUiStyle.CaptureTooltip();
+            GUI.DragWindow();
+        }
+
+        private void DrawWardensAndRulesTab()
+        {
+            _rulesScroll = GUILayout.BeginScrollView(_rulesScroll, GUILayout.Height(405));
+
+            int aliveWardens = WardenSystem.CountAliveWardenKingdoms();
+            GameUiStyle.Label(
+                $"Warden Doctrine ({aliveWardens} kingdoms)",
+                "Sleeping Giant Wardens|Dedicated elite Warden species (1v30 calibrated). Peaceful until attacked; tracks a 3-strikes grudge per aggressor.",
+                isHeader: true);
+
+            if (GameUiStyle.ToggleButton(
+                $"Warden Sleeping Giant Doctrine: {(Settings.EnableWardenDoctrine ? "ON" : "OFF")}",
+                Settings.EnableWardenDoctrine,
+                "Warden Doctrine|Prevents Wardens from starting offensive wars and triggers mercy-scaled retaliation when provoked."))
+            {
+                Settings.EnableWardenDoctrine = !Settings.EnableWardenDoctrine;
+                Settings.Save(_declare.FolderPath);
+                _status = $"Warden Doctrine: {(Settings.EnableWardenDoctrine ? "ON" : "OFF")}";
+            }
+
             string mercyDesc = Settings.MercyThresholdPercent > 0f
-                ? $"Mercy Ceasefire: stop retaliation at {Settings.MercyThresholdPercent:0}% pop"
+                ? $"Mercy Ceasefire: stop Strike #1 at {Settings.MercyThresholdPercent:0}% pop"
                 : "Mercy Ceasefire: OFF (total elimination)";
             float newPct = GameUiStyle.SliderRow(
                 mercyDesc,
                 Settings.MercyThresholdPercent,
                 0f,
                 50f,
-                "Mercy Ceasefire Threshold|On Strike #1, Wardens force peace once an aggressor drops to this % of its war-start pop (5% on Strike #2, zero mercy on Strike #3+).");
+                "Mercy Ceasefire Threshold|Strike #1 forces peace at this % of war-start pop; Strike #2 drops to 5%; Strike #3+ shows no mercy.");
             if (Mathf.Abs(newPct - Settings.MercyThresholdPercent) >= 1f)
             {
                 Settings.MercyThresholdPercent = Mathf.Round(newPct);
@@ -176,29 +336,24 @@ namespace ApexFactions
             }
 
             if (GameUiStyle.Button(
-                "Spawn Warden Colony (14 Enhanced Humans)",
-                "Spawn Warden Settlers|Drops 14 elite human colonists at your camera center and marks their new kingdom with the peaceful Warden doctrine."))
+                "Spawn Warden Colony (10 Elite Wardens)",
+                "Spawn Warden Settlers|Drops 10 dedicated Warden species colonists at camera center to found a peaceful Warden kingdom."))
             {
                 WardenSystem.SpawnWardenColonyAtCamera();
-                _status = "Spawned Warden colony at camera!";
+                _status = "Spawned 10 elite Wardens at camera!";
             }
 
             if (GameUiStyle.Button(
                 "Anoint Largest Kingdom as Wardens",
-                "Anoint Existing Empire|Bestows the Warden Sleeping Giant doctrine onto the largest non-Warden civilized kingdom in the world."))
+                "Anoint Existing Empire|Bestows the Warden Sleeping Giant doctrine onto the largest non-Warden civilized kingdom."))
             {
-                Kingdom top = FindLargestNonWardenKingdom();
-                if (top != null)
-                {
-                    WardenSystem.AnointKingdomAsWardens(top);
-                    _status = $"Anointed {top.name} as Wardens.";
-                }
+                _status = AnointTopKingdom();
             }
 
             if (WardenSystem.ActiveRetaliations.Count > 0)
             {
                 GUILayout.Space(4);
-                GameUiStyle.Label("Active Sleeping Giant Retaliations:", "Active Warden Wars|Tracks each aggressor's strike count and live population toward the mercy ceasefire threshold.", isHeader: true);
+                GameUiStyle.Label("Active Sleeping Giant Retaliations:", "Active Warden Wars|Live retaliation trackers showing strike number and remaining aggressor population.", isHeader: true);
                 foreach (var tr in WardenSystem.ActiveRetaliations.Values)
                 {
                     string mercyTxt = tr.EffectiveMercyPercent > 0f
@@ -206,36 +361,54 @@ namespace ApexFactions
                         : "NO MERCY";
                     GameUiStyle.Label(
                         $"• [Strike #{tr.StrikeNumber}] {tr.WardenName} -> {tr.AggressorName}: {tr.CurrentAggressorPop}/{tr.BaselinePop} ({mercyTxt})",
-                        $"Grudge Tracker|{tr.AggressorName} provoked {tr.WardenName} (Strike #{tr.StrikeNumber}). Current pop: {tr.CurrentAggressorPop} of {tr.BaselinePop} war-start pop.");
+                        $"Grudge Tracker|{tr.AggressorName} provoked {tr.WardenName} (Strike #{tr.StrikeNumber}).");
                 }
             }
 
             GUILayout.Space(8);
-            GameUiStyle.Label($"Wild Sovereignty ({WildSovereigntySystem.ActiveDomains.Count} Feral Domains)", "Wild Realms|Awaken wild animal subspecies into sapient civilizations or monitor feral hunting territories ruled by giant Alphas.", isHeader: true);
+            GameUiStyle.Label(
+                $"Wild Sovereignty ({WildSovereigntySystem.ActiveDomains.Count} Feral Domains)",
+                "Wild Realms|Literal animal kingdoms that self-found when wild packs gather, plus feral Alpha hunting territories.",
+                isHeader: true);
+
+            if (GameUiStyle.ToggleButton(
+                $"Auto-Found Animal Kingdoms: {(Settings.AutoFoundAnimalKingdoms ? "ON" : "OFF")}",
+                Settings.AutoFoundAnimalKingdoms,
+                $"Auto-Founding|When {Settings.ClusterSizeToFound}+ allowed wild animals gather on unclaimed land, they awaken sapience and found a literal animal kingdom."))
+            {
+                ToggleAutoAnimalKingdoms();
+            }
+
+            if (GameUiStyle.ToggleButton(
+                Settings.DeceitfulSnakesMode ? "Snake Mode: Serpent's Guile (Betrayers)" : "Snake Mode: Peaceful Ambush (Isolationist)",
+                Settings.DeceitfulSnakesMode,
+                "Snake Doctrine|Serpent's Guile (-25 opinion, alliance backstabs) vs Peaceful Ambush (0 opinion, defensive venomous isolationists)."))
+            {
+                ToggleSnakeMode();
+            }
 
             if (GameUiStyle.Button(
-                "Spawn Wolfkin Kingdom (12 civ_wolf)",
-                "Spawn Wolfkin Settlers|Places 12 sapient Wolfkin settlers at your camera center so they found their own civilization."))
+                "Spawn Wolfkin Kingdom (12 Wolfkin)",
+                "Spawn Wolfkin Settlers|Places 12 sapient Wolfkin settlers with Wolf Pack Warlord traits at camera center."))
             {
                 int n = WildSovereigntySystem.SpawnWolfkinKingdomAtCamera(12);
                 _status = $"Spawned {n} Wolfkin settlers!";
             }
 
+            GUILayout.BeginHorizontal();
             if (GameUiStyle.Button(
-                "Awaken All Wild Wolves (Instant Sapience)",
-                "Awaken Wild Wolves|Grants instant sapience (makeSapient) to every wild wolf subspecies on the map so they can build kingdoms."))
+                "Awaken Wild Wolves",
+                "Awaken Wild Wolves|Grants instant sapience + Wolf archetype traits to every wild wolf subspecies on the map."))
             {
-                int n = WildSovereigntySystem.AwakenWildSubspecies("wolf");
-                _status = n > 0 ? $"Awakened {n} wolf subspecies!" : "No wild wolf subspecies found.";
+                _status = AwakenWolves();
             }
-
             if (GameUiStyle.Button(
-                "Awaken All Wild Animals (Full Sapience)",
-                "Awaken Every Wild Species|Grants instant sapience to all wild animal subspecies across the entire world."))
+                "Awaken All Animals",
+                "Awaken Every Wild Species|Grants instant sapience + species traits to all eligible wild animal subspecies."))
             {
-                int n = WildSovereigntySystem.AwakenWildSubspecies(null);
-                _status = $"Awakened {n} wild animal subspecies!";
+                _status = AwakenAllAnimals();
             }
+            GUILayout.EndHorizontal();
 
             foreach (var d in WildSovereigntySystem.ActiveDomains)
             {
@@ -249,15 +422,155 @@ namespace ApexFactions
                 GUILayout.EndHorizontal();
             }
 
-            if (!string.IsNullOrEmpty(_status))
+            GUILayout.EndScrollView();
+        }
+
+        private void DrawSpeciesManagerTab()
+        {
+            // Preset switcher
+            GameUiStyle.Label(
+                $"Founding Preset: {FormatPresetName(Settings.AnimalFoundingPreset)}",
+                "Animal Founding Preset|Choose whether all 30 normal animals, only apex/smart animals, or a custom selection can auto-found kingdoms.",
+                isHeader: true);
+
+            GUILayout.BeginHorizontal();
+            if (GameUiStyle.ToggleButton("All Eligible", Settings.AnimalFoundingPreset == "AllEligible", "All 30 verified normal animal species may auto-found kingdoms."))
             {
+                Settings.ApplyPreset("AllEligible");
+                Settings.Save(_declare.FolderPath);
+                _status = "Preset: All Eligible (30 species)";
+            }
+            if (GameUiStyle.ToggleButton("Apex & Smart", Settings.AnimalFoundingPreset == "ApexAndSmart", "Only apex predators, clever mammals, penguins, snakes, and unicorns auto-found."))
+            {
+                Settings.ApplyPreset("ApexAndSmart");
+                Settings.Save(_declare.FolderPath);
+                _status = "Preset: Apex & Smart";
+            }
+            if (GameUiStyle.ToggleButton("Custom", Settings.AnimalFoundingPreset == "Custom", "Toggle individual species ON or OFF below."))
+            {
+                Settings.ApplyPreset("Custom");
+                Settings.Save(_declare.FolderPath);
+                _status = "Preset: Custom";
+            }
+            GUILayout.EndHorizontal();
+
+            // Cluster size slider (4..25)
+            float nextCluster = GameUiStyle.SliderRow(
+                $"Cluster Size to Found: {Settings.ClusterSizeToFound} animals (radius {Settings.ClusterRadiusTiles:0}t)",
+                Settings.ClusterSizeToFound,
+                4f,
+                25f,
+                "Cluster Size|Minimum wild animals of the same species within cluster radius on unclaimed land required to found a kingdom.");
+            int roundedCluster = Mathf.Clamp(Mathf.RoundToInt(nextCluster), 4, 25);
+            if (roundedCluster != Settings.ClusterSizeToFound)
+            {
+                Settings.ClusterSizeToFound = roundedCluster;
+                Settings.Save(_declare.FolderPath);
+            }
+
+            // Snake mode toggle
+            if (GameUiStyle.ToggleButton(
+                Settings.DeceitfulSnakesMode ? "Snakes: Serpent's Guile (Betrayers)" : "Snakes: Peaceful Ambush (Defensive)",
+                Settings.DeceitfulSnakesMode,
+                "Snake Doctrine|Toggle whether Snake kingdoms act as deceitful alliance-betrayers or peaceful venomous isolationists."))
+            {
+                ToggleSnakeMode();
+            }
+
+            GUILayout.Space(4);
+            _speciesScroll = GUILayout.BeginScrollView(_speciesScroll, GUILayout.Height(285));
+
+            // Active animal species kingdoms summary
+            var activeAnimalKingdoms = CollectActiveAnimalKingdoms();
+            if (activeAnimalKingdoms.Count > 0)
+            {
+                GameUiStyle.Label(
+                    $"Active Animal Kingdoms ({activeAnimalKingdoms.Count})",
+                    "Living Animal Civilizations|Animal kingdoms currently thriving on this map with active species personalities.",
+                    isHeader: true);
+
+                for (int i = 0; i < activeAnimalKingdoms.Count; i++)
+                {
+                    var item = activeAnimalKingdoms[i];
+                    GameUiStyle.Subtle(
+                        $"• {item.KingdomName} — {item.SpeciesDisplay} ({item.Archetype}, pop {item.Pop})",
+                        $"{item.KingdomName}|{item.SpeciesDisplay} civilization following the {item.Archetype} doctrine.");
+                }
                 GUILayout.Space(6);
-                GameUiStyle.Label(_status, null, isHeader: true);
+            }
+
+            GameUiStyle.Label(
+                "All 30 Species Auto-Founding Toggles:",
+                "Species Allowlist|Click any species toggle to allow or block auto-founding. Hover for full archetype and diplomacy details.",
+                isHeader: true);
+
+            for (int i = 0; i < SpeciesPersonalityRegistry.AllSpeciesIds.Count; i++)
+            {
+                string spId = SpeciesPersonalityRegistry.AllSpeciesIds[i];
+                if (!SpeciesPersonalityRegistry.TryGetProfile(spId, out var profile)) continue;
+
+                bool allowed = Settings.IsSpeciesAllowedToFound(spId);
+                string arch = SpeciesPersonalityRegistry.GetEffectiveArchetypeTitle(profile);
+                int opMod = SpeciesPersonalityRegistry.GetEffectiveOpinionModifier(spId);
+                string opStr = opMod > 0 ? $"+{opMod}" : (opMod < 0 ? $"{opMod}" : "0");
+                string traitsLine = string.Join(", ", SpeciesPersonalityRegistry.GetEffectiveBirthTraits(profile));
+                string tip = $"{profile.DisplayName} — {arch}|{profile.Description}|Opinion {opStr} • Traits: {traitsLine}";
+
+                GUILayout.BeginHorizontal();
+                if (GameUiStyle.ToggleButton(allowed ? "ON" : "OFF", allowed, tip, GUILayout.Width(44)))
+                {
+                    Settings.SetSpeciesAllowed(spId, !allowed);
+                    Settings.Save(_declare.FolderPath);
+                    _status = $"{profile.DisplayName} auto-founding: {(!allowed ? "ON" : "OFF")}";
+                }
+                GameUiStyle.Label($"{profile.DisplayName} — {arch} ({opStr})", tip);
+                GUILayout.EndHorizontal();
             }
 
             GUILayout.EndScrollView();
-            GameUiStyle.CaptureTooltip();
-            GUI.DragWindow();
+        }
+
+        private struct ActiveAnimalKingdomInfo
+        {
+            public string KingdomName;
+            public string SpeciesDisplay;
+            public string Archetype;
+            public int Pop;
+        }
+
+        private static List<ActiveAnimalKingdomInfo> CollectActiveAnimalKingdoms()
+        {
+            var result = new List<ActiveAnimalKingdomInfo>();
+            var world = MapBox.instance;
+            if (world?.kingdoms == null) return result;
+
+            foreach (Kingdom k in world.kingdoms)
+            {
+                if (k == null || !k.isAlive() || !k.isCiv()) continue;
+                string sp = SpeciesPersonalityRegistry.GetKingdomSpecies(k);
+                if (SpeciesPersonalityRegistry.TryGetProfile(sp, out var prof))
+                {
+                    result.Add(new ActiveAnimalKingdomInfo
+                    {
+                        KingdomName = k.name,
+                        SpeciesDisplay = prof.DisplayName,
+                        Archetype = SpeciesPersonalityRegistry.GetEffectiveArchetypeTitle(prof),
+                        Pop = k.getPopulationPeople()
+                    });
+                }
+            }
+            return result;
+        }
+
+        private static string FormatPresetName(string preset)
+        {
+            switch (preset)
+            {
+                case "AllEligible": return "All Eligible";
+                case "ApexAndSmart": return "Apex & Smart";
+                case "Custom": return "Custom";
+                default: return preset ?? "All Eligible";
+            }
         }
 
         private static Kingdom FindLargestNonWardenKingdom()
@@ -267,7 +580,7 @@ namespace ApexFactions
             Kingdom best = null;
             foreach (var k in world.kingdoms)
             {
-                if (k == null || !k.isCiv() || !k.isAlive() || WardenSystem.WardenKingdomIds.Contains(k.id)) continue;
+                if (k == null || !k.isCiv() || !k.isAlive() || WardenSystem.IsWardenKingdom(k)) continue;
                 if (best == null || k.getPopulationPeople() > best.getPopulationPeople()) best = k;
             }
             return best;

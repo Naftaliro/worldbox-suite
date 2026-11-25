@@ -21,23 +21,27 @@ namespace ApexFactions
     {
         public static readonly List<FeralPackDomain> ActiveDomains = new List<FeralPackDomain>();
 
-        private static readonly HashSet<string> ExcludedSpecies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> ExcludedFeralSpecies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "butterfly", "beetle", "fly", "grasshopper", "ant_blue", "ant_green", "ant_red", "ant_black", "bee", "piranha"
         };
 
+        private static readonly MethodInfo SpeciesIdGetter =
+            AccessTools.PropertyGetter(typeof(Subspecies), "species_id");
+
         private static bool IsEligibleWildAnimal(ActorAsset asset)
         {
             if (asset == null || asset.is_boat || asset.civ) return false;
-            if (ExcludedSpecies.Contains(asset.id)) return false;
+            if (ExcludedFeralSpecies.Contains(asset.id)) return false;
             return asset.default_animal;
         }
 
-        private static string PluralizeSpecies(string id)
+        public static string PluralizeSpecies(string id)
         {
             if (string.IsNullOrEmpty(id)) return "Beasts";
-            string clean = id.Replace('_', ' ');
-            switch (id.ToLowerInvariant())
+            string norm = SpeciesPersonalityRegistry.NormalizeSpecies(id);
+            if (string.IsNullOrEmpty(norm)) return "Beasts";
+            switch (norm)
             {
                 case "wolf": return "Wolves";
                 case "fox": return "Foxes";
@@ -47,21 +51,194 @@ namespace ApexFactions
                 case "mouse": return "Mice";
                 case "monkey": return "Monkeys";
                 case "butterfly": return "Butterflies";
+                case "buffalo": return "Buffalo";
+                case "ostrich": return "Ostriches";
+                case "rhino": return "Rhinos";
+                case "hyena": return "Hyenas";
+                case "alpaca": return "Alpacas";
+                case "capybara": return "Capybaras";
+                case "piranha": return "Piranhas";
             }
+            string clean = norm.Replace('_', ' ');
             string titled = char.ToUpper(clean[0]) + clean.Substring(1);
             if (titled.EndsWith("s") || titled.EndsWith("x") || titled.EndsWith("ch") || titled.EndsWith("sh"))
                 return titled + "es";
             return titled + "s";
         }
 
-        private static readonly MethodInfo SpeciesIdGetter =
-            AccessTools.PropertyGetter(typeof(Subspecies), "species_id");
+        private static bool IsUnclaimedBuildableLand(WorldTile tile)
+        {
+            if (tile == null || tile.Type == null) return false;
+            if (tile.Type.liquid || !tile.Type.ground) return false;
+            if (tile.zone == null || tile.zone.hasCity() || tile.zone.city != null) return false;
+            if (!tile.zone.canStartCityHere() || !tile.zone.isGoodForNewCity()) return false;
+            return true;
+        }
 
         /// <summary>
-        /// Spawns a pack of sapient Wolfkin (civ_wolf) ready to found a full Wolf Kingdom immediately.
+        /// Scans unaligned wild animals and auto-founds literal animal kingdoms when enough
+        /// same-species animals gather on unclaimed buildable land.
         /// </summary>
-        private static readonly MethodInfo SetCityMethod =
-            AccessTools.Method(typeof(Actor), "setCity", new[] { typeof(City) });
+        public static int ScanAndAutoFoundAnimalKingdoms()
+        {
+            var world = MapBox.instance;
+            var settings = Main.Settings;
+            if (world?.units?.units_only_alive == null || settings == null || !settings.AutoFoundAnimalKingdoms)
+                return 0;
+
+            int minCluster = Mathf.Clamp(settings.ClusterSizeToFound, 4, 25);
+            float radius = Mathf.Clamp(settings.ClusterRadiusTiles, 8f, 40f);
+            float radSq = radius * radius;
+
+            var wildBySpecies = new Dictionary<string, List<Actor>>(StringComparer.OrdinalIgnoreCase);
+            var alive = world.units.units_only_alive;
+
+            for (int i = 0; i < alive.Count; i++)
+            {
+                Actor u = alive[i];
+                if (u == null || !u.isAlive() || u.current_tile == null || u.asset == null) continue;
+                if (u.asset.is_boat) continue;
+                if (u.city != null || (u.kingdom != null && u.kingdom.isCiv())) continue;
+
+                string sp = SpeciesPersonalityRegistry.NormalizeSpecies(u.asset.id);
+                if (!settings.IsSpeciesAllowedToFound(sp)) continue;
+
+                if (!wildBySpecies.TryGetValue(sp, out var list))
+                {
+                    list = new List<Actor>(16);
+                    wildBySpecies[sp] = list;
+                }
+                list.Add(u);
+            }
+
+            int foundedCount = 0;
+            const int maxFoundedPerScan = 2;
+
+            foreach (var kv in wildBySpecies)
+            {
+                if (foundedCount >= maxFoundedPerScan) break;
+
+                string sp = kv.Key;
+                List<Actor> beasts = kv.Value;
+                if (beasts.Count < minCluster) continue;
+
+                var used = new HashSet<Actor>();
+                for (int i = 0; i < beasts.Count && foundedCount < maxFoundedPerScan; i++)
+                {
+                    Actor seed = beasts[i];
+                    if (used.Contains(seed)) continue;
+                    if (!IsUnclaimedBuildableLand(seed.current_tile)) continue;
+
+                    var cluster = new List<Actor>(minCluster + 4) { seed };
+                    int sx = seed.current_tile.x;
+                    int sy = seed.current_tile.y;
+
+                    for (int j = 0; j < beasts.Count; j++)
+                    {
+                        if (j == i) continue;
+                        Actor other = beasts[j];
+                        if (used.Contains(other)) continue;
+
+                        int dx = sx - other.current_tile.x;
+                        int dy = sy - other.current_tile.y;
+                        if (dx * dx + dy * dy <= radSq)
+                        {
+                            cluster.Add(other);
+                        }
+                    }
+
+                    if (cluster.Count < minCluster) continue;
+
+                    // Choose a leader on valid unclaimed buildable land with a valid subspecies
+                    Actor leader = null;
+                    for (int c = 0; c < cluster.Count; c++)
+                    {
+                        Actor cand = cluster[c];
+                        if (cand.subspecies != null && IsUnclaimedBuildableLand(cand.current_tile))
+                        {
+                            leader = cand;
+                            break;
+                        }
+                    }
+                    if (leader == null) continue;
+
+                    for (int c = 0; c < cluster.Count; c++)
+                        used.Add(cluster[c]);
+
+                    if (TryFoundAnimalKingdomFromCluster(leader, cluster, sp))
+                    {
+                        foundedCount++;
+                    }
+                }
+            }
+
+            return foundedCount;
+        }
+
+        private static bool TryFoundAnimalKingdomFromCluster(Actor leader, List<Actor> cluster, string speciesId)
+        {
+            try
+            {
+                Subspecies sub = leader.subspecies;
+                if (sub == null) return false;
+
+                // Keep literal animal sprite — only awaken sapience on the animal's own subspecies
+                if (!sub.isSapient())
+                {
+                    sub.makeSapient();
+                }
+
+                SpeciesPersonalityRegistry.ApplyProfileToSubspecies(sub, speciesId);
+                for (int i = 0; i < cluster.Count; i++)
+                {
+                    Actor member = cluster[i];
+                    if (member != null && member.isAlive())
+                    {
+                        SpeciesPersonalityRegistry.ApplyProfileToActor(member, speciesId);
+                    }
+                }
+
+                if (!leader.buildCityAndStartCivilization() || leader.city == null || leader.kingdom == null || !leader.kingdom.isCiv())
+                {
+                    return false;
+                }
+
+                City newCity = leader.city;
+                Kingdom newKingdom = leader.kingdom;
+
+                for (int i = 0; i < cluster.Count; i++)
+                {
+                    Actor member = cluster[i];
+                    if (member == null || member == leader || !member.isAlive()) continue;
+                    if (member.subspecies != sub)
+                    {
+                        try { member.setSubspecies(sub); } catch { }
+                    }
+                    try
+                    {
+                        member.joinCity(newCity);
+                        member.setMetasFromCity(newCity);
+                    }
+                    catch { }
+                }
+
+                if (newKingdom.culture != null)
+                {
+                    SpeciesPersonalityRegistry.ApplyProfileToCulture(newKingdom.culture, speciesId);
+                }
+
+                string plural = PluralizeSpecies(speciesId);
+                string toast = $"{cluster.Count} {plural} banded together to found {newKingdom.name}!";
+                Debug.Log($"[ApexFactions] {toast}");
+                try { WorldTip.showNowTop(toast, false); } catch { }
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[ApexFactions] Auto-founding {speciesId} kingdom failed: {e.Message}");
+                return false;
+            }
+        }
 
         public static int SpawnWolfkinKingdomAtCamera(int count = 12)
         {
@@ -92,7 +269,11 @@ namespace ApexFactions
                 }
 
                 Actor u = world.units.spawnNewUnit(speciesId, spawnTile);
-                if (u != null) settlers.Add(u);
+                if (u != null)
+                {
+                    SpeciesPersonalityRegistry.ApplyProfileToActor(u, "wolf");
+                    settlers.Add(u);
+                }
             }
 
             if (settlers.Count == 0) return 0;
@@ -100,9 +281,13 @@ namespace ApexFactions
             Actor leader = settlers[0];
             try
             {
-                if (speciesId == "wolf" && leader.subspecies != null && !leader.subspecies.isSapient())
+                if (leader.subspecies != null)
                 {
-                    leader.subspecies.makeSapient();
+                    if (!leader.subspecies.isSapient())
+                    {
+                        leader.subspecies.makeSapient();
+                    }
+                    SpeciesPersonalityRegistry.ApplyProfileToSubspecies(leader.subspecies, "wolf");
                 }
 
                 if (leader.buildCityAndStartCivilization() && leader.city != null && leader.kingdom != null && leader.kingdom.isCiv())
@@ -110,10 +295,16 @@ namespace ApexFactions
                     City newCity = leader.city;
                     for (int i = 1; i < settlers.Count; i++)
                     {
-                        if (SetCityMethod != null)
+                        try
                         {
-                            try { SetCityMethod.Invoke(settlers[i], new object[] { newCity }); } catch { }
+                            settlers[i].joinCity(newCity);
+                            settlers[i].setMetasFromCity(newCity);
                         }
+                        catch { }
+                    }
+                    if (leader.kingdom.culture != null)
+                    {
+                        SpeciesPersonalityRegistry.ApplyProfileToCulture(leader.kingdom.culture, "wolf");
                     }
                     foundedKingdomName = leader.kingdom.name;
                     Debug.Log($"[ApexFactions] Founded Wolfkin Kingdom '{foundedKingdomName}' at ({center.x},{center.y}) with {settlers.Count} settlers.");
@@ -136,31 +327,39 @@ namespace ApexFactions
 
         /// <summary>
         /// Instantly grants sapience (Subspecies.makeSapient) to wild animal subspecies on the map
-        /// so they can build kingdoms without waiting on Monolith RNG.
+        /// and applies their species personality profile.
         /// </summary>
         public static int AwakenWildSubspecies(string filterSpecies = null)
         {
             var world = MapBox.instance;
             if (world?.subspecies == null) return 0;
 
+            string normFilter = string.IsNullOrEmpty(filterSpecies)
+                ? null
+                : SpeciesPersonalityRegistry.NormalizeSpecies(filterSpecies);
+
             int awakened = 0;
             foreach (Subspecies sub in world.subspecies)
             {
                 if (sub == null || !sub.isAlive() || sub.isSapient()) continue;
-                string sid = SpeciesIdGetter?.Invoke(sub, null) as string ?? "";
-                if (!string.IsNullOrEmpty(filterSpecies) && !string.Equals(sid, filterSpecies, StringComparison.OrdinalIgnoreCase))
+                string rawSid = SpeciesIdGetter?.Invoke(sub, null) as string ?? "";
+                string normSid = SpeciesPersonalityRegistry.NormalizeSpecies(rawSid);
+
+                if (!string.IsNullOrEmpty(normFilter) && !string.Equals(normSid, normFilter, StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (string.IsNullOrEmpty(filterSpecies))
+                if (string.IsNullOrEmpty(normFilter))
                 {
-                    ActorAsset asset = AssetManager.actor_library?.get(sid);
-                    if (!IsEligibleWildAnimal(asset)) continue;
+                    ActorAsset asset = AssetManager.actor_library?.get(rawSid);
+                    if (!IsEligibleWildAnimal(asset) && !SpeciesPersonalityRegistry.Profiles.ContainsKey(normSid))
+                        continue;
                 }
 
                 try
                 {
                     sub.makeSapient();
+                    SpeciesPersonalityRegistry.ApplyProfileToSubspecies(sub, normSid);
                     awakened++;
-                    Debug.Log($"[ApexFactions] Awakened wild subspecies '{sub.name}' ({sid}) into sapience!");
+                    Debug.Log($"[ApexFactions] Awakened wild subspecies '{sub.name}' ({rawSid}) into sapience!");
                 }
                 catch (Exception e)
                 {
@@ -234,7 +433,6 @@ namespace ApexFactions
 
                     if (cluster.Count < minPack) continue;
 
-                    // Pick Alpha (highest health/existing giant)
                     Actor alpha = cluster[0];
                     foreach (Actor b in cluster)
                     {
@@ -242,11 +440,10 @@ namespace ApexFactions
                         if (b.getHealth() > alpha.getHealth()) alpha = b;
                     }
 
-                    // Crown Alpha beast
-                    alpha.addTrait("giant");
-                    alpha.addTrait("strong");
-                    alpha.addTrait("tough");
-                    alpha.addTrait("veteran");
+                    alpha.addTrait("giant", false);
+                    alpha.addTrait("strong", false);
+                    alpha.addTrait("tough", false);
+                    alpha.addTrait("veteran", false);
                     alpha.setStatsDirty();
 
                     string prettyPlural = PluralizeSpecies(sp);
@@ -276,7 +473,6 @@ namespace ApexFactions
                 if (domain.Alpha == null || !domain.Alpha.isAlive()) continue;
                 float rSq = domain.Radius * domain.Radius;
 
-                // Repel encroaching civilized trespassers inside the pack's hunting grounds
                 int warned = 0;
                 for (int i = 0; i < alive.Count && warned < 4; i++)
                 {
@@ -289,7 +485,6 @@ namespace ApexFactions
                     float dy = u.current_tile.y - domain.CenterY;
                     if (dx * dx + dy * dy <= rSq * 0.65f)
                     {
-                        // Nudge pack aggression onto trespasser by applying territorial pressure
                         u.changeHealth(-4);
                         u.startShake(0.2f, 0.06f, true, true);
                         warned++;

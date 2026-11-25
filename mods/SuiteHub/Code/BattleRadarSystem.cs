@@ -12,6 +12,8 @@ namespace SuiteHub
         public float LastUpdateTime;
         public string SideA;
         public string SideB;
+        public long SideAId;
+        public long SideBId;
     }
 
     [HarmonyPatch(typeof(Actor))]
@@ -23,10 +25,7 @@ namespace SuiteHub
         private const float ClusterRadius = 18f;
         private const float HotspotLifetime = 16f;
 
-        private static Texture2D _ringTex;
-        private static GUIStyle _tagStyle;
-
-        // Track live combat damage between civilized factions
+        // Silently track live combat hotspots between civilized factions for Jump-to-Battle and the War Monitor
         [HarmonyPostfix]
         [HarmonyPatch("getHit")]
         private static void ActorGetHitPostfix(Actor __instance, BaseSimObject pAttacker)
@@ -40,11 +39,18 @@ namespace SuiteHub
                 __instance.current_tile.x,
                 __instance.current_tile.y,
                 pAttacker.kingdom.name ?? "Attackers",
-                __instance.kingdom.name ?? "Defenders"
+                __instance.kingdom.name ?? "Defenders",
+                pAttacker.kingdom.id,
+                __instance.kingdom.id
             );
         }
 
         public static void RecordHit(float x, float y, string sideA, string sideB)
+        {
+            RecordHit(x, y, sideA, sideB, 0L, 0L);
+        }
+
+        public static void RecordHit(float x, float y, string sideA, string sideB, long sideAId, long sideBId)
         {
             float now = Time.unscaledTime;
             float rSq = ClusterRadius * ClusterRadius;
@@ -76,7 +82,9 @@ namespace SuiteHub
                 Hits = 1,
                 LastUpdateTime = now,
                 SideA = sideA,
-                SideB = sideB
+                SideB = sideB,
+                SideAId = sideAId,
+                SideBId = sideBId
             });
         }
 
@@ -92,71 +100,52 @@ namespace SuiteHub
             }
         }
 
-        private static void EnsureVisuals()
+        public static BattleHotspot FindHotspotForWar(War w)
         {
-            if (_ringTex != null) return;
+            if (w == null || Hotspots.Count == 0) return null;
 
-            const int sz = 48;
-            _ringTex = new Texture2D(sz, sz, TextureFormat.RGBA32, false);
-            float half = (sz - 1) * 0.5f;
-            for (int y = 0; y < sz; y++)
+            Kingdom mainAtk = w.getMainAttacker();
+            Kingdom mainDef = w.getMainDefender();
+
+            var atkIds = new HashSet<long>();
+            var defIds = new HashSet<long>();
+            if (mainAtk != null) atkIds.Add(mainAtk.id);
+            if (mainDef != null) defIds.Add(mainDef.id);
+
+            foreach (Kingdom k in w.getAttackers())
             {
-                for (int x = 0; x < sz; x++)
-                {
-                    float dist = Mathf.Sqrt((x - half) * (x - half) + (y - half) * (y - half)) / half;
-                    float alpha = 0f;
-                    if (dist >= 0.72f && dist <= 0.96f) alpha = 0.92f;
-                    else if (dist < 0.72f) alpha = 0.16f;
-                    // Catppuccin Red (#f38ba8)
-                    _ringTex.SetPixel(x, y, new Color(0.953f, 0.545f, 0.659f, alpha));
-                }
+                if (k != null) atkIds.Add(k.id);
             }
-            _ringTex.Apply();
-
-            _tagStyle = new GUIStyle(GUI.skin.label)
+            foreach (Kingdom k in w.getDefenders())
             {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 11,
-                fontStyle = FontStyle.Bold
-            };
-            _tagStyle.normal.textColor = new Color(0.976f, 0.886f, 0.686f); // Catppuccin Yellow
-        }
+                if (k != null) defIds.Add(k.id);
+            }
 
-        public static void DrawBattleMarkers()
-        {
-            if (!Enabled || Hotspots.Count == 0 || Event.current.type != EventType.Repaint) return;
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            EnsureVisuals();
-            float now = Time.unscaledTime;
-
-            for (int i = 0; i < Hotspots.Count; i++)
+            BattleHotspot best = null;
+            for (int i = Hotspots.Count - 1; i >= 0; i--)
             {
                 BattleHotspot h = Hotspots[i];
                 if (h.Hits < 2) continue;
 
-                float age = now - h.LastUpdateTime;
-                float fade = Mathf.Clamp01(1f - (age / HotspotLifetime));
-                Vector3 screen = cam.WorldToScreenPoint(new Vector3(h.X, h.Y, 0f));
-                if (screen.z < 0f) continue;
+                bool match = false;
+                if (h.SideAId != 0L && h.SideBId != 0L)
+                {
+                    match = (atkIds.Contains(h.SideAId) && defIds.Contains(h.SideBId))
+                         || (atkIds.Contains(h.SideBId) && defIds.Contains(h.SideAId));
+                }
+                else if (mainAtk != null && mainDef != null)
+                {
+                    match = (h.SideA == mainAtk.name && h.SideB == mainDef.name)
+                         || (h.SideA == mainDef.name && h.SideB == mainAtk.name);
+                }
 
-                float sx = screen.x;
-                float sy = Screen.height - screen.y;
-                if (sx < -40f || sx > Screen.width + 40f || sy < -40f || sy > Screen.height + 40f) continue;
-
-                float pulse = 1f + 0.16f * Mathf.Sin(now * 5.5f + i);
-                float baseRadius = h.Hits >= 15 ? 46f : (h.Hits >= 6 ? 34f : 24f);
-                float size = baseRadius * pulse;
-
-                Color prev = GUI.color;
-                GUI.color = new Color(1f, 1f, 1f, fade);
-                GUI.DrawTexture(new Rect(sx - size * 0.5f, sy - size * 0.5f, size, size), _ringTex);
-
-                string badge = h.Hits >= 15 ? $"MAJOR BATTLE ({h.Hits})" : $"CLASH ({h.Hits})";
-                GUI.Label(new Rect(sx - 68f, sy - size * 0.5f - 16f, 136f, 18f), badge, _tagStyle);
-                GUI.color = prev;
+                if (match && (best == null || h.Hits > best.Hits))
+                {
+                    best = h;
+                }
             }
+
+            return best;
         }
     }
 }

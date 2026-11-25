@@ -4,8 +4,8 @@
   "tab_suite_rules": "Suite: Rules",
   "tab_suite_rules_desc": "One-click ON/OFF toggles for CoreScale performance, lighting, naval warfare, city walls, ruins, eras, portals, and co-op hosting.",
 
-  "suite_drop_wardens": "Drop Warden Colony",
-  "suite_drop_wardens_description": "Click anywhere on land to drop 14 enhanced humans who follow the peaceful Sleeping Giant doctrine (never start wars, 3-strikes grudge retaliation).",
+  "suite_drop_wardens": "Drop Sentinel Wardens",
+  "suite_drop_wardens_description": "Click anywhere on land to drop Sentinel Warden settlers who follow the peaceful Sleeping Giant doctrine (never start wars, 3-strikes grudge retaliation).",
   "suite_drop_wardens_tip": "Click on map to place",
 
   "suite_drop_wolfkin": "Drop Wolfkin Settlers",
@@ -24,6 +24,10 @@
   "suite_awaken_animals_description": "Instantly grant sapience to all eligible wild animal subspecies across the entire map.",
   "suite_awaken_animals_tip": "Instant action",
 
+  "suite_open_species": "Species Kingdom Manager",
+  "suite_open_species_description": "Open the ApexFactions panel to configure animal kingdom rules, Sentinel Wardens, Snake Mode, and wild species sapience.",
+  "suite_open_species_tip": "Hotkey: F12",
+
   "suite_fortify_now": "Fortify Large Cities Now",
   "suite_fortify_now_description": "Build gated stone and iron perimeter walls around all eligible large cities right away.",
   "suite_fortify_now_tip": "WorldRelics",
@@ -35,6 +39,10 @@
   "suite_age_ruins": "Age Ruins +60 Years",
   "suite_age_ruins_description": "Fast-forward weathering on all fallen city ruins so walls crack and grow mossy and wild.",
   "suite_age_ruins_tip": "WorldRelics",
+
+  "suite_open_war_monitor": "War & Diplomacy Monitor",
+  "suite_open_war_monitor_description": "Inspect active wars, war causes, top diplomatic opinion drivers, relations matrix, and Force Peace controls.",
+  "suite_open_war_monitor_tip": "Hotkey: F4",
 
   "suite_jump_battle": "Jump to Active Battle",
   "suite_jump_battle_description": "Pan the camera straight to the hottest ongoing combat clash or active war capital.",
@@ -100,6 +108,14 @@
   "suite_tog_battalions_description": "Automatically merge huge squads into veteran champions during big wars.",
   "suite_tog_battalions_tip": "Click to toggle ON/OFF",
 
+  "suite_tog_always_day": "Always Day (Visual)",
+  "suite_tog_always_day_description": "Clear night, moon, ash, and storm darkness overlays while keeping all World Age gameplay mechanics and disasters intact.",
+  "suite_tog_always_day_tip": "Purely visual override",
+
+  "suite_tog_age_hope": "Lock Age of Hope",
+  "suite_tog_age_hope_description": "Switch the current world age to Age of Hope and pause age progression so the world stays bright and calm.",
+  "suite_tog_age_hope_tip": "World rule toggle",
+
   "suite_tog_preset": "Cycle Lighting Preset",
   "suite_tog_preset_description": "Cycle between Vanilla (0 overhead), Crisp Vibrant, Golden Hour, Moonlit Night, Parchment Atlas, and Twilight.",
   "suite_tog_preset_tip": "Sliders: F9",
@@ -116,9 +132,9 @@
   "suite_tog_photo_description": "Hide WorldBox's interface for clean screenshots. Press F6 anytime to bring the HUD back.",
   "suite_tog_photo_tip": "Hotkey: F6",
 
-  "suite_tog_radar": "Battlefield Conflict Radar",
-  "suite_tog_radar_description": "Draw pulsing clash rings directly over live battles on the map.",
-  "suite_tog_radar_tip": "Hotkey: F3",
+  "suite_tog_war_ticker": "Live War Ticker",
+  "suite_tog_war_ticker_description": "Show a compact, collapsible top-right war feed with causes, casualties, and 1-click Go jump buttons whenever wars are active.",
+  "suite_tog_war_ticker_tip": "Hotkey: F3",
 
   "suite_tog_naval": "Naval Ship Broadsides",
   "suite_tog_naval_description": "Allow warships of warring kingdoms to fire volleys and sink hostile ships at sea.",
@@ -139,6 +155,14 @@
   "suite_tog_pacts": "Mutual Defense Pacts",
   "suite_tog_pacts_description": "Automatically pull pact allies into defensive wars whenever a member is attacked.",
   "suite_tog_pacts_tip": "Click to toggle ON/OFF",
+
+  "suite_tog_auto_kingdoms": "Auto Animal Kingdoms",
+  "suite_tog_auto_kingdoms_description": "Automatically awaken wild animal packs over time so they can form sapient animal kingdoms across the map.",
+  "suite_tog_auto_kingdoms_tip": "ApexFactions: F12",
+
+  "suite_tog_snake_mode": "Snake Mode (Treacherous Diplomacy)",
+  "suite_tog_snake_mode_description": "Enable scheming betrayal diplomacy where opportunistic kingdoms can backstab rivals and spark Snake Betrayal wars.",
+  "suite_tog_snake_mode_tip": "ApexFactions: F12",
 
   "suite_tog_walls": "Auto City Walls",
   "suite_tog_walls_description": "Cities with 85+ population automatically build gated stone and iron perimeter walls.",

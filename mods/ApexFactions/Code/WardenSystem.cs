@@ -27,15 +27,72 @@ namespace ApexFactions
         // Three-strikes grudge memory: (wardenKingdomId, aggressorKingdomId) -> strike count
         public static readonly Dictionary<(long, long), int> AggressorStrikes = new Dictionary<(long, long), int>();
 
+        private static readonly HashSet<long> _activeRetaliationWardenIds = new HashSet<long>();
+
         // Internal flag so our own Merciful Ceasefire call is never blocked by our endWar guard
         private static bool _allowingMercifulCeasefire = false;
+
+        private static WorldTile _pendingWardenSpawnTile;
+        private static Actor _pendingWardenLeader;
+        private static float _pendingWardenTimer;
+
+        public static bool IsWardenKingdom(Kingdom k)
+        {
+            if (k == null) return false;
+            if (WardenKingdomIds.Contains(k.id)) return true;
+
+            if (string.Equals(k.data?.original_actor_asset, WardenSpeciesRegistry.WardenAssetId, StringComparison.OrdinalIgnoreCase))
+            {
+                WardenKingdomIds.Add(k.id);
+                return true;
+            }
+            return false;
+        }
+
+        public static bool HasActiveRetaliation(long kingdomId)
+        {
+            return _activeRetaliationWardenIds.Contains(kingdomId);
+        }
+
+        private static void RebuildActiveRetaliationWardenCache()
+        {
+            _activeRetaliationWardenIds.Clear();
+            foreach (var tr in ActiveRetaliations.Values)
+            {
+                _activeRetaliationWardenIds.Add(tr.WardenKingdomId);
+            }
+        }
+
+        public static string GetWarCauseAnnotation(long warId)
+        {
+            if (ActiveRetaliations.TryGetValue(warId, out var tr))
+            {
+                string mercyText = tr.EffectiveMercyPercent <= 0f
+                    ? "No Mercy"
+                    : $"{tr.EffectiveMercyPercent:0}% Mercy";
+                return $"Warden Retaliation (Strike #{tr.StrikeNumber}, {mercyText})";
+            }
+            return "";
+        }
+
+        public static int CountAliveWardenKingdoms()
+        {
+            var world = MapBox.instance;
+            if (world?.kingdoms == null) return WardenKingdomIds.Count;
+            int count = 0;
+            foreach (Kingdom k in world.kingdoms)
+            {
+                if (k != null && k.isAlive() && k.isCiv() && IsWardenKingdom(k))
+                    count++;
+            }
+            return count;
+        }
 
         public static void AnointKingdomAsWardens(Kingdom k)
         {
             if (k == null || !k.isCiv()) return;
             WardenKingdomIds.Add(k.id);
 
-            // Elevate current citizens with Warden traits (intelligent, long-lived, strong, peaceful)
             var alive = MapBox.instance?.units?.units_only_alive;
             if (alive != null)
             {
@@ -52,9 +109,6 @@ namespace ApexFactions
             Debug.Log($"[ApexFactions] {k.name} anointed with the Warden Sleeping Giant Doctrine.");
         }
 
-        private static readonly System.Reflection.MethodInfo SetCityMethod =
-            AccessTools.Method(typeof(Actor), "setCity", new[] { typeof(City) });
-
         public static void SpawnWardenColonyAtCamera()
         {
             WorldTile center = FindSafeLandNearCamera();
@@ -67,8 +121,14 @@ namespace ApexFactions
             var world = MapBox.instance;
             if (world?.units == null || center == null) return 0;
 
-            var settlers = new List<Actor>(14);
-            for (int i = 0; i < 14; i++)
+            bool registered = WardenSpeciesRegistry.EnsureRegistered();
+            string unitAssetId = registered && AssetManager.actor_library.has(WardenSpeciesRegistry.WardenAssetId)
+                ? WardenSpeciesRegistry.WardenAssetId
+                : "human";
+
+            const int colonySize = 10;
+            var settlers = new List<Actor>(colonySize);
+            for (int i = 0; i < colonySize; i++)
             {
                 WorldTile spawnTile = center;
                 if (i > 0)
@@ -80,7 +140,7 @@ namespace ApexFactions
                         spawnTile = cand;
                 }
 
-                Actor u = world.units.spawnNewUnit("human", spawnTile);
+                Actor u = world.units.spawnNewUnit(unitAssetId, spawnTile);
                 if (u == null) continue;
                 ApplyWardenPeacetimeTraits(u);
                 settlers.Add(u);
@@ -98,20 +158,22 @@ namespace ApexFactions
                     Kingdom newKingdom = leader.kingdom;
                     for (int i = 1; i < settlers.Count; i++)
                     {
-                        if (SetCityMethod != null)
+                        try
                         {
-                            try { SetCityMethod.Invoke(settlers[i], new object[] { newCity }); } catch { }
+                            settlers[i].joinCity(newCity);
+                            settlers[i].setMetasFromCity(newCity);
                         }
+                        catch { }
                     }
                     AnointKingdomAsWardens(newKingdom);
                     foundedKingdomName = newKingdom.name;
-                    Debug.Log($"[ApexFactions] Founded Warden Kingdom '{newKingdom.name}' at ({center.x},{center.y}) with {settlers.Count} settlers.");
+                    Debug.Log($"[ApexFactions] Founded Warden Kingdom '{newKingdom.name}' at ({center.x},{center.y}) with {settlers.Count} Wardens.");
                     return settlers.Count;
                 }
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[ApexFactions] Immediate city founding deferred: {e.Message}");
+                Debug.LogWarning($"[ApexFactions] Immediate Warden city founding deferred: {e.Message}");
             }
 
             // Fallback: remember tile & leader so we auto-anoint their kingdom as soon as they claim land
@@ -127,17 +189,12 @@ namespace ApexFactions
             return SpawnWardenColonyAtTile(center, out _);
         }
 
-        private static WorldTile _pendingWardenSpawnTile;
-        private static Actor _pendingWardenLeader;
-        private static float _pendingWardenTimer;
-
         private static void ApplyWardenPeacetimeTraits(Actor u)
         {
-            u.addTrait("genius");
-            u.addTrait("wise");
-            u.addTrait("strong");
-            u.addTrait("tough");
-            u.addTrait("peaceful");
+            // Keep calibrated 1v30 Warden base stats untouched; only bestow peacetime mind traits
+            u.addTrait("peaceful", false);
+            u.addTrait("wise", false);
+            u.addTrait("genius", false);
             u.setStatsDirty();
             u.restoreHealthPercent(1f);
         }
@@ -155,10 +212,7 @@ namespace ApexFactions
                 if (u.asset != null && u.asset.is_boat) continue;
 
                 u.removeTrait("peaceful");
-                u.addTrait("veteran");
-                u.addTrait("strong");
-                u.addTrait("tough");
-                u.addTrait("agile");
+                u.addTrait("veteran", false);
                 u.setStatsDirty();
                 u.restoreHealthPercent(1f);
                 rallied++;
@@ -176,15 +230,28 @@ namespace ApexFactions
                 Actor u = alive[i];
                 if (u != null && u.isAlive() && u.kingdom == warden)
                 {
-                    u.addTrait("peaceful");
+                    if (u.asset != null && u.asset.is_boat) continue;
+                    u.addTrait("peaceful", false);
                 }
             }
         }
 
         public static void Tick(float dt)
         {
+            WardenSpeciesRegistry.EnsureRegistered();
+
             var world = MapBox.instance;
             if (world == null || Main.Settings == null || !Main.Settings.EnableWardenDoctrine) return;
+
+            // Keep save-loaded Warden kingdoms synchronized in WardenKingdomIds
+            if (world.kingdoms != null)
+            {
+                foreach (Kingdom k in world.kingdoms)
+                {
+                    if (k != null && k.isAlive() && k.isCiv())
+                        IsWardenKingdom(k);
+                }
+            }
 
             // Auto-anoint freshly founded kingdom from SpawnWardenColonyAtTile
             if (_pendingWardenSpawnTile != null || _pendingWardenLeader != null)
@@ -208,7 +275,7 @@ namespace ApexFactions
                 {
                     foreach (var k in world.kingdoms)
                     {
-                        if (k == null || !k.isCiv() || !k.isAlive() || WardenKingdomIds.Contains(k.id)) continue;
+                        if (k == null || !k.isCiv() || !k.isAlive() || IsWardenKingdom(k)) continue;
                         WorldTile cap = k.capital?.getTile();
                         if (cap != null)
                         {
@@ -267,9 +334,11 @@ namespace ApexFactions
                 }
             }
 
-            foreach (long id in finished)
+            if (finished.Count > 0)
             {
-                ActiveRetaliations.Remove(id);
+                for (int i = 0; i < finished.Count; i++)
+                    ActiveRetaliations.Remove(finished[i]);
+                RebuildActiveRetaliationWardenCache();
             }
         }
 
@@ -279,7 +348,7 @@ namespace ApexFactions
         private static bool StartWarPrefix(Kingdom pAttacker)
         {
             if (Main.Settings == null || !Main.Settings.EnableWardenDoctrine) return true;
-            if (pAttacker != null && WardenKingdomIds.Contains(pAttacker.id))
+            if (IsWardenKingdom(pAttacker))
             {
                 return false; // Peace doctrine: never initiate aggression
             }
@@ -293,7 +362,7 @@ namespace ApexFactions
         {
             if (Main.Settings == null || !Main.Settings.EnableWardenDoctrine) return;
             if (__result == null || pAttacker == null || pDefender == null) return;
-            if (!WardenKingdomIds.Contains(pDefender.id)) return;
+            if (!IsWardenKingdom(pDefender)) return;
 
             var strikeKey = (pDefender.id, pAttacker.id);
             AggressorStrikes.TryGetValue(strikeKey, out int prevStrikes);
@@ -322,12 +391,13 @@ namespace ApexFactions
                 MercyTargetPop = mercyPop,
                 CurrentAggressorPop = baseline
             };
+            RebuildActiveRetaliationWardenCache();
 
             Debug.Log($"[ApexFactions] {pAttacker.name} provoked {pDefender.name} (Strike #{strikeNum}, mercy={effectivePct:0}%)!");
             RallyWardenWarriors(pDefender);
         }
 
-        // 3. Refuse premature peace treaties while aggressor is still above the 15% mercy threshold
+        // 3. Refuse premature peace treaties while aggressor is still above the mercy threshold
         [HarmonyPrefix]
         [HarmonyPatch(typeof(WarManager), nameof(WarManager.endWar))]
         private static bool EndWarPrefix(War pWar)

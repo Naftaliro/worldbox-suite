@@ -32,11 +32,18 @@ namespace SuiteHub
                 Sprite iconRadar    = LoadButtonSprite(Path.Combine(resDir, "btn_battle_radar.png")) ?? tabIcon;
                 Sprite iconWorld    = LoadButtonSprite(Path.Combine(resDir, "btn_world_builder.png")) ?? tabIcon;
                 Sprite iconPortal   = LoadButtonSprite(Path.Combine(resDir, "btn_portal.png")) ?? tabIcon;
-                Sprite iconApex     = LoadButtonSprite(Path.Combine(resDir, "btn_apex.png")) ?? tabIcon;
-                Sprite iconChron    = LoadButtonSprite(Path.Combine(resDir, "btn_chronicle.png")) ?? tabIcon;
-                Sprite iconRelics   = LoadButtonSprite(Path.Combine(resDir, "btn_relics.png")) ?? tabIcon;
-                Sprite iconCoop     = LoadButtonSprite(Path.Combine(resDir, "btn_coop.png")) ?? tabIcon;
-                Sprite iconModern   = LoadButtonSprite(Path.Combine(resDir, "btn_modern.png")) ?? tabIcon;
+                Sprite iconApex           = LoadButtonSprite(Path.Combine(resDir, "btn_apex.png")) ?? tabIcon;
+                Sprite iconWardenDrop     = LoadButtonSprite(Path.Combine(resDir, "btn_warden_drop.png")) ?? iconApex;
+                Sprite iconAnimalKingdoms = LoadButtonSprite(Path.Combine(resDir, "btn_animal_kingdoms.png")) ?? iconApex;
+                Sprite iconSnakeMode      = LoadButtonSprite(Path.Combine(resDir, "btn_snake_mode.png")) ?? iconApex;
+                Sprite iconAlwaysDay      = LoadButtonSprite(Path.Combine(resDir, "btn_always_day.png")) ?? iconVisual;
+                Sprite iconAgeHope        = LoadButtonSprite(Path.Combine(resDir, "btn_age_hope.png")) ?? iconVisual;
+                Sprite iconWarTicker      = LoadButtonSprite(Path.Combine(resDir, "btn_war_ticker.png")) ?? iconWar;
+                Sprite iconSpeciesPanel   = LoadButtonSprite(Path.Combine(resDir, "btn_species_panel.png")) ?? iconApex;
+                Sprite iconChron          = LoadButtonSprite(Path.Combine(resDir, "btn_chronicle.png")) ?? tabIcon;
+                Sprite iconRelics         = LoadButtonSprite(Path.Combine(resDir, "btn_relics.png")) ?? tabIcon;
+                Sprite iconCoop           = LoadButtonSprite(Path.Combine(resDir, "btn_coop.png")) ?? tabIcon;
+                Sprite iconModern         = LoadButtonSprite(Path.Combine(resDir, "btn_modern.png")) ?? tabIcon;
 
                 bool hasModern = Main.IsCompanionLoaded("ModernAge.Main");
 
@@ -57,11 +64,11 @@ namespace SuiteHub
                     powersTab.SetLayout(pGroups);
 
                     // Group 1: Factions & Creatures (Real click-on-map drop brushes + instant powers!)
-                    AddDropPower(powersTab, "p_factions", "suite_drop_wardens", iconApex, (tile, _) =>
+                    AddDropPower(powersTab, "p_factions", "suite_drop_wardens", iconWardenDrop, (tile, _) =>
                     {
                         if (tile == null || tile.Type == null || tile.Type.liquid)
                         {
-                            Main.ShowToast("Click on solid land to drop a Warden Colony.");
+                            Main.ShowToast("Click on solid land to drop a Sentinel Warden Colony.");
                             return false;
                         }
                         Main.ShowToast(Main.InvokeCompanionAction("ApexFactions.Main", "SpawnWardenAtTile", tile));
@@ -85,8 +92,11 @@ namespace SuiteHub
                     AddAction(powersTab, "p_factions", "suite_awaken_wolves", iconApex,
                         () => Main.ShowToast(Main.InvokeCompanionAction("ApexFactions.Main", "AwakenWolves")));
 
-                    AddAction(powersTab, "p_factions", "suite_awaken_animals", iconApex,
+                    AddAction(powersTab, "p_factions", "suite_awaken_animals", iconAnimalKingdoms,
                         () => Main.ShowToast(Main.InvokeCompanionAction("ApexFactions.Main", "AwakenAllAnimals")));
+
+                    AddAction(powersTab, "p_factions", "suite_open_species", iconSpeciesPanel,
+                        () => Main.Instance?.ToggleCompanionHud("ApexFactions.Main"));
 
                     // Group 2: Walls, Bridges & Ruins
                     AddAction(powersTab, "p_relics", "suite_fortify_now", iconRelics,
@@ -99,6 +109,9 @@ namespace SuiteHub
                         () => Main.ShowToast(Main.InvokeCompanionAction("WorldRelics.Main", "AgeRuinsNow")));
 
                     // Group 3: Warfare & Armies
+                    AddAction(powersTab, "p_war", "suite_open_war_monitor", iconWar,
+                        () => Main.Instance?.ToggleWarMatrix());
+
                     AddAction(powersTab, "p_war", "suite_jump_battle", iconRadar,
                         () => Main.ShowToast(Main.JumpToActiveBattle()));
 
@@ -161,7 +174,7 @@ namespace SuiteHub
 
                 if (rulesTab != null)
                 {
-                    var rGroups = new List<string> { "r_perf", "r_visual", "r_war", "r_world" };
+                    var rGroups = new List<string> { "r_perf", "r_visual", "r_war", "r_factions", "r_world" };
                     if (hasModern) rGroups.Add("r_modern");
                     rulesTab.SetLayout(rGroups);
 
@@ -187,6 +200,14 @@ namespace SuiteHub
                         () => Main.InvokeCompanionAction("CoreScale.Main", "ToggleAutoBattalions"));
 
                     // Group 2: Visuals (VisualPolish)
+                    AddToggle(rulesTab, "r_visual", "suite_tog_always_day", iconAlwaysDay,
+                        () => Main.GetCompanionState("VisualPolish.Main", "always_day"),
+                        () => Main.InvokeCompanionAction("VisualPolish.Main", "ToggleAlwaysDay"));
+
+                    AddToggle(rulesTab, "r_visual", "suite_tog_age_hope", iconAgeHope,
+                        () => Main.GetCompanionState("VisualPolish.Main", "age_hope"),
+                        () => Main.InvokeCompanionAction("VisualPolish.Main", "ToggleLockAgeOfHope"));
+
                     AddToggle(rulesTab, "r_visual", "suite_tog_preset", iconVisual,
                         () => Main.GetCompanionState("VisualPolish.Main", "preset"),
                         () => Main.InvokeCompanionAction("VisualPolish.Main", "CyclePreset"));
@@ -203,10 +224,10 @@ namespace SuiteHub
                         () => Main.GetCompanionState("VisualPolish.Main", "photo"),
                         () => Main.InvokeCompanionAction("VisualPolish.Main", "TogglePhotoMode"));
 
-                    // Group 3: Warfare & Radar
-                    AddToggle(rulesTab, "r_war", "suite_tog_radar", iconRadar,
-                        () => BattleRadarSystem.Enabled,
-                        () => Main.Instance?.ToggleBattleRadar() ?? "");
+                    // Group 3: Warfare & Live War Ticker
+                    AddToggle(rulesTab, "r_war", "suite_tog_war_ticker", iconWarTicker,
+                        () => WarTickerOverlay.Visible,
+                        () => Main.Instance?.ToggleWarTicker() ?? "");
 
                     AddToggle(rulesTab, "r_war", "suite_tog_naval", iconWar,
                         () => Main.GetCompanionState("GrandWarfare.Main", "naval"),
@@ -227,6 +248,15 @@ namespace SuiteHub
                     AddToggle(rulesTab, "r_war", "suite_tog_pacts", iconWar,
                         () => Main.GetCompanionState("GrandWarfare.Main", "pacts"),
                         () => Main.InvokeCompanionAction("GrandWarfare.Main", "ToggleDefensePacts"));
+
+                    // Group 4: Factions & Species Rules (ApexFactions)
+                    AddToggle(rulesTab, "r_factions", "suite_tog_auto_kingdoms", iconAnimalKingdoms,
+                        () => Main.GetAnyCompanionState("ApexFactions.Main", "auto_kingdoms", "auto_animal_kingdoms", "animal_kingdoms"),
+                        () => Main.InvokeFirstCompanionAction("ApexFactions.Main", new[] { "ToggleAutoAnimalKingdoms", "ToggleAutoKingdoms", "ToggleAnimalKingdoms" }));
+
+                    AddToggle(rulesTab, "r_factions", "suite_tog_snake_mode", iconSnakeMode,
+                        () => Main.GetAnyCompanionState("ApexFactions.Main", "snake_deceitful", "snake_mode", "snake", "snakes"),
+                        () => Main.InvokeFirstCompanionAction("ApexFactions.Main", new[] { "ToggleSnakeMode", "ToggleSnakes" }));
 
                     // Group 4: World Systems
                     AddToggle(rulesTab, "r_world", "suite_tog_walls", iconRelics,

@@ -14,6 +14,12 @@ catppuccin mocha everywhere.
 
 ![WorldBox Co-Op God Console](docs/screenshots/coop-god-console.png)
 
+**warden sentinel species & upgraded worldbox-style toolbar art (32×32 pixel art)**
+
+<p align="center">
+  <img src="docs/screenshots/warden-and-icons.png" alt="Warden Sentinel Sprites and Toolbar Icons" width="680" />
+</p>
+
 **modernage expansion — custom 32×32 pixel-art vehicle & aircraft sprites**
 
 <p align="center">
@@ -46,13 +52,15 @@ open WorldBox, go to settings, turn on **Experimental Mode**, and restart. NeoMo
 
 ### classic core pack (`mods/` — installed by default, no firearms)
 
-* **SuiteHub** (`bottom bar` / `F2`–`F5`): native WorldBox Suite tab on the bottom power bar with buttons for every installed module. includes the floating **War & Diplomacy Monitor** (`F4`) with opinion scores and 1-click camera jumps, pulsing **Battlefield Conflict Radar** (`F3`), and an in-game **Multi-Continent World Builder** (`F2`).
-* **CoreScale** (`F8`): giant map presets (`12×12` up to `24×24` chunks), wider camera zoom, multi-core parallel job tuning, strategic animation culling, 3-tier adaptive AI throttling (3k/8k/15k pop), and army battalion compression.
-* **VisualPolish** (`F9`, `F6` photo mode): lighting presets (crisp, golden hour, moonlit night, parchment atlas, mocha twilight), optional day/night cycle, soft vignette, closer zoom-in, brighter strategic borders, and `F6` HUD toggle.
+* **SuiteHub** (`bottom bar` / `F2`–`F5`): two native bottom tabs (**Suite: Powers** & **Suite: Rules**) with custom 32×32 WorldBox-style pixel icons and native tooltips. includes a collapsible top-right **Live War Ticker** (`F3`, zero map circles), an enriched **War & Diplomacy Monitor** (`F4`) showing exact war causes, starter info, casualties, real bilateral opinion breakdowns, 1-click camera jumps, and Force Peace controls, plus an in-game **Multi-Continent World Builder** (`F2`).
+* **CoreScale** (`F8`): giant map presets (`12×12` up to `24×24` chunks), wider camera zoom, Turbo Mode, FPS governor, particle/flora throttling, strategic animation culling, 3-tier adaptive AI throttling, and army battalion compression.
+* **VisualPolish** (`F9`, `F6` photo mode): **Client-Side Always Day** (keeps dark-age mechanics active while keeping your screen bright), **Lock Age of Hope** world rule, lighting presets (crisp, golden hour, moonlit night, parchment atlas, mocha twilight), optional day/night cycle, soft vignette, closer zoom-in, brighter strategic borders, and `F6` HUD toggle.
 * **GrandWarfare** (`F10`): ship-to-ship broadsides, coastal bombardment of shoreline troops, naval blockades that starve coastal garrisons when enemy fleets hold within 24 tiles, supply-line attrition outside friendly cities, and defense pacts.
 * **LinkedContinents** (`F11`): links separate `.wbox` continent saves across ocean edges via `portal_queue.json` so fleets and expeditions cross between worlds.
 * **EraChronicle** (`F7`): 5-tier kingdom era progression (*Dawn Age* through *High Hegemony*) with milestone buffs and JSON history snapshots readable in WorldBox Studio.
-* **ApexFactions** (`F12`): the **Warden** "Sleeping Giant" doctrine (strong, peaceful humans who never start wars, rally relentlessly if attacked, and track a 3-strikes grudge per aggressor — 15% ceasefire mercy on strike #1, 5% on strike #2, zero mercy on strike #3+), instant species awakener (`civ_wolf` + `makeSapient` for all wild animals), and feral pack domains (*Land of the Wolves*, *Land of the Bears*, etc.).
+* **ApexFactions** (`F12`):
+  * **Wardens (Custom Sapient Species):** obsidian-and-gold armored Sentinels with dedicated citizen/warrior/leader sprites, calibrated 1v30 combat balance (1 Warden ≈ 30 Humans / 20 Dwarves / 15 Elves / 15 Orcs) with rare elite population caps, and the Sleeping Giant Doctrine (never starts wars, 3-strikes grudge escalation: 15% mercy -> 5% -> 0%).
+  * **Auto-Founding Animal Kingdoms & 30-Species Personalities:** place 10+ wild animals together on unclaimed land and they awaken in their literal animal forms (`makeSapient()`) and found a kingdom automatically, complete with nature/lore-grounded diplomacy and behaviors — **Penguins** (*Tux Diplomacy Pact* +60 opinion, AI resists attacking them), **Snakes** (*Serpent's Guile* alliance backstabbers + toggleable *Peaceful Ambush* mode), **Raccoons & Foxes** (gold/resource heist raids), **Capybaras** (*Zen Commune*), **Bears**, **Wolves**, and all 30 WorldBox animals, managed from the scrollable **Species Manager** (`F12`).
 * **WorldRelics** (`Alt+R`): large cities fortify their borders with gated walls, friendly cities across narrow ocean straits build stone sea bridges, and fallen empires leave behind walls and roadworks that slowly weather over 100–300+ years (`wall_order`/`wall_iron` -> `wall_ancient` -> mossy `wall_green` -> vine-covered `wall_wild`) while younger tribes settle inside the ruins.
 * **CoopHost** (`Alt+C`): host-authoritative co-op god mode. starts a zero-admin HTTP server on port `27777` (works over LAN, Tailscale, or `playit.gg` with a 4-digit join PIN) and serves a live interactive browser **Co-Op God Console** — independent pan/zoom camera, live units/cities/wars, simultaneous terrain brushes, unit/animal/tank/jet spawners, disasters, and a live guest cursor drawn right inside the host's WorldBox game.
 
@@ -83,6 +91,7 @@ open `http://127.0.0.1:8765` for:
 
 ```bash
 python3 -m unittest discover -s tests -v
+python3 scripts/validate_suite.py
 ./scripts/build_all.sh
 ```
 

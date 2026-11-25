@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run unit tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Validate suite integrity
+        run: python3 scripts/validate_suite.py
+
+      - name: Check Python syntax
+        run: python3 -m compileall -q tools scripts tests
+
+      - name: Reject tracked proprietary or build artifacts
+        run: |
+          tracked=$(git ls-files | grep -E '\.(dll|pdb|wbox)$|(^|/)bin/|(^|/)obj/' || true)
+          if [ -n "$tracked" ]; then
+            echo "Error: Proprietary or build artifacts are tracked in git:"
+            echo "$tracked"
+            exit 1
+          fi

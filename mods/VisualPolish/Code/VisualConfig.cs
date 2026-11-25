@@ -26,6 +26,8 @@ namespace VisualPolish
         public bool UnlockCloseZoom = true;
         public float CloseZoomMin = 2.5f;
         public float StrategicBorderBoost = 1.25f;
+        public bool AlwaysDayClientSide = false;
+        public bool LockAgeOfHope = false;
 
         public KeyCode PanelToggleKey = KeyCode.F9;
         public KeyCode PhotoModeKey = KeyCode.F6;

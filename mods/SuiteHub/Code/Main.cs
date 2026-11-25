@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using NeoModLoader.api;
@@ -13,8 +14,8 @@ namespace SuiteHub
         private ModDeclare _declare;
         private GameObject _gameObject;
         private Harmony _harmony;
-        private GuiOverlayRunner _radarRunner;
         private GuiOverlayRunner _panelRunner;
+        private GuiOverlayRunner _tickerRunner;
 
         private bool _showHub = false;
         private bool _showWarMatrix = false;
@@ -35,15 +36,16 @@ namespace SuiteHub
             _declare = pModDecl;
             _gameObject = pGameObject;
 
-            _radarRunner = pGameObject.AddComponent<GuiOverlayRunner>();
-            _radarRunner.Configure(false, BattleRadarSystem.DrawBattleMarkers);
             _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
             _panelRunner.Configure(true, DrawPanelsGui);
+            _tickerRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _tickerRunner.Configure(true, DrawTickerGui);
 
             try
             {
                 _harmony = new Harmony(_declare.UID);
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
+                SyncRunners();
                 Debug.Log($"[SuiteHub] Loaded v{_declare.Version}");
             }
             catch (Exception e)
@@ -60,13 +62,15 @@ namespace SuiteHub
 
         private void SyncRunners()
         {
-            if (_radarRunner != null)
-            {
-                _radarRunner.enabled = BattleRadarSystem.Enabled && BattleRadarSystem.Hotspots.Count > 0;
-            }
             if (_panelRunner != null)
             {
                 _panelRunner.enabled = _showHub || _showWarMatrix || _showWorldBuilder;
+            }
+            if (_tickerRunner != null)
+            {
+                _tickerRunner.enabled = WarTickerOverlay.Visible
+                    && !Config.ui_main_hidden
+                    && WarTickerOverlay.CountActiveWars() > 0;
             }
         }
 
@@ -74,11 +78,12 @@ namespace SuiteHub
         public void ToggleWarMatrix() { _showWarMatrix = !_showWarMatrix; SyncRunners(); }
         public void ToggleWorldBuilder() { _showWorldBuilder = !_showWorldBuilder; SyncRunners(); }
 
-        public string ToggleBattleRadar()
+        public string ToggleWarTicker()
         {
-            BattleRadarSystem.Enabled = !BattleRadarSystem.Enabled;
+            WarTickerOverlay.Visible = !WarTickerOverlay.Visible;
+            if (WarTickerOverlay.Visible) WarTickerOverlay.Collapsed = false;
             SyncRunners();
-            return $"Battlefield Conflict Radar: {(BattleRadarSystem.Enabled ? "ON" : "OFF")}";
+            return $"Live War Ticker (F3): {(WarTickerOverlay.Visible ? "ON" : "OFF")}";
         }
 
         public static void ShowToast(string message)
@@ -94,18 +99,71 @@ namespace SuiteHub
             }
         }
 
+        private static readonly Dictionary<string, Type> CompanionTypeCache = new Dictionary<string, Type>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, float> CompanionMissRetryAt = new Dictionary<string, float>(StringComparer.Ordinal);
+        private static readonly Dictionary<Type, PropertyInfo> CompanionInstancePropCache = new Dictionary<Type, PropertyInfo>();
+        private static readonly Dictionary<(Type, string), MethodInfo> CompanionMethodCache = new Dictionary<(Type, string), MethodInfo>();
+
+        private static Type ResolveCompanionType(string mainTypeName)
+        {
+            if (string.IsNullOrEmpty(mainTypeName)) return null;
+            if (CompanionTypeCache.TryGetValue(mainTypeName, out Type cached)) return cached;
+
+            float now = Time.unscaledTime;
+            if (CompanionMissRetryAt.TryGetValue(mainTypeName, out float retryAt) && now < retryAt)
+            {
+                return null;
+            }
+
+            Type resolved = AccessTools.TypeByName(mainTypeName);
+            if (resolved != null)
+            {
+                CompanionTypeCache[mainTypeName] = resolved;
+                CompanionMissRetryAt.Remove(mainTypeName);
+            }
+            else
+            {
+                CompanionMissRetryAt[mainTypeName] = now + 5f;
+            }
+            return resolved;
+        }
+
+        private static object ResolveCompanionInstance(Type t)
+        {
+            if (t == null) return null;
+            if (!CompanionInstancePropCache.TryGetValue(t, out PropertyInfo prop))
+            {
+                prop = t.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                CompanionInstancePropCache[t] = prop;
+            }
+            return prop?.GetValue(null);
+        }
+
+        private static MethodInfo ResolveCompanionMethod(Type t, string methodName)
+        {
+            if (t == null || string.IsNullOrEmpty(methodName)) return null;
+            var key = (t, methodName);
+            if (!CompanionMethodCache.TryGetValue(key, out MethodInfo method))
+            {
+                method = t.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance);
+                CompanionMethodCache[key] = method;
+            }
+            return method;
+        }
+
         public static bool IsCompanionLoaded(string mainTypeName)
         {
-            return AccessTools.TypeByName(mainTypeName) != null;
+            return ResolveCompanionType(mainTypeName) != null;
         }
 
         public void ToggleCompanionHud(string mainTypeName)
         {
             try
             {
-                Type t = AccessTools.TypeByName(mainTypeName);
-                object inst = t?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
-                t?.GetMethod("ToggleHud", BindingFlags.Public | BindingFlags.Instance)?.Invoke(inst, null);
+                Type t = ResolveCompanionType(mainTypeName);
+                object inst = ResolveCompanionInstance(t);
+                if (t == null || inst == null) return;
+                ResolveCompanionMethod(t, "ToggleHud")?.Invoke(inst, null);
             }
             catch (Exception e)
             {
@@ -117,10 +175,10 @@ namespace SuiteHub
         {
             try
             {
-                Type t = AccessTools.TypeByName(mainTypeName);
-                object inst = t?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+                Type t = ResolveCompanionType(mainTypeName);
+                object inst = ResolveCompanionInstance(t);
                 if (t == null || inst == null) return $"{mainTypeName.Split('.')[0]} is not loaded.";
-                MethodInfo m = t.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance);
+                MethodInfo m = ResolveCompanionMethod(t, methodName);
                 if (m == null) return "";
                 object res = m.Invoke(inst, args);
                 return res as string ?? "";
@@ -132,14 +190,42 @@ namespace SuiteHub
             }
         }
 
+        public static string InvokeFirstCompanionAction(string mainTypeName, string[] methodNames, params object[] args)
+        {
+            try
+            {
+                Type t = ResolveCompanionType(mainTypeName);
+                object inst = ResolveCompanionInstance(t);
+                if (t == null || inst == null) return $"{mainTypeName.Split('.')[0]} is not loaded.";
+                if (methodNames != null)
+                {
+                    for (int i = 0; i < methodNames.Length; i++)
+                    {
+                        MethodInfo m = ResolveCompanionMethod(t, methodNames[i]);
+                        if (m != null)
+                        {
+                            object res = m.Invoke(inst, args);
+                            return res as string ?? "";
+                        }
+                    }
+                }
+                return "";
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SuiteHub] Companion action on {mainTypeName} failed: {e.Message}");
+                return "";
+            }
+        }
+
         public static bool GetCompanionState(string mainTypeName, string key)
         {
             try
             {
-                Type t = AccessTools.TypeByName(mainTypeName);
-                object inst = t?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+                Type t = ResolveCompanionType(mainTypeName);
+                object inst = ResolveCompanionInstance(t);
                 if (t == null || inst == null) return false;
-                MethodInfo m = t.GetMethod("GetState", BindingFlags.Public | BindingFlags.Instance);
+                MethodInfo m = ResolveCompanionMethod(t, "GetState");
                 if (m == null) return false;
                 return m.Invoke(inst, new object[] { key }) is bool b && b;
             }
@@ -147,6 +233,16 @@ namespace SuiteHub
             {
                 return false;
             }
+        }
+
+        public static bool GetAnyCompanionState(string mainTypeName, params string[] keys)
+        {
+            if (keys == null || keys.Length == 0) return false;
+            for (int i = 0; i < keys.Length; i++)
+            {
+                if (GetCompanionState(mainTypeName, keys[i])) return true;
+            }
+            return false;
         }
 
         public static string JumpToActiveBattle()
@@ -166,10 +262,8 @@ namespace SuiteHub
             {
                 foreach (var w in world.wars.getActiveWars())
                 {
-                    WorldTile cap = w?.getMainDefender()?.capital?.getTile();
-                    if (cap != null)
+                    if (w != null && DiplomacyWarOverlay.JumpToWar(w))
                     {
-                        DiplomacyWarOverlay.JumpCameraToTile(cap);
                         return $"Jumped to active war: {w.name}";
                     }
                 }
@@ -192,7 +286,7 @@ namespace SuiteHub
 
             if (Input.GetKeyDown(KeyCode.F5)) ToggleHub();
             if (Input.GetKeyDown(KeyCode.F4)) ToggleWarMatrix();
-            if (Input.GetKeyDown(KeyCode.F3)) ShowToast(ToggleBattleRadar());
+            if (Input.GetKeyDown(KeyCode.F3)) ShowToast(ToggleWarTicker());
             if (Input.GetKeyDown(KeyCode.F2)) ToggleWorldBuilder();
 
             _pruneTimer += Time.unscaledDeltaTime;
@@ -222,6 +316,25 @@ namespace SuiteHub
                 MultiContinentGenerator.Draw(() => { _showWorldBuilder = false; SyncRunners(); });
             }
 
+            if (_tickerRunner == null || !_tickerRunner.enabled || Config.ui_main_hidden)
+            {
+                GameUiStyle.DrawTooltip(949001);
+            }
+        }
+
+        private void DrawTickerGui()
+        {
+            if (!WarTickerOverlay.Visible || Config.ui_main_hidden) return;
+            if (_panelRunner == null || !_panelRunner.enabled)
+            {
+                GameUiStyle.BeginFrame();
+            }
+
+            WarTickerOverlay.Draw(
+                onOpenMonitor: () => { _showWarMatrix = true; SyncRunners(); },
+                onHide: () => { WarTickerOverlay.Visible = false; SyncRunners(); }
+            );
+
             GameUiStyle.DrawTooltip(949001);
         }
 
@@ -236,14 +349,14 @@ namespace SuiteHub
             if (GameUiStyle.ToggleButton(
                 $"War & Diplomacy Monitor (F4): {(_showWarMatrix ? "OPEN" : "CLOSED")}",
                 _showWarMatrix,
-                "War & Diplomacy Monitor|View all active wars, casualties, live skirmishes, and kingdom opinion scores with 1-click camera jumps.|Hotkey: F4"))
+                "War & Diplomacy Monitor|View all active wars, war reasons, opinion drivers, casualties, and kingdom relations with Jump and Force Peace controls.|Hotkey: F4"))
                 ToggleWarMatrix();
 
             if (GameUiStyle.ToggleButton(
-                $"Battlefield Conflict Radar (F3): {(BattleRadarSystem.Enabled ? "ON" : "OFF")}",
-                BattleRadarSystem.Enabled,
-                "Battlefield Conflict Radar|Draws pulsing clash rings directly over live combat hotspots on the map.|Hotkey: F3"))
-                ShowToast(ToggleBattleRadar());
+                $"Live War Ticker (F3): {(WarTickerOverlay.Visible ? "ON" : "OFF")}",
+                WarTickerOverlay.Visible,
+                "Live War Ticker|Compact collapsible top-right feed showing active wars, causes, casualties, and instant Go jump buttons. Zero overhead when at peace or hidden.|Hotkey: F3"))
+                ShowToast(ToggleWarTicker());
 
             if (GameUiStyle.ToggleButton(
                 $"Multi-Continent World Builder (F2): {(_showWorldBuilder ? "OPEN" : "CLOSED")}",
@@ -255,11 +368,11 @@ namespace SuiteHub
             GameUiStyle.Label("Detailed Module Panels:", "Optional Detail Panels|Open a mod's full settings panel if you want fine-grained sliders or live logs.", isHeader: true);
 
             if (GameUiStyle.Button("CoreScale Perf & Battalions (F8)", "CoreScale Details|Open FPS telemetry and LOD status.|Hotkey: F8")) ToggleCompanionHud("CoreScale.Main");
-            if (GameUiStyle.Button("VisualPolish Lighting & Zoom (F9)", "VisualPolish Details|Open fine-grained vignette & atmosphere sliders.|Hotkey: F9")) ToggleCompanionHud("VisualPolish.Main");
+            if (GameUiStyle.Button("VisualPolish Lighting & Daylight (F9)", "VisualPolish Details|Open Always Day, Lock Age of Hope, vignette, and atmosphere controls.|Hotkey: F9")) ToggleCompanionHud("VisualPolish.Main");
             if (GameUiStyle.Button("GrandWarfare War Room (F10)", "GrandWarfare Details|Open naval volley & blockade telemetry.|Hotkey: F10")) ToggleCompanionHud("GrandWarfare.Main");
             if (GameUiStyle.Button("LinkedContinents Portal (F11)", "LinkedContinents Details|Set target continent name and outbound edge.|Hotkey: F11")) ToggleCompanionHud("LinkedContinents.Main");
             if (GameUiStyle.Button("EraChronicle History (F7)", "EraChronicle Details|Inspect recent era milestones.|Hotkey: F7")) ToggleCompanionHud("EraChronicle.Main");
-            if (GameUiStyle.Button("ApexFactions Wardens & Wild Realms (F12)", "ApexFactions Details|Adjust mercy ceasefire % and inspect feral domains.|Hotkey: F12")) ToggleCompanionHud("ApexFactions.Main");
+            if (GameUiStyle.Button("ApexFactions Species & Wardens (F12)", "ApexFactions Details|Open the Species Kingdom Manager, Sentinel Wardens, and Snake Mode controls.|Hotkey: F12")) ToggleCompanionHud("ApexFactions.Main");
             if (GameUiStyle.Button("WorldRelics Walls, Bridges & Ruins (Alt+R)", "WorldRelics Details|Browse fallen city ruin sites with Go buttons.|Hotkey: Alt+R")) ToggleCompanionHud("WorldRelics.Main");
             if (GameUiStyle.Button("CoopHost Shared God Mode (Alt+C)", "CoopHost Details|Inspect LAN URL, PIN, and live co-op activity feed.|Hotkey: Alt+C")) ToggleCompanionHud("CoopHost.Main");
             if (IsCompanionLoaded("ModernAge.Main"))

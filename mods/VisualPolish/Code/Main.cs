@@ -19,7 +19,8 @@ namespace VisualPolish
         private GuiOverlayRunner _fxRunner;
         private GuiOverlayRunner _panelRunner;
         private float _cycleTime = 0f;
-        private Rect _windowRect = new Rect(305, 86, 305, 325);
+        private float _ageCheckTimer = 0f;
+        private Rect _windowRect = new Rect(305, 86, 315, 395);
 
         private Texture2D _vignetteTex;
         private Texture2D _pixelTex;
@@ -82,6 +83,8 @@ namespace VisualPolish
                 case "daynight": return Settings.DynamicDayNightCycle;
                 case "vignette": return Settings.VignetteStrength > 0.01f;
                 case "photo": return Config.ui_main_hidden;
+                case "always_day": return Settings.AlwaysDayClientSide;
+                case "age_hope": return Settings.LockAgeOfHope;
                 default: return false;
             }
         }
@@ -119,6 +122,23 @@ namespace VisualPolish
         {
             Config.ui_main_hidden = !Config.ui_main_hidden;
             return $"Photo Mode (F6): {(Config.ui_main_hidden ? "HUD HIDDEN" : "NORMAL")}";
+        }
+
+        public string ToggleAlwaysDay()
+        {
+            if (Settings == null) return "";
+            Settings.AlwaysDayClientSide = !Settings.AlwaysDayClientSide;
+            Settings.Save(_declare.FolderPath);
+            return $"Always Day (Visual): {(Settings.AlwaysDayClientSide ? "ON" : "OFF")}";
+        }
+
+        public string ToggleLockAgeOfHope()
+        {
+            if (Settings == null) return "";
+            Settings.LockAgeOfHope = !Settings.LockAgeOfHope;
+            Settings.Save(_declare.FolderPath);
+            DaylightAndAgePatches.ApplyLockAgeOfHope(Settings.LockAgeOfHope);
+            return $"Lock Age of Hope: {(Settings.LockAgeOfHope ? "ON" : "OFF")}";
         }
 
         private void BuildTextures()
@@ -164,6 +184,16 @@ namespace VisualPolish
             if (Settings.DynamicDayNightCycle && Settings.CycleDurationSeconds > 5f)
             {
                 _cycleTime = (_cycleTime + Time.unscaledDeltaTime) % Settings.CycleDurationSeconds;
+            }
+
+            if (Settings.LockAgeOfHope && MapBox.instance != null)
+            {
+                _ageCheckTimer += Time.unscaledDeltaTime;
+                if (_ageCheckTimer >= 2.0f)
+                {
+                    _ageCheckTimer = 0f;
+                    DaylightAndAgePatches.EnforceAgeOfHopeIfLocked();
+                }
             }
         }
 
@@ -252,6 +282,22 @@ namespace VisualPolish
                 "Dynamic Day/Night Cycle|Smoothly shifts lighting from golden dawn to bright noon, warm dusk, and cool moonlit night."))
             {
                 ToggleDayNight();
+            }
+
+            if (GameUiStyle.ToggleButton(
+                $"Always Day (Visual): {(Settings.AlwaysDayClientSide ? "ON" : "OFF")}",
+                Settings.AlwaysDayClientSide,
+                "Always Day (Client-Side)|Removes night, moon, ash, and storm darkness overlays while preserving all World Age gameplay mechanics and disasters.|Purely visual override"))
+            {
+                ToggleAlwaysDay();
+            }
+
+            if (GameUiStyle.ToggleButton(
+                $"Lock Age of Hope: {(Settings.LockAgeOfHope ? "ON" : "OFF")}",
+                Settings.LockAgeOfHope,
+                "Lock Age of Hope|Sets the active world age to Age of Hope and pauses age progression so the world stays sunny and peaceful.|Optional world rule"))
+            {
+                ToggleLockAgeOfHope();
             }
 
             GUILayout.Space(6);
