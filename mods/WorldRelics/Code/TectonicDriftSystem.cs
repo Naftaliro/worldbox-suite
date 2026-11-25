@@ -17,6 +17,7 @@ namespace WorldRelics
     /// Tick-driven continental tectonics engine supporting both physical Pangaea plate drift
     /// and empire-safe widening ocean rifts.
     /// </summary>
+    [HarmonyPatch]
     public static class TectonicDriftSystem
     {
         public static TectonicMode Mode { get; private set; } = TectonicMode.None;
@@ -43,14 +44,33 @@ namespace WorldRelics
         private static readonly MethodInfo ActorSetCurrentTileMethod =
             AccessTools.Method(typeof(Actor), "setCurrentTile", new[] { typeof(WorldTile) });
 
-        private static readonly MethodInfo ActorClearTileTargetMethod =
-            AccessTools.Method(typeof(Actor), "clearTileTarget", Type.EmptyTypes);
+        private static readonly MethodInfo ActorCancelAllBehMethod =
+            AccessTools.Method(typeof(Actor), "cancelAllBeh", Type.EmptyTypes);
+
+        private static readonly AccessTools.FieldRef<Actor, WorldTile> ActorTileTargetRef =
+            AccessTools.FieldRefAccess<Actor, WorldTile>("tile_target");
+
+        private static readonly AccessTools.FieldRef<Actor, BaseSimObject> ActorBehTargetRef =
+            AccessTools.FieldRefAccess<Actor, BaseSimObject>("beh_actor_target");
 
         private static readonly FieldInfo ActorDirtyCurrentTileField =
             AccessTools.Field(typeof(Actor), "dirty_current_tile");
 
         private static readonly MethodInfo BuildingStartDestroyMethod =
             AccessTools.Method(typeof(Building), "startDestroyBuilding", Type.EmptyTypes);
+
+        // Guard against null tile_target or target.current_tile after tectonic unit relocation
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(Actor), "checkCalibrateTargetPosition")]
+        private static bool CheckCalibrateTargetPositionPrefix(Actor __instance)
+        {
+            if (__instance == null) return false;
+            if (ActorTileTargetRef(__instance) == null) return false;
+            BaseSimObject target = ActorBehTargetRef(__instance);
+            if (target == null || target.current_tile == null) return false;
+            if (target.isActor() && (target.a == null || target.a.current_tile == null)) return false;
+            return true;
+        }
 
         public static string StatusLabel()
         {
@@ -631,6 +651,9 @@ namespace WorldRelics
             if (actor == null || target == null) return;
             try
             {
+                // Cancel active AI task/path cleanly before moving so calibrate_target_position never reads a null tile_target
+                ActorCancelAllBehMethod?.Invoke(actor, null);
+
                 if (ActorSetCurrentTilePositionMethod != null)
                 {
                     ActorSetCurrentTilePositionMethod.Invoke(actor, new object[] { target });
@@ -642,7 +665,6 @@ namespace WorldRelics
                 }
 
                 ActorDirtyCurrentTileField?.SetValue(actor, true);
-                ActorClearTileTargetMethod?.Invoke(actor, null);
             }
             catch { }
         }
