@@ -68,7 +68,7 @@ namespace WorldRelics
             if (ActorTileTargetRef(__instance) == null) return false;
             BaseSimObject target = ActorBehTargetRef(__instance);
             if (target == null || target.current_tile == null) return false;
-            if (target.isActor() && (target.a == null || target.a.current_tile == null)) return false;
+            if (target is Actor targetActor && targetActor.current_tile == null) return false;
             return true;
         }
 
