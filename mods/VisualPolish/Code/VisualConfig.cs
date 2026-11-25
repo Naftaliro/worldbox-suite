@@ -18,10 +18,10 @@ namespace VisualPolish
     [Serializable]
     public class VisualPolishConfig
     {
-        public VisualPreset Preset = VisualPreset.CrispVibrant;
+        public VisualPreset Preset = VisualPreset.Vanilla;
         public bool DynamicDayNightCycle = false;
         public float CycleDurationSeconds = 180f;
-        public float VignetteStrength = 0.24f;
+        public float VignetteStrength = 0f;
         public float TintStrength = 0.14f;
         public bool UnlockCloseZoom = true;
         public float CloseZoomMin = 2.5f;

@@ -13,6 +13,8 @@ namespace SuiteHub
         private ModDeclare _declare;
         private GameObject _gameObject;
         private Harmony _harmony;
+        private GuiOverlayRunner _radarRunner;
+        private GuiOverlayRunner _panelRunner;
 
         private bool _showHub = false;
         private bool _showWarMatrix = false;
@@ -33,6 +35,11 @@ namespace SuiteHub
             _declare = pModDecl;
             _gameObject = pGameObject;
 
+            _radarRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _radarRunner.Configure(false, BattleRadarSystem.DrawBattleMarkers);
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawPanelsGui);
+
             try
             {
                 _harmony = new Harmony(_declare.UID);
@@ -51,10 +58,41 @@ namespace SuiteHub
             Debug.Log("[SuiteHub] Unloaded.");
         }
 
-        public void ToggleHub() => _showHub = !_showHub;
-        public void ToggleWarMatrix() => _showWarMatrix = !_showWarMatrix;
-        public void ToggleWorldBuilder() => _showWorldBuilder = !_showWorldBuilder;
-        public void ToggleBattleRadar() => BattleRadarSystem.Enabled = !BattleRadarSystem.Enabled;
+        private void SyncRunners()
+        {
+            if (_radarRunner != null)
+            {
+                _radarRunner.enabled = BattleRadarSystem.Enabled && BattleRadarSystem.Hotspots.Count > 0;
+            }
+            if (_panelRunner != null)
+            {
+                _panelRunner.enabled = _showHub || _showWarMatrix || _showWorldBuilder;
+            }
+        }
+
+        public void ToggleHub() { _showHub = !_showHub; SyncRunners(); }
+        public void ToggleWarMatrix() { _showWarMatrix = !_showWarMatrix; SyncRunners(); }
+        public void ToggleWorldBuilder() { _showWorldBuilder = !_showWorldBuilder; SyncRunners(); }
+
+        public string ToggleBattleRadar()
+        {
+            BattleRadarSystem.Enabled = !BattleRadarSystem.Enabled;
+            SyncRunners();
+            return $"Battlefield Conflict Radar: {(BattleRadarSystem.Enabled ? "ON" : "OFF")}";
+        }
+
+        public static void ShowToast(string message)
+        {
+            if (string.IsNullOrEmpty(message)) return;
+            try
+            {
+                WorldTip.showNowTop(message, false);
+            }
+            catch
+            {
+                Debug.Log($"[SuiteHub] {message}");
+            }
+        }
 
         public static bool IsCompanionLoaded(string mainTypeName)
         {
@@ -75,6 +113,70 @@ namespace SuiteHub
             }
         }
 
+        public static string InvokeCompanionAction(string mainTypeName, string methodName, params object[] args)
+        {
+            try
+            {
+                Type t = AccessTools.TypeByName(mainTypeName);
+                object inst = t?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+                if (t == null || inst == null) return $"{mainTypeName.Split('.')[0]} is not loaded.";
+                MethodInfo m = t.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance);
+                if (m == null) return "";
+                object res = m.Invoke(inst, args);
+                return res as string ?? "";
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SuiteHub] Action {mainTypeName}.{methodName} failed: {e.Message}");
+                return "";
+            }
+        }
+
+        public static bool GetCompanionState(string mainTypeName, string key)
+        {
+            try
+            {
+                Type t = AccessTools.TypeByName(mainTypeName);
+                object inst = t?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+                if (t == null || inst == null) return false;
+                MethodInfo m = t.GetMethod("GetState", BindingFlags.Public | BindingFlags.Instance);
+                if (m == null) return false;
+                return m.Invoke(inst, new object[] { key }) is bool b && b;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static string JumpToActiveBattle()
+        {
+            for (int i = BattleRadarSystem.Hotspots.Count - 1; i >= 0; i--)
+            {
+                var h = BattleRadarSystem.Hotspots[i];
+                if (h.Hits >= 2)
+                {
+                    DiplomacyWarOverlay.JumpCameraToCoords(h.X, h.Y);
+                    return $"Jumped to clash: {h.SideA} vs {h.SideB} ({h.Hits} hits)";
+                }
+            }
+
+            var world = MapBox.instance;
+            if (world?.wars != null)
+            {
+                foreach (var w in world.wars.getActiveWars())
+                {
+                    WorldTile cap = w?.getMainDefender()?.capital?.getTile();
+                    if (cap != null)
+                    {
+                        DiplomacyWarOverlay.JumpCameraToTile(cap);
+                        return $"Jumped to active war: {w.name}";
+                    }
+                }
+            }
+            return "No active battles or wars right now.";
+        }
+
         private void Update()
         {
             // Defer bottom-bar tab registration slightly so WorldBox's Canvas & PowerTabs are fully ready
@@ -84,13 +186,13 @@ namespace SuiteHub
                 if (_initDelay >= 1.5f && MapBox.instance != null)
                 {
                     _bottomBarTried = true;
-                    BottomBarIntegration.RegisterBottomTab(_declare.FolderPath);
+                    BottomBarIntegration.RegisterBottomTabs(_declare.FolderPath);
                 }
             }
 
             if (Input.GetKeyDown(KeyCode.F5)) ToggleHub();
             if (Input.GetKeyDown(KeyCode.F4)) ToggleWarMatrix();
-            if (Input.GetKeyDown(KeyCode.F3)) ToggleBattleRadar();
+            if (Input.GetKeyDown(KeyCode.F3)) ShowToast(ToggleBattleRadar());
             if (Input.GetKeyDown(KeyCode.F2)) ToggleWorldBuilder();
 
             _pruneTimer += Time.unscaledDeltaTime;
@@ -98,14 +200,12 @@ namespace SuiteHub
             {
                 _pruneTimer = 0f;
                 BattleRadarSystem.PruneExpired();
+                SyncRunners();
             }
         }
 
-        private void OnGUI()
+        private void DrawPanelsGui()
         {
-            // Render live conflict rings behind windows
-            BattleRadarSystem.DrawBattleMarkers();
-
             if (!_showHub && !_showWarMatrix && !_showWorldBuilder) return;
             GameUiStyle.BeginFrame();
 
@@ -115,11 +215,11 @@ namespace SuiteHub
             }
             if (_showWarMatrix)
             {
-                DiplomacyWarOverlay.Draw(() => _showWarMatrix = false);
+                DiplomacyWarOverlay.Draw(() => { _showWarMatrix = false; SyncRunners(); });
             }
             if (_showWorldBuilder)
             {
-                MultiContinentGenerator.Draw(() => _showWorldBuilder = false);
+                MultiContinentGenerator.Draw(() => { _showWorldBuilder = false; SyncRunners(); });
             }
 
             GameUiStyle.DrawTooltip(949001);
@@ -127,10 +227,10 @@ namespace SuiteHub
 
         private void DrawHubWindow(int id)
         {
-            GameUiStyle.DrawCloseButton(_hubRect, () => _showHub = false);
+            GameUiStyle.DrawCloseButton(_hubRect, ToggleHub);
 
-            GameUiStyle.Label("Suite Controls & Tools", "Master Controls|Quick toggles for SuiteHub's built-in world builder, war monitor, and battle radar.", isHeader: true);
-            GameUiStyle.Subtle("Hover any button for details. Drag the title bar to move.");
+            GameUiStyle.Label("Suite Controls & Tools", "Master Controls|All actions and toggles are also available directly on the Suite: Powers and Suite: Rules bottom tabs.", isHeader: true);
+            GameUiStyle.Subtle("Optional quick-access panel. Close for 0ms IMGUI overhead.");
             GUILayout.Space(6);
 
             if (GameUiStyle.ToggleButton(
@@ -142,46 +242,29 @@ namespace SuiteHub
             if (GameUiStyle.ToggleButton(
                 $"Battlefield Conflict Radar (F3): {(BattleRadarSystem.Enabled ? "ON" : "OFF")}",
                 BattleRadarSystem.Enabled,
-                "Battlefield Conflict Radar|Draws pulsing clash rings directly over live combat hotspots on the map so big fights stand out immediately.|Hotkey: F3"))
-                ToggleBattleRadar();
+                "Battlefield Conflict Radar|Draws pulsing clash rings directly over live combat hotspots on the map.|Hotkey: F3"))
+                ShowToast(ToggleBattleRadar());
 
             if (GameUiStyle.ToggleButton(
                 $"Multi-Continent World Builder (F2): {(_showWorldBuilder ? "OPEN" : "CLOSED")}",
                 _showWorldBuilder,
-                "Multi-Continent World Builder|Sculpt a brand-new multi-continent world right in-game with custom sizes, biomes, ocean channels, and stepping-stone islands.|Hotkey: F2"))
+                "Multi-Continent World Builder|Sculpt a brand-new multi-continent world right in-game with custom sizes, biomes, and ocean divides.|Hotkey: F2"))
                 ToggleWorldBuilder();
 
             GUILayout.Space(8);
-            GameUiStyle.Label("Suite Module Panels:", "Module Panels|Open or close each companion mod's dedicated control panel.", isHeader: true);
+            GameUiStyle.Label("Detailed Module Panels:", "Optional Detail Panels|Open a mod's full settings panel if you want fine-grained sliders or live logs.", isHeader: true);
 
-            if (GameUiStyle.Button("CoreScale Perf & Battalions (F8)", "CoreScale Performance|Giant map presets up to 24x24 chunks, adaptive simulation LOD, shadow culling, and mega-army battalion compression.|Hotkey: F8"))
-                ToggleCompanionHud("CoreScale.Main");
-
-            if (GameUiStyle.Button("VisualPolish Lighting & Zoom (F9)", "VisualPolish Lighting|Switch atmospheric lighting presets, dynamic day/night cycles, vignette strength, and F6 photo mode.|Hotkey: F9"))
-                ToggleCompanionHud("VisualPolish.Main");
-
-            if (GameUiStyle.Button("GrandWarfare War Room (F10)", "GrandWarfare War Room|Toggle naval ship-to-ship broadsides, coastal bombardment, port blockades, supply-line attrition, and defense pacts.|Hotkey: F10"))
-                ToggleCompanionHud("GrandWarfare.Main");
-
-            if (GameUiStyle.Button("LinkedContinents Portal (F11)", "LinkedContinents Portal|Connect separate continent saves across ocean edges so fleets and armies sail from one save file into another.|Hotkey: F11"))
-                ToggleCompanionHud("LinkedContinents.Main");
-
-            if (GameUiStyle.Button("EraChronicle History (F7)", "EraChronicle History|Track 5-tier kingdom eras with veteran milestones and export JSON history timelines for WorldBox Studio.|Hotkey: F7"))
-                ToggleCompanionHud("EraChronicle.Main");
-
-            if (GameUiStyle.Button("ApexFactions Wardens & Wild Realms (F12)", "ApexFactions & Wild Realms|Warden Sleeping Giant doctrine with 3-strikes mercy ceasefires, instant species awakener, and feral animal pack domains.|Hotkey: F12"))
-                ToggleCompanionHud("ApexFactions.Main");
-
-            if (GameUiStyle.Button("WorldRelics Walls, Bridges & Ruins (Alt+R)", "WorldRelics Infrastructure|Large cities build gated perimeter walls, connect narrow straits with stone bridges, and weather into mossy ruins after falling.|Hotkey: Alt+R"))
-                ToggleCompanionHud("WorldRelics.Main");
-
-            if (GameUiStyle.Button("CoopHost Shared God Mode (Alt+C)", "Co-Op God Mode Host|Start a browser Co-Op God Console over LAN, Tailscale, or playit.gg so a second player can paint terrain and cast powers with you.|Hotkey: Alt+C"))
-                ToggleCompanionHud("CoopHost.Main");
-
+            if (GameUiStyle.Button("CoreScale Perf & Battalions (F8)", "CoreScale Details|Open FPS telemetry and LOD status.|Hotkey: F8")) ToggleCompanionHud("CoreScale.Main");
+            if (GameUiStyle.Button("VisualPolish Lighting & Zoom (F9)", "VisualPolish Details|Open fine-grained vignette & atmosphere sliders.|Hotkey: F9")) ToggleCompanionHud("VisualPolish.Main");
+            if (GameUiStyle.Button("GrandWarfare War Room (F10)", "GrandWarfare Details|Open naval volley & blockade telemetry.|Hotkey: F10")) ToggleCompanionHud("GrandWarfare.Main");
+            if (GameUiStyle.Button("LinkedContinents Portal (F11)", "LinkedContinents Details|Set target continent name and outbound edge.|Hotkey: F11")) ToggleCompanionHud("LinkedContinents.Main");
+            if (GameUiStyle.Button("EraChronicle History (F7)", "EraChronicle Details|Inspect recent era milestones.|Hotkey: F7")) ToggleCompanionHud("EraChronicle.Main");
+            if (GameUiStyle.Button("ApexFactions Wardens & Wild Realms (F12)", "ApexFactions Details|Adjust mercy ceasefire % and inspect feral domains.|Hotkey: F12")) ToggleCompanionHud("ApexFactions.Main");
+            if (GameUiStyle.Button("WorldRelics Walls, Bridges & Ruins (Alt+R)", "WorldRelics Details|Browse fallen city ruin sites with Go buttons.|Hotkey: Alt+R")) ToggleCompanionHud("WorldRelics.Main");
+            if (GameUiStyle.Button("CoopHost Shared God Mode (Alt+C)", "CoopHost Details|Inspect LAN URL, PIN, and live co-op activity feed.|Hotkey: Alt+C")) ToggleCompanionHud("CoopHost.Main");
             if (IsCompanionLoaded("ModernAge.Main"))
             {
-                if (GameUiStyle.Button("ModernAge Expansion (Alt+M)", "ModernAge Expansion|Tier 1-3 firearms, tanks, helicopters, supersonic jets, capital radar SAM domes, 6 governments, and international trade.|Hotkey: Alt+M"))
-                    ToggleCompanionHud("ModernAge.Main");
+                if (GameUiStyle.Button("ModernAge Expansion (Alt+M)", "ModernAge Details|Inspect governments, trade specialties, and counter stats.|Hotkey: Alt+M")) ToggleCompanionHud("ModernAge.Main");
             }
 
             GameUiStyle.CaptureTooltip();

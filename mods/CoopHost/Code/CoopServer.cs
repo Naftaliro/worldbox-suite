@@ -38,8 +38,10 @@ namespace CoopHost
         private TcpListener _listener;
         private Thread _acceptThread;
         private volatile bool _running;
+        private long _lastClientTicks = 0;
 
         public bool IsRunning => _running;
+        public bool HasRecentClient => _lastClientTicks > 0 && (DateTime.UtcNow.Ticks - _lastClientTicks) < TimeSpan.TicksPerSecond * 12;
         public string LastError { get; private set; } = "";
 
         public CoopHttpServer(
@@ -141,6 +143,7 @@ namespace CoopHost
 
                     if (method == "GET" && (path == "/" || path == "/index.html"))
                     {
+                        _lastClientTicks = DateTime.UtcNow.Ticks;
                         byte[] html = File.Exists(_webClientPath)
                             ? File.ReadAllBytes(_webClientPath)
                             : Encoding.UTF8.GetBytes("<h1>CoopHost WebClient/index.html missing</h1>");
@@ -156,6 +159,8 @@ namespace CoopHost
                         WriteJson(ns, 401, "{\"error\":\"Invalid join PIN\"}");
                         return;
                     }
+
+                    _lastClientTicks = DateTime.UtcNow.Ticks;
 
                     if (method == "GET" && path == "/api/state")
                     {

@@ -17,6 +17,8 @@ namespace ModernAge
         private Harmony _harmony;
 
         private bool _showHud = false;
+        private GuiOverlayRunner _radarRunner;
+        private GuiOverlayRunner _panelRunner;
         private float _tickTimer = 0f;
         private string _status = "";
         private Vector2 _scroll;
@@ -31,6 +33,10 @@ namespace ModernAge
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+            _radarRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _radarRunner.Configure(false, GeopoliticsAndTradeSystem.DrawRadarUmbrellas);
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawPanelGui);
             Settings = ModernAgeConfig.LoadOrCreate(_declare.FolderPath);
 
             try
@@ -53,7 +59,73 @@ namespace ModernAge
             Debug.Log("[ModernAge] Unloaded.");
         }
 
-        public void ToggleHud() => _showHud = !_showHud;
+        private void SyncRunners()
+        {
+            if (_radarRunner != null) _radarRunner.enabled = Settings != null && Settings.ShowRadarRings;
+            if (_panelRunner != null) _panelRunner.enabled = _showHud;
+        }
+
+        public void ToggleHud()
+        {
+            _showHud = !_showHud;
+            SyncRunners();
+        }
+
+        public bool GetState(string key)
+        {
+            if (Settings == null) return false;
+            if (key == "auto") return Settings.EnableAutoProgression;
+            if (key == "radar") return Settings.ShowRadarRings;
+            return false;
+        }
+
+        public string ToggleAutoProgression()
+        {
+            Settings.EnableAutoProgression = !Settings.EnableAutoProgression;
+            Settings.Save(_declare.FolderPath);
+            return $"ModernAge Auto Tech: {(Settings.EnableAutoProgression ? "ON" : "OFF")}";
+        }
+
+        public string ToggleRadarRings()
+        {
+            Settings.ShowRadarRings = !Settings.ShowRadarRings;
+            Settings.Save(_declare.FolderPath);
+            SyncRunners();
+            return $"Radar SAM Domes: {(Settings.ShowRadarRings ? "VISIBLE" : "HIDDEN")}";
+        }
+
+        public string AdvanceTopKingdom()
+        {
+            Kingdom top = GetTopKingdom();
+            if (top == null) return "No kingdom found yet.";
+            var st = GeopoliticsAndTradeSystem.GetOrCreateState(top);
+            st.TechTier = Math.Min(3, st.TechTier + 1);
+            GeopoliticsAndTradeSystem.EquipTierInfantry(MapBox.instance, top, st.TechTier, 15);
+            return $"{top.name} advanced to Tech Tier {st.TechTier}!";
+        }
+
+        public string DeployArmorAtTile(WorldTile tile)
+        {
+            Kingdom top = GetTopKingdom();
+            WorldTile target = tile ?? top?.capital?.getTile();
+            if (top == null || target == null) return "Need a kingdom and valid ground tile.";
+            ModernAssetRegistry.RegisterAll();
+            GeopoliticsAndTradeSystem.SpawnVehicleForKingdom(MapBox.instance, top, ModernIds.MainBattleTank, target);
+            GeopoliticsAndTradeSystem.SpawnVehicleForKingdom(MapBox.instance, top, ModernIds.MainBattleTank, target);
+            GeopoliticsAndTradeSystem.SpawnVehicleForKingdom(MapBox.instance, top, ModernIds.LightTank, target);
+            return $"Deployed Armored Column for {top.name}!";
+        }
+
+        public string ScrambleAirAtTile(WorldTile tile)
+        {
+            Kingdom top = GetTopKingdom();
+            WorldTile target = tile ?? top?.capital?.getTile();
+            if (top == null || target == null) return "Need a kingdom and valid tile.";
+            ModernAssetRegistry.RegisterAll();
+            GeopoliticsAndTradeSystem.SpawnVehicleForKingdom(MapBox.instance, top, ModernIds.SupersonicJet, target);
+            GeopoliticsAndTradeSystem.SpawnVehicleForKingdom(MapBox.instance, top, ModernIds.AttackHeli, target);
+            return $"Scrambled Air Wing for {top.name}!";
+        }
 
         private void Update()
         {
@@ -75,10 +147,8 @@ namespace ModernAge
             }
         }
 
-        private void OnGUI()
+        private void DrawPanelGui()
         {
-            GeopoliticsAndTradeSystem.DrawRadarUmbrellas();
-
             if (!_showHud || Settings == null) return;
             GameUiStyle.BeginFrame();
             _windowRect = GUI.Window(941215, _windowRect, DrawHud, "ModernAge Expansion (Alt+M)", GameUiStyle.WindowStyle);
@@ -87,7 +157,7 @@ namespace ModernAge
 
         private void DrawHud(int id)
         {
-            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(410));
 
             GameUiStyle.Label(

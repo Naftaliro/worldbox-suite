@@ -111,6 +111,7 @@ namespace EraChronicle
         private string _chroniclesDir;
 
         private bool _showHud = false;
+        private GuiOverlayRunner _panelRunner;
         private int _lastSnapshotYear = -1;
         private float _pollTimer = 0f;
         private readonly Dictionary<long, int> _kingdomEraTier = new Dictionary<long, int>();
@@ -126,6 +127,8 @@ namespace EraChronicle
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawPanelGui);
             Settings = EraChronicleConfig.LoadOrCreate(_declare.FolderPath);
 
             _chroniclesDir = Path.Combine(_declare.FolderPath, "chronicles");
@@ -139,7 +142,42 @@ namespace EraChronicle
             Debug.Log("[EraChronicle] Unloaded.");
         }
 
-        public void ToggleHud() => _showHud = !_showHud;
+        public void ToggleHud()
+        {
+            _showHud = !_showHud;
+            if (_panelRunner != null) _panelRunner.enabled = _showHud;
+        }
+
+        public bool GetState(string key)
+        {
+            if (Settings == null) return false;
+            if (key == "eras") return Settings.EnableEraProgression;
+            if (key == "snapshots") return Settings.EnableAutoSnapshots;
+            return false;
+        }
+
+        public string ToggleEraProgression()
+        {
+            Settings.EnableEraProgression = !Settings.EnableEraProgression;
+            Settings.Save(_declare.FolderPath);
+            return $"Era Progression: {(Settings.EnableEraProgression ? "ON" : "OFF")}";
+        }
+
+        public string ToggleAutoSnapshots()
+        {
+            Settings.EnableAutoSnapshots = !Settings.EnableAutoSnapshots;
+            Settings.Save(_declare.FolderPath);
+            return $"Auto Chronicles: {(Settings.EnableAutoSnapshots ? "ON" : "OFF")}";
+        }
+
+        public string RecordSnapshotNow()
+        {
+            var stats = GetMapStats();
+            if (stats == null) return "Load a world to record a chronicle snapshot.";
+            RecordSnapshot(stats);
+            _lastSnapshotYear = stats.history_current_year;
+            return $"Saved chronicle snapshot for Year {stats.history_current_year}!";
+        }
 
         private static MapStats GetMapStats()
         {
@@ -153,7 +191,7 @@ namespace EraChronicle
 
             if (Input.GetKeyDown(Settings.ChronicleHudKey))
             {
-                _showHud = !_showHud;
+                ToggleHud();
             }
 
             if (Config.paused || MapBox.instance == null) return;
@@ -328,7 +366,7 @@ namespace EraChronicle
             return name.Replace(' ', '_');
         }
 
-        private void OnGUI()
+        private void DrawPanelGui()
         {
             if (!_showHud || Settings == null) return;
             GameUiStyle.BeginFrame();
@@ -338,7 +376,7 @@ namespace EraChronicle
 
         private void DrawHud(int id)
         {
-            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             var stats = GetMapStats();
             int year = stats != null ? stats.history_current_year : 0;
 

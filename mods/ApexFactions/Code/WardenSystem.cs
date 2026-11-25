@@ -54,23 +54,29 @@ namespace ApexFactions
 
         public static void SpawnWardenColonyAtCamera()
         {
-            var world = MapBox.instance;
-            if (world?.units == null) return;
-
             WorldTile center = FindSafeLandNearCamera();
-            if (center == null) return;
+            SpawnWardenColonyAtTile(center);
+        }
 
+        public static int SpawnWardenColonyAtTile(WorldTile center)
+        {
+            var world = MapBox.instance;
+            if (world?.units == null || center == null) return 0;
+
+            int spawned = 0;
             for (int i = 0; i < 14; i++)
             {
                 Actor u = world.units.spawnNewUnit("human", center);
                 if (u == null) continue;
                 ApplyWardenPeacetimeTraits(u);
+                spawned++;
             }
 
             // Remember tile so we auto-anoint their newly founded kingdom on next tick
             _pendingWardenSpawnTile = center;
             _pendingWardenTimer = 25f;
-            Debug.Log($"[ApexFactions] Spawned 14 Warden settlers at ({center.x},{center.y}).");
+            Debug.Log($"[ApexFactions] Spawned {spawned} Warden settlers at ({center.x},{center.y}).");
+            return spawned;
         }
 
         private static WorldTile _pendingWardenSpawnTile;

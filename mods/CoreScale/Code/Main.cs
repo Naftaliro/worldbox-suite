@@ -18,6 +18,7 @@ namespace CoreScale
         private Harmony _harmony;
 
         private bool _showOverlay = false;
+        private GuiOverlayRunner _panelRunner;
         private float _fpsSmoothed = 60f;
         private float _statsTimer = 0f;
         private float _battalionTimer = 0f;
@@ -32,6 +33,8 @@ namespace CoreScale
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawGui);
 
             Settings = CoreScaleConfig.LoadOrCreate(_declare.FolderPath);
 
@@ -61,7 +64,65 @@ namespace CoreScale
             Debug.Log("[CoreScale] Unloaded and unpatched.");
         }
 
-        public void ToggleHud() => _showOverlay = !_showOverlay;
+        public void ToggleHud()
+        {
+            _showOverlay = !_showOverlay;
+            if (_panelRunner != null) _panelRunner.enabled = _showOverlay;
+        }
+
+        public bool GetState(string key)
+        {
+            if (Settings == null) return false;
+            switch (key)
+            {
+                case "lod": return Settings.EnableAdaptiveLOD;
+                case "anim_cull": return Settings.SkipAnimationsInStrategicZoom;
+                case "no_shadows": return Settings.ForceDisableShadows;
+                case "battalions": return Settings.EnableBattalionCompression;
+                default: return false;
+            }
+        }
+
+        public string ToggleAdaptiveLod()
+        {
+            if (Settings == null) return "";
+            Settings.EnableAdaptiveLOD = !Settings.EnableAdaptiveLOD;
+            Settings.Save(_declare.FolderPath);
+            RefreshLodState();
+            return $"CoreScale Adaptive LOD: {(Settings.EnableAdaptiveLOD ? "ON" : "OFF")}";
+        }
+
+        public string ToggleAnimCull()
+        {
+            if (Settings == null) return "";
+            Settings.SkipAnimationsInStrategicZoom = !Settings.SkipAnimationsInStrategicZoom;
+            Settings.Save(_declare.FolderPath);
+            return $"Strategic Anim Cull: {(Settings.SkipAnimationsInStrategicZoom ? "ON" : "OFF")}";
+        }
+
+        public string ToggleShadows()
+        {
+            if (Settings == null) return "";
+            Settings.ForceDisableShadows = !Settings.ForceDisableShadows;
+            Settings.Save(_declare.FolderPath);
+            return $"Shadows: {(Settings.ForceDisableShadows ? "OFF (Max FPS)" : "AUTO")}";
+        }
+
+        public string ToggleAutoBattalions()
+        {
+            if (Settings == null) return "";
+            Settings.EnableBattalionCompression = !Settings.EnableBattalionCompression;
+            Settings.Save(_declare.FolderPath);
+            return $"Auto Army Battalions: {(Settings.EnableBattalionCompression ? "ON" : "OFF")}";
+        }
+
+        public string CompressArmiesNow()
+        {
+            int before = BattalionCompressionSystem.TotalSoldiersConsolidated;
+            BattalionCompressionSystem.CompressMegaArmies(force: true);
+            int delta = BattalionCompressionSystem.TotalSoldiersConsolidated - before;
+            return delta > 0 ? $"Compressed {delta} soldiers into veteran champions!" : "No oversized armies needed compression.";
+        }
 
         private void Update()
         {
@@ -69,17 +130,17 @@ namespace CoreScale
 
             if (Input.GetKeyDown(Settings.OverlayToggleKey))
             {
-                _showOverlay = !_showOverlay;
+                ToggleHud();
             }
 
-            float dt = Time.unscaledDeltaTime;
-            if (dt > 0.0001f)
+            if (_showOverlay)
             {
-                _fpsSmoothed = Mathf.Lerp(_fpsSmoothed, 1f / dt, 0.08f);
+                float dt = Time.unscaledDeltaTime;
+                if (dt > 0.0001f) _fpsSmoothed = Mathf.Lerp(_fpsSmoothed, 1f / dt, 0.08f);
             }
 
-            _statsTimer += dt;
-            if (_statsTimer >= 0.35f)
+            _statsTimer += Time.unscaledDeltaTime;
+            if (_statsTimer >= 0.75f)
             {
                 _statsTimer = 0f;
                 RefreshLodState();
@@ -122,7 +183,7 @@ namespace CoreScale
             else CurrentLodTier = 0;
         }
 
-        private void OnGUI()
+        private void DrawGui()
         {
             if (!_showOverlay || Settings == null) return;
             GameUiStyle.BeginFrame();
@@ -132,7 +193,7 @@ namespace CoreScale
 
         private void DrawOverlayWindow(int id)
         {
-            GameUiStyle.DrawCloseButton(_windowRect, () => _showOverlay = false);
+            GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             string mapDims = MapBox.width > 0 ? $"{MapBox.width}x{MapBox.height} tiles" : "No map";
 
             GameUiStyle.Label($"FPS: {_fpsSmoothed:0.0}   |   Pop: {LivePopulation:N0}", "Live Telemetry|Smoothed frame rate and total living units currently simulated in this world.", isHeader: true);

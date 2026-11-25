@@ -16,6 +16,8 @@ namespace ApexFactions
         private Harmony _harmony;
 
         private bool _showHud = false;
+        private GuiOverlayRunner _overlayRunner;
+        private GuiOverlayRunner _panelRunner;
         private float _wardenTimer = 0f;
         private float _wildTimer = 0f;
         private Rect _windowRect = new Rect(695, 320, 365, 440);
@@ -31,6 +33,10 @@ namespace ApexFactions
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+            _overlayRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _overlayRunner.Configure(false, WildSovereigntySystem.DrawDomainOverlays);
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawPanelGui);
             Settings = ApexFactionsConfig.LoadOrCreate(_declare.FolderPath);
 
             try
@@ -51,7 +57,66 @@ namespace ApexFactions
             Debug.Log("[ApexFactions] Unloaded.");
         }
 
-        public void ToggleHud() => _showHud = !_showHud;
+        private void SyncRunners()
+        {
+            bool needOverlay = Settings != null && Settings.ShowFeralDomainRings && WildSovereigntySystem.ActiveDomains.Count > 0;
+            if (_overlayRunner != null) _overlayRunner.enabled = needOverlay;
+            if (_panelRunner != null) _panelRunner.enabled = _showHud;
+        }
+
+        public void ToggleHud()
+        {
+            _showHud = !_showHud;
+            SyncRunners();
+        }
+
+        public bool GetState(string key)
+        {
+            if (Settings == null) return false;
+            if (key == "domains") return Settings.ShowFeralDomainRings;
+            if (key == "wardens") return Settings.EnableWardenDoctrine;
+            return false;
+        }
+
+        public string SpawnWardenAtTile(WorldTile tile)
+        {
+            int n = WardenSystem.SpawnWardenColonyAtTile(tile);
+            return n > 0 ? $"Dropped {n} Warden settlers!" : "Click on solid ground to drop Wardens.";
+        }
+
+        public string SpawnWolfkinAtTile(WorldTile tile)
+        {
+            int n = WildSovereigntySystem.SpawnWolfkinAtTile(tile, 12);
+            return n > 0 ? $"Dropped {n} sapient Wolfkin!" : "Click on solid ground to drop Wolfkin.";
+        }
+
+        public string AnointTopKingdom()
+        {
+            Kingdom top = FindLargestNonWardenKingdom();
+            if (top == null) return "No non-Warden kingdom found yet.";
+            WardenSystem.AnointKingdomAsWardens(top);
+            return $"Anointed {top.name} as Sleeping Giant Wardens!";
+        }
+
+        public string AwakenWolves()
+        {
+            int n = WildSovereigntySystem.AwakenWildSubspecies("wolf");
+            return n > 0 ? $"Awakened {n} wild wolf subspecies into sapience!" : "No wild wolf subspecies found on map.";
+        }
+
+        public string AwakenAllAnimals()
+        {
+            int n = WildSovereigntySystem.AwakenWildSubspecies(null);
+            return n > 0 ? $"Awakened {n} wild animal subspecies into sapience!" : "No wild animal subspecies found.";
+        }
+
+        public string ToggleDomainRings()
+        {
+            Settings.ShowFeralDomainRings = !Settings.ShowFeralDomainRings;
+            Settings.Save(_declare.FolderPath);
+            SyncRunners();
+            return $"Feral Domain Borders: {(Settings.ShowFeralDomainRings ? "ON" : "OFF")}";
+        }
 
         private void Update()
         {
@@ -66,24 +131,23 @@ namespace ApexFactions
 
             float dt = Time.deltaTime;
             _wardenTimer += dt;
-            if (_wardenTimer >= 1.5f)
+            if (_wardenTimer >= 2.0f)
             {
                 WardenSystem.Tick(_wardenTimer);
                 _wardenTimer = 0f;
             }
 
             _wildTimer += dt;
-            if (_wildTimer >= 4.0f)
+            if (_wildTimer >= 10.0f)
             {
                 _wildTimer = 0f;
                 WildSovereigntySystem.ScanFeralDomains();
+                SyncRunners();
             }
         }
 
-        private void OnGUI()
+        private void DrawPanelGui()
         {
-            WildSovereigntySystem.DrawDomainOverlays();
-
             if (!_showHud || Settings == null) return;
             GameUiStyle.BeginFrame();
             _windowRect = GUI.Window(941212, _windowRect, DrawHud, "ApexFactions (F12)", GameUiStyle.WindowStyle);
@@ -92,7 +156,7 @@ namespace ApexFactions
 
         private void DrawHud(int id)
         {
-            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(390));
 
             GameUiStyle.Label($"Warden Doctrine ({WardenSystem.WardenKingdomIds.Count} kingdoms)", "Sleeping Giant Wardens|Peaceful powerhouse kingdoms that never start wars, rally fiercely when attacked, and track a 3-strikes grudge per aggressor.", isHeader: true);

@@ -16,6 +16,7 @@ namespace WorldRelics
         private Harmony _harmony;
 
         private bool _showHud = false;
+        private GuiOverlayRunner _panelRunner;
         private float _infraTimer = 0f;
         private float _decayTimer = 0f;
         private string _status = "";
@@ -31,6 +32,8 @@ namespace WorldRelics
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawPanelGui);
             Settings = WorldRelicsConfig.LoadOrCreate(_declare.FolderPath);
 
             try
@@ -51,7 +54,62 @@ namespace WorldRelics
             Debug.Log("[WorldRelics] Unloaded.");
         }
 
-        public void ToggleHud() => _showHud = !_showHud;
+        public void ToggleHud()
+        {
+            _showHud = !_showHud;
+            if (_panelRunner != null) _panelRunner.enabled = _showHud;
+        }
+
+        public bool GetState(string key)
+        {
+            if (Settings == null) return false;
+            switch (key)
+            {
+                case "walls": return Settings.EnableCityWalls;
+                case "bridges": return Settings.EnableSeaBridges;
+                case "ruins": return Settings.EnableRuinDecay;
+                default: return false;
+            }
+        }
+
+        public string ToggleCityWalls()
+        {
+            Settings.EnableCityWalls = !Settings.EnableCityWalls;
+            Settings.Save(_declare.FolderPath);
+            return $"Auto City Walls: {(Settings.EnableCityWalls ? "ON" : "OFF")}";
+        }
+
+        public string ToggleSeaBridges()
+        {
+            Settings.EnableSeaBridges = !Settings.EnableSeaBridges;
+            Settings.Save(_declare.FolderPath);
+            return $"Auto Sea Strait Bridges: {(Settings.EnableSeaBridges ? "ON" : "OFF")}";
+        }
+
+        public string ToggleRuinDecay()
+        {
+            Settings.EnableRuinDecay = !Settings.EnableRuinDecay;
+            Settings.Save(_declare.FolderPath);
+            return $"Centuries Ruin Decay: {(Settings.EnableRuinDecay ? "ON" : "OFF")}";
+        }
+
+        public string FortifyNow()
+        {
+            int n = InfrastructureBuilder.FortifyLargeCities(force: true);
+            return n > 0 ? $"Fortified cities with {n} gated wall tiles!" : "No eligible cities needed new walls.";
+        }
+
+        public string BuildBridgesNow()
+        {
+            int n = InfrastructureBuilder.BuildNarrowSeaBridges(force: true);
+            return n > 0 ? $"Built {n} stone sea bridge(s)!" : "No narrow friendly straits found.";
+        }
+
+        public string AgeRuinsNow()
+        {
+            int n = RuinsDecaySystem.WeatherAllRuins(60);
+            return n > 0 ? $"Weathered {n} ancient ruin tiles (+60 years)!" : "No fallen city ruins tracked yet.";
+        }
 
         private void Update()
         {
@@ -81,7 +139,7 @@ namespace WorldRelics
             }
         }
 
-        private void OnGUI()
+        private void DrawPanelGui()
         {
             if (!_showHud || Settings == null) return;
             GameUiStyle.BeginFrame();
@@ -91,7 +149,7 @@ namespace WorldRelics
 
         private void DrawHud(int id)
         {
-            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(360));
 
             GameUiStyle.Label($"Walls Built: {InfrastructureBuilder.WallsBuilt}  |  Bridges: {InfrastructureBuilder.BridgesBuilt}", "Infrastructure Built|Total city perimeter wall tiles and stone sea bridges constructed in this session.", isHeader: true);

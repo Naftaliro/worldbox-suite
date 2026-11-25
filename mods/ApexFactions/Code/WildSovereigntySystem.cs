@@ -65,11 +65,13 @@ namespace ApexFactions
         /// </summary>
         public static int SpawnWolfkinKingdomAtCamera(int count = 12)
         {
-            var world = MapBox.instance;
-            if (world?.units == null) return 0;
+            return SpawnWolfkinAtTile(WardenSystem.FindSafeLandNearCamera(), count);
+        }
 
-            WorldTile center = WardenSystem.FindSafeLandNearCamera();
-            if (center == null) return 0;
+        public static int SpawnWolfkinAtTile(WorldTile center, int count = 12)
+        {
+            var world = MapBox.instance;
+            if (world?.units == null || center == null) return 0;
 
             int spawned = 0;
             for (int i = 0; i < count; i++)

@@ -26,6 +26,7 @@ namespace LinkedContinents
         private GameObject _gameObject;
         private string _queuePath;
         private bool _showHud = false;
+        private GuiOverlayRunner _panelRunner;
         private float _scanTimer = 0f;
         private int _pendingIncoming = 0;
         private Rect _windowRect = new Rect(18, 320, 330, 330);
@@ -39,6 +40,8 @@ namespace LinkedContinents
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawPanelGui);
 
             Settings = LinkedContinentsConfig.LoadOrCreate(_declare.FolderPath);
             _queuePath = Path.Combine(_declare.FolderPath, "portal_queue.json");
@@ -55,7 +58,40 @@ namespace LinkedContinents
         public void ToggleHud()
         {
             _showHud = !_showHud;
-            RefreshPendingCount();
+            if (_panelRunner != null) _panelRunner.enabled = _showHud;
+            if (_showHud) RefreshPendingCount();
+        }
+
+        public bool GetState(string key)
+        {
+            if (Settings == null) return false;
+            if (key == "auto") return Settings.AutoEdgeTransfers;
+            return false;
+        }
+
+        public string ToggleAutoTransfers()
+        {
+            Settings.AutoEdgeTransfers = !Settings.AutoEdgeTransfers;
+            Settings.Save(_declare.FolderPath);
+            return $"Auto Ocean Portals ({Settings.OutboundEdge}): {(Settings.AutoEdgeTransfers ? "ON" : "OFF")}";
+        }
+
+        public string SendExpeditionNow()
+        {
+            int before = FleetsSent;
+            LaunchManualExpedition();
+            return FleetsSent > before
+                ? $"Dispatched expedition fleet via {Settings.OutboundEdge} ocean portal!"
+                : "No eligible kingdom army found to dispatch.";
+        }
+
+        public string ReceiveFleetsNow()
+        {
+            int before = FleetsReceived;
+            ReceiveIncomingFleets();
+            return FleetsReceived > before
+                ? $"Landed {FleetsReceived - before} incoming expedition fleet(s)!"
+                : "No incoming fleets waiting for this world.";
         }
 
         private string CurrentWorldName()
@@ -127,8 +163,7 @@ namespace LinkedContinents
 
             if (Input.GetKeyDown(Settings.PortalHudKey))
             {
-                _showHud = !_showHud;
-                RefreshPendingCount();
+                ToggleHud();
             }
 
             if (Config.paused || MapBox.instance == null) return;
@@ -437,7 +472,7 @@ namespace LinkedContinents
             return world.GetTile(w / 2, h / 2);
         }
 
-        private void OnGUI()
+        private void DrawPanelGui()
         {
             if (!_showHud || Settings == null) return;
             GameUiStyle.BeginFrame();
@@ -447,7 +482,7 @@ namespace LinkedContinents
 
         private void DrawHud(int id)
         {
-            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             GameUiStyle.Label($"World: {CurrentWorldName()}", "Current Save World|The name of your currently loaded WorldBox save used to route incoming cross-world fleets.", isHeader: true);
             GameUiStyle.Label($"Sent: {FleetsSent}  |  Landed: {FleetsReceived}  |  Incoming: {_pendingIncoming}", "Portal Traffic|Expedition fleets dispatched from this world, landed here, and currently waiting in portal_queue.json.");
             GUILayout.Space(6);

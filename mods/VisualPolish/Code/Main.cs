@@ -16,6 +16,8 @@ namespace VisualPolish
         private Harmony _harmony;
 
         private bool _showPanel = false;
+        private GuiOverlayRunner _fxRunner;
+        private GuiOverlayRunner _panelRunner;
         private float _cycleTime = 0f;
         private Rect _windowRect = new Rect(305, 86, 305, 325);
 
@@ -31,6 +33,10 @@ namespace VisualPolish
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+            _fxRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _fxRunner.Configure(false, DrawAtmosphereFx);
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawPanelGui);
             Settings = VisualPolishConfig.LoadOrCreate(_declare.FolderPath);
 
             try
@@ -38,6 +44,7 @@ namespace VisualPolish
                 _harmony = new Harmony(_declare.UID);
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
                 BuildTextures();
+                SyncRunners();
                 Debug.Log($"[VisualPolish] Loaded v{_declare.Version} (preset={Settings.Preset})");
             }
             catch (Exception e)
@@ -52,7 +59,67 @@ namespace VisualPolish
             Debug.Log("[VisualPolish] Unloaded.");
         }
 
-        public void ToggleHud() => _showPanel = !_showPanel;
+        private void SyncRunners()
+        {
+            if (Settings == null) return;
+            bool needFx = Settings.DynamicDayNightCycle || Settings.Preset != VisualPreset.Vanilla || Settings.VignetteStrength > 0.01f;
+            if (_fxRunner != null) _fxRunner.enabled = needFx;
+            if (_panelRunner != null) _panelRunner.enabled = _showPanel;
+        }
+
+        public void ToggleHud()
+        {
+            _showPanel = !_showPanel;
+            SyncRunners();
+        }
+
+        public bool GetState(string key)
+        {
+            if (Settings == null) return false;
+            switch (key)
+            {
+                case "preset": return Settings.Preset != VisualPreset.Vanilla;
+                case "daynight": return Settings.DynamicDayNightCycle;
+                case "vignette": return Settings.VignetteStrength > 0.01f;
+                case "photo": return Config.ui_main_hidden;
+                default: return false;
+            }
+        }
+
+        public string CyclePreset()
+        {
+            if (Settings == null) return "";
+            int count = Enum.GetValues(typeof(VisualPreset)).Length;
+            Settings.Preset = (VisualPreset)(((int)Settings.Preset + 1) % count);
+            Settings.DynamicDayNightCycle = false;
+            Settings.Save(_declare.FolderPath);
+            SyncRunners();
+            return $"Lighting Preset: {Settings.Preset}";
+        }
+
+        public string ToggleDayNight()
+        {
+            if (Settings == null) return "";
+            Settings.DynamicDayNightCycle = !Settings.DynamicDayNightCycle;
+            Settings.Save(_declare.FolderPath);
+            SyncRunners();
+            return $"Dynamic Day/Night: {(Settings.DynamicDayNightCycle ? "ON" : "OFF")}";
+        }
+
+        public string ToggleVignette()
+        {
+            if (Settings == null) return "";
+            Settings.VignetteStrength = Settings.VignetteStrength > 0.01f ? 0f : 0.24f;
+            Settings.Save(_declare.FolderPath);
+            SyncRunners();
+            return $"Screen Vignette: {(Settings.VignetteStrength > 0.01f ? "ON" : "OFF")}";
+        }
+
+        public string TogglePhotoMode()
+        {
+            Config.ui_main_hidden = !Config.ui_main_hidden;
+            return $"Photo Mode (F6): {(Config.ui_main_hidden ? "HUD HIDDEN" : "NORMAL")}";
+        }
 
         private void BuildTextures()
         {
@@ -86,7 +153,7 @@ namespace VisualPolish
 
             if (Input.GetKeyDown(Settings.PanelToggleKey))
             {
-                _showPanel = !_showPanel;
+                ToggleHud();
             }
 
             if (Input.GetKeyDown(Settings.PhotoModeKey))
@@ -137,53 +204,46 @@ namespace VisualPolish
             }
         }
 
-        private void OnGUI()
+        private void DrawAtmosphereFx()
         {
-            if (Settings == null) return;
-
-            // Render atmospheric tint & vignette behind HUD windows
-            if (Event.current.type == EventType.Repaint)
+            if (Settings == null || Event.current.type != EventType.Repaint) return;
+            Rect screen = new Rect(0, 0, Screen.width, Screen.height);
+            Color tint = ComputeAtmosphereTint();
+            if (tint.a > 0.002f && _pixelTex != null)
             {
-                Rect screen = new Rect(0, 0, Screen.width, Screen.height);
-                Color tint = ComputeAtmosphereTint();
-                if (tint.a > 0.002f && _pixelTex != null)
-                {
-                    Color prev = GUI.color;
-                    GUI.color = tint;
-                    GUI.DrawTexture(screen, _pixelTex);
-                    GUI.color = prev;
-                }
-
-                if (Settings.VignetteStrength > 0.01f && _vignetteTex != null)
-                {
-                    Color prev = GUI.color;
-                    GUI.color = new Color(1f, 1f, 1f, Mathf.Clamp01(Settings.VignetteStrength));
-                    GUI.DrawTexture(screen, _vignetteTex);
-                    GUI.color = prev;
-                }
+                Color prev = GUI.color;
+                GUI.color = tint;
+                GUI.DrawTexture(screen, _pixelTex);
+                GUI.color = prev;
             }
 
-            if (_showPanel)
+            if (Settings.VignetteStrength > 0.01f && _vignetteTex != null)
             {
-                GameUiStyle.BeginFrame();
-                _windowRect = GUI.Window(941204, _windowRect, DrawWindow, "VisualPolish (F9)", GameUiStyle.WindowStyle);
-                GameUiStyle.DrawTooltip(949003);
+                Color prev = GUI.color;
+                GUI.color = new Color(1f, 1f, 1f, Mathf.Clamp01(Settings.VignetteStrength));
+                GUI.DrawTexture(screen, _vignetteTex);
+                GUI.color = prev;
             }
+        }
+
+        private void DrawPanelGui()
+        {
+            if (!_showPanel || Settings == null) return;
+            GameUiStyle.BeginFrame();
+            _windowRect = GUI.Window(941204, _windowRect, DrawWindow, "VisualPolish (F9)", GameUiStyle.WindowStyle);
+            GameUiStyle.DrawTooltip(949003);
         }
 
         private void DrawWindow(int id)
         {
-            GameUiStyle.DrawCloseButton(_windowRect, () => _showPanel = false);
+            GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             GameUiStyle.Label($"Preset: {Settings.Preset}", "Active Lighting Preset|Current atmospheric color grade applied across the map.", isHeader: true);
 
             if (GameUiStyle.Button(
                 "Cycle Visual Preset",
                 "Cycle Lighting Preset|Switch between Vanilla, Crisp Vibrant, Golden Hour, Moonlit Night, Parchment Atlas, and Mocha Twilight.|Turns off Dynamic Day/Night"))
             {
-                int count = Enum.GetValues(typeof(VisualPreset)).Length;
-                Settings.Preset = (VisualPreset)(((int)Settings.Preset + 1) % count);
-                Settings.DynamicDayNightCycle = false;
-                Settings.Save(_declare.FolderPath);
+                CyclePreset();
             }
 
             if (GameUiStyle.ToggleButton(
@@ -191,8 +251,7 @@ namespace VisualPolish
                 Settings.DynamicDayNightCycle,
                 "Dynamic Day/Night Cycle|Smoothly shifts lighting from golden dawn to bright noon, warm dusk, and cool moonlit night."))
             {
-                Settings.DynamicDayNightCycle = !Settings.DynamicDayNightCycle;
-                Settings.Save(_declare.FolderPath);
+                ToggleDayNight();
             }
 
             GUILayout.Space(6);
@@ -205,6 +264,7 @@ namespace VisualPolish
             if (Mathf.Abs(newVig - Settings.VignetteStrength) > 0.005f)
             {
                 Settings.VignetteStrength = newVig;
+                SyncRunners();
             }
 
             float newTint = GameUiStyle.SliderRow(
@@ -224,7 +284,7 @@ namespace VisualPolish
                 Config.ui_main_hidden,
                 "Photo Mode|Hides WorldBox's main interface for clean map screenshots.|Press F6 anytime to toggle back"))
             {
-                Config.ui_main_hidden = !Config.ui_main_hidden;
+                TogglePhotoMode();
             }
 
             if (GameUiStyle.Button(

@@ -117,6 +117,24 @@ namespace SuiteHub
             GUI.DragWindow();
         }
 
+        public static string CyclePresetSummary()
+        {
+            int layoutCount = Enum.GetValues(typeof(ContinentLayout)).Length;
+            _layout = (ContinentLayout)(((int)_layout + 1) % layoutCount);
+            if (_layout == ContinentLayout.TwinContinentsEastWest)
+            {
+                _sizeIdx = (_sizeIdx + 1) % SizePresets.Length;
+            }
+            var preset = SizePresets[_sizeIdx];
+            return $"World Builder: {_layout} · {preset.label}";
+        }
+
+        public static string CurrentSummary()
+        {
+            var preset = SizePresets[_sizeIdx];
+            return $"{_layout} · {preset.label}";
+        }
+
         public static void GenerateNow()
         {
             var world = MapBox.instance;

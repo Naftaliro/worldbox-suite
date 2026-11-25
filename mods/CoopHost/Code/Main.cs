@@ -36,6 +36,8 @@ namespace CoopHost
         private int _lastTerrainH = -1;
 
         private bool _showHud = false;
+        private GuiOverlayRunner _cursorRunner;
+        private GuiOverlayRunner _panelRunner;
         private float _stateTimer = 0f;
         private float _terrainTimer = 0f;
         private string _lanIp = "127.0.0.1";
@@ -59,6 +61,10 @@ namespace CoopHost
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+            _cursorRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _cursorRunner.Configure(false, DrawGuestCursorGui);
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawPanelGui);
             Settings = CoopHostConfig.LoadOrCreate(_declare.FolderPath);
             _lanIp = CoopHttpServer.GetLocalLanIp();
 
@@ -86,7 +92,33 @@ namespace CoopHost
             Debug.Log("[CoopHost] Stopped and unloaded.");
         }
 
-        public void ToggleHud() => _showHud = !_showHud;
+        public void ToggleHud()
+        {
+            _showHud = !_showHud;
+            if (_panelRunner != null) _panelRunner.enabled = _showHud;
+        }
+
+        public bool GetState(string key)
+        {
+            if (key == "server") return _server != null && _server.IsRunning;
+            return false;
+        }
+
+        public string ToggleServer()
+        {
+            if (_server == null) return "Co-Op server not ready.";
+            if (_server.IsRunning)
+            {
+                _server.Stop();
+                if (_cursorRunner != null) _cursorRunner.enabled = false;
+                return "Co-Op God Mode Server: STOPPED";
+            }
+            _terrainRevision++;
+            bool ok = _server.Start();
+            return ok
+                ? $"Co-Op LIVE: http://{_lanIp}:{Settings.Port}  (PIN: {Settings.JoinPin})"
+                : $"Co-Op Error: {_server.LastError}";
+        }
 
         private void Update()
         {
@@ -99,6 +131,12 @@ namespace CoopHost
 
             if (_server == null || !_server.IsRunning || MapBox.instance == null) return;
 
+            bool guestCursorVisible = Settings.ShowGuestCursorInGame && _guestX >= 0 && Time.unscaledTime - _guestLastSeen < 12f;
+            if (_cursorRunner != null && _cursorRunner.enabled != guestCursorVisible)
+            {
+                _cursorRunner.enabled = guestCursorVisible;
+            }
+
             // 1. Drain incoming guest actions safely on Unity's main thread
             int processed = 0;
             while (processed < 24 && _actionQueue.TryDequeue(out CoopActionRequest req))
@@ -107,9 +145,12 @@ namespace CoopHost
                 processed++;
             }
 
-            // 2. Refresh live state snapshot at ~4 Hz
+            // Skip main-thread JSON & terrain raster serialization when no co-op browser client is connected
+            if (!_server.HasRecentClient) return;
+
+            // 2. Refresh live state snapshot at ~3 Hz
             _stateTimer += Time.unscaledDeltaTime;
-            if (_stateTimer >= 0.25f)
+            if (_stateTimer >= 0.35f)
             {
                 _stateTimer = 0f;
                 RefreshStateSnapshot();
@@ -117,7 +158,7 @@ namespace CoopHost
 
             // 3. Refresh terrain raster when world size changes or terrain was painted
             _terrainTimer += Time.unscaledDeltaTime;
-            if (_terrainTimer >= 1.2f)
+            if (_terrainTimer >= 1.5f)
             {
                 _terrainTimer = 0f;
                 if (_lastBuiltTerrainRev != _terrainRevision || _lastTerrainW != MapBox.width || _lastTerrainH != MapBox.height)
@@ -506,29 +547,27 @@ namespace CoopHost
             _cursorLabelStyle.normal.textColor = new Color(1.0f, 0.875f, 0.45f);
         }
 
-        private void OnGUI()
+        private void DrawGuestCursorGui()
         {
-            if (Settings == null) return;
+            if (Settings == null || !Settings.ShowGuestCursorInGame || _guestX < 0 || Time.unscaledTime - _guestLastSeen >= 12f) return;
+            if (Event.current.type != EventType.Repaint) return;
+            Camera cam = Camera.main;
+            if (cam == null) return;
 
-            // Draw live Guest Cursor right inside your WorldBox screen
-            if (Settings.ShowGuestCursorInGame && _guestX >= 0 && Time.unscaledTime - _guestLastSeen < 12f && Event.current.type == EventType.Repaint)
+            EnsureCursorStyles();
+            Vector3 scr = cam.WorldToScreenPoint(new Vector3(_guestX, _guestY, 0f));
+            if (scr.z >= 0f)
             {
-                Camera cam = Camera.main;
-                if (cam != null)
-                {
-                    EnsureCursorStyles();
-                    Vector3 scr = cam.WorldToScreenPoint(new Vector3(_guestX, _guestY, 0f));
-                    if (scr.z >= 0f)
-                    {
-                        float sx = scr.x;
-                        float sy = Screen.height - scr.y;
-                        GUI.DrawTexture(new Rect(sx - 14f, sy - 14f, 28f, 28f), _cursorTex);
-                        GUI.Label(new Rect(sx - 60f, sy - 30f, 120f, 16f), _guestName, _cursorLabelStyle);
-                    }
-                }
+                float sx = scr.x;
+                float sy = Screen.height - scr.y;
+                GUI.DrawTexture(new Rect(sx - 14f, sy - 14f, 28f, 28f), _cursorTex);
+                GUI.Label(new Rect(sx - 60f, sy - 30f, 120f, 16f), _guestName, _cursorLabelStyle);
             }
+        }
 
-            if (!_showHud) return;
+        private void DrawPanelGui()
+        {
+            if (!_showHud || Settings == null) return;
             GameUiStyle.BeginFrame();
             _windowRect = GUI.Window(941216, _windowRect, DrawHud, "CoopHost: Shared God Mode (Alt+C)", GameUiStyle.WindowStyle);
             GameUiStyle.DrawTooltip(949009);
@@ -536,7 +575,7 @@ namespace CoopHost
 
         private void DrawHud(int id)
         {
-            GameUiStyle.DrawCloseButton(_windowRect, () => _showHud = false);
+            GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             bool running = _server != null && _server.IsRunning;
             GameUiStyle.Label($"Status: {(running ? "HOSTING LIVE" : "STOPPED")}", "Co-Op Server Status|When HOSTING LIVE, a second player can open your URL in any browser and share god powers with you.", isHeader: true);
             GameUiStyle.Label($"LAN URL: http://{_lanIp}:{Settings.Port}", "Join Address|Have your friend open this URL in their browser on the same Wi-Fi/LAN, or forward port " + Settings.Port + " with Tailscale or playit.gg.");

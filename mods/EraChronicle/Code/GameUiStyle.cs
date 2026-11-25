@@ -4,6 +4,26 @@ using UnityEngine;
 namespace EraChronicle
 {
     /// <summary>
+    /// Dedicated IMGUI runner that stays disabled (0.00ms Unity IMGUI overhead) when no overlay/panel is visible.
+    /// </summary>
+    public class GuiOverlayRunner : MonoBehaviour
+    {
+        public Action OnGuiCallback;
+
+        public void Configure(bool useLayout, Action callback)
+        {
+            useGUILayout = useLayout;
+            OnGuiCallback = callback;
+            enabled = false;
+        }
+
+        private void OnGUI()
+        {
+            OnGuiCallback?.Invoke();
+        }
+    }
+
+    /// <summary>
     /// WorldBox-matched pixel-framed IMGUI styling and native-style hover tooltip renderer.
     /// Tooltip text supports "Title|Description" or "Title|Description|Hint".
     /// </summary>

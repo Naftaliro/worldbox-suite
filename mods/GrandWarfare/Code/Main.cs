@@ -25,6 +25,7 @@ namespace GrandWarfare
         private Harmony _harmony;
 
         private bool _showWarRoom = false;
+        private GuiOverlayRunner _panelRunner;
         private float _supplyTimer = 0f;
         private float _navalTimer = 0f;
         private Rect _windowRect = new Rect(610, 86, 325, 325);
@@ -38,6 +39,8 @@ namespace GrandWarfare
             Instance = this;
             _declare = pModDecl;
             _gameObject = pGameObject;
+            _panelRunner = pGameObject.AddComponent<GuiOverlayRunner>();
+            _panelRunner.Configure(true, DrawGui);
             Settings = GrandWarfareConfig.LoadOrCreate(_declare.FolderPath);
 
             try
@@ -58,7 +61,67 @@ namespace GrandWarfare
             Debug.Log("[GrandWarfare] Unloaded.");
         }
 
-        public void ToggleHud() => _showWarRoom = !_showWarRoom;
+        public void ToggleHud()
+        {
+            _showWarRoom = !_showWarRoom;
+            if (_panelRunner != null) _panelRunner.enabled = _showWarRoom;
+        }
+
+        public bool GetState(string key)
+        {
+            if (Settings == null) return false;
+            switch (key)
+            {
+                case "naval": return Settings.EnableNavalCombat;
+                case "coastal": return Settings.EnableCoastalBombardment;
+                case "blockades": return Settings.EnableNavalBlockades;
+                case "supply": return Settings.EnableSupplyAttrition;
+                case "pacts": return Settings.EnableDefensePacts;
+                default: return false;
+            }
+        }
+
+        public string ToggleNavalCombat()
+        {
+            Settings.EnableNavalCombat = !Settings.EnableNavalCombat;
+            Settings.Save(_declare.FolderPath);
+            return $"Naval Broadsides: {(Settings.EnableNavalCombat ? "ON" : "OFF")}";
+        }
+
+        public string ToggleCoastalBombardment()
+        {
+            Settings.EnableCoastalBombardment = !Settings.EnableCoastalBombardment;
+            Settings.Save(_declare.FolderPath);
+            return $"Coastal Bombardment: {(Settings.EnableCoastalBombardment ? "ON" : "OFF")}";
+        }
+
+        public string ToggleNavalBlockades()
+        {
+            Settings.EnableNavalBlockades = !Settings.EnableNavalBlockades;
+            Settings.Save(_declare.FolderPath);
+            return $"Naval Port Blockades: {(Settings.EnableNavalBlockades ? "ON" : "OFF")}";
+        }
+
+        public string ToggleSupplyAttrition()
+        {
+            Settings.EnableSupplyAttrition = !Settings.EnableSupplyAttrition;
+            Settings.Save(_declare.FolderPath);
+            return $"Supply Line Attrition: {(Settings.EnableSupplyAttrition ? "ON" : "OFF")}";
+        }
+
+        public string ToggleDefensePacts()
+        {
+            Settings.EnableDefensePacts = !Settings.EnableDefensePacts;
+            Settings.Save(_declare.FolderPath);
+            return $"Mutual Defense Pacts: {(Settings.EnableDefensePacts ? "ON" : "OFF")}";
+        }
+
+        public string FormTopDefensePact()
+        {
+            int before = DefensePacts.Count;
+            DiplomacyPactSystem.TryLinkTopPeacefulKingdoms();
+            return DefensePacts.Count > before ? "Formed defense pact between top 2 peaceful kingdoms!" : "Defense pact refreshed for top peaceful kingdoms.";
+        }
 
         private void Update()
         {
@@ -66,7 +129,7 @@ namespace GrandWarfare
 
             if (Input.GetKeyDown(Settings.WarRoomKey))
             {
-                _showWarRoom = !_showWarRoom;
+                ToggleHud();
             }
 
             if (Config.paused || MapBox.instance == null) return;
@@ -97,7 +160,7 @@ namespace GrandWarfare
             }
         }
 
-        private void OnGUI()
+        private void DrawGui()
         {
             if (!_showWarRoom || Settings == null) return;
             GameUiStyle.BeginFrame();
@@ -107,7 +170,7 @@ namespace GrandWarfare
 
         private void DrawWarRoom(int id)
         {
-            GameUiStyle.DrawCloseButton(_windowRect, () => _showWarRoom = false);
+            GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             var world = MapBox.instance;
             long activeWars = world?.wars != null ? world.wars.countActiveWars() : 0;
 
@@ -243,12 +306,9 @@ namespace GrandWarfare
             }
         }
 
-        private static readonly FieldInfo InsideBoatField =
-            AccessTools.Field(typeof(Actor), "is_inside_boat");
-
         public static bool IsInsideBoat(Actor a)
         {
-            return a != null && InsideBoatField != null && InsideBoatField.GetValue(a) is bool b && b;
+            return a != null && a.is_inside_boat;
         }
 
         private static Actor FindEnemyNearCoast(Actor ship, List<Actor> alive, float maxDistSq)
