@@ -10,6 +10,9 @@ from tools.wbox import (
     StitchOptions,
     decode_tiles,
     encode_tiles,
+    generate_template_world,
+    is_template_id,
+    list_templates,
     load_wbox,
     render_map_png_bytes,
     save_wbox,
@@ -296,6 +299,75 @@ class TestWboxToolkit(unittest.TestCase):
             self.assertEqual(en2, wb_root / "Mods")
             self.assertEqual(dis1, wb_root / "Mods_Disabled")
             self.assertEqual(dis2, wb_root / "Mods_Disabled")
+
+    def test_procedural_templates_valid_and_stitchable(self) -> None:
+        expected_ids = [
+            "template:continents",
+            "template:pangaea",
+            "template:archipelago",
+            "template:ring_atoll",
+        ]
+        listed_ids = [t["id"] for t in list_templates()]
+        self.assertEqual(listed_ids, expected_ids)
+
+        generated = []
+        for tid in expected_ids:
+            self.assertTrue(is_template_id(tid))
+            world = generate_template_world(tid)
+            self.assertEqual(world["saveVersion"], 17)
+            self.assertEqual(world["width"], 4)
+            self.assertEqual(world["height"], 4)
+            self.assertEqual(verify_save(world), [])
+
+            summary = summarize_save(world)
+            self.assertEqual(summary["width_tiles"], 256)
+            self.assertEqual(summary["height_tiles"], 256)
+            self.assertGreater(summary["land_percent"], 15.0)
+            self.assertLess(summary["land_percent"], 85.0)
+
+            png = render_map_png_bytes(world, scale=1)
+            self.assertTrue(png.startswith(b"\x89PNG\r\n\x1a\n"))
+            generated.append(world)
+
+        # Stitch two templates side-by-side
+        row_stitched = stitch_worlds(
+            generated[:2],
+            StitchOptions(
+                name="Continents + Pangaea",
+                layout="row",
+                gap_chunks=2,
+                coast_blend=True,
+                archipelago=True,
+            ),
+        )
+        self.assertEqual(verify_save(row_stitched), [])
+        self.assertEqual(row_stitched["width"], 10)
+        self.assertEqual(row_stitched["height"], 4)
+
+        # Stitch all 4 templates into a 2x2 grid
+        grid_stitched = stitch_worlds(
+            generated,
+            StitchOptions(
+                name="Four Realms",
+                layout="grid",
+                gap_chunks=1,
+                coast_blend=True,
+                archipelago=True,
+            ),
+        )
+        self.assertEqual(verify_save(grid_stitched), [])
+        self.assertEqual(grid_stitched["width"], 9)
+        self.assertEqual(grid_stitched["height"], 9)
+
+        # Stitch a procedural template with a populated synthetic world
+        populated = _make_synthetic_world("Settled Isle", 2, 2, "soil_high:grass_high")
+        mixed = stitch_worlds(
+            [generated[0], populated],
+            StitchOptions(name="Template + Colony", layout="row", gap_chunks=1, mode="full"),
+        )
+        self.assertEqual(verify_save(mixed), [])
+        self.assertEqual(len(mixed["kingdoms"]), 1)
+        self.assertEqual(len(mixed["actors_data"]), 1)
 
 
 if __name__ == "__main__":

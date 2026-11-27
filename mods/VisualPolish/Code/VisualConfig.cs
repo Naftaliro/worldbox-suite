@@ -26,6 +26,8 @@ namespace VisualPolish
         public bool UnlockCloseZoom = true;
         public float CloseZoomMin = 2.5f;
         public float StrategicBorderBoost = 1.25f;
+        public bool AutoDistinctKingdomColors = true;
+        public bool EnhancedBorders = true;
         public bool AlwaysDayClientSide = false;
         public bool LockAgeOfHope = false;
 

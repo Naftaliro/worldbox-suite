@@ -159,6 +159,7 @@ namespace ApexFactions
                 {
                     City newCity = leader.city;
                     Kingdom newKingdom = leader.kingdom;
+                    WardenKingdomIds.Add(newKingdom.id);
                     for (int i = 1; i < settlers.Count; i++)
                     {
                         try
@@ -423,17 +424,29 @@ namespace ApexFactions
         // 3. Refuse premature peace treaties while aggressor is still above the mercy threshold
         [HarmonyPrefix]
         [HarmonyPatch(typeof(WarManager), nameof(WarManager.endWar))]
-        private static bool EndWarPrefix(War pWar)
+        private static bool EndWarPrefix(War pWar, WarWinner pWinner)
         {
             try
             {
-                if (_allowingMercifulCeasefire || pWar == null || Main.Settings == null || !Main.Settings.EnableWardenDoctrine)
+                if (_allowingMercifulCeasefire || pWinner == WarWinner.Merged || pWar == null || Main.Settings == null || !Main.Settings.EnableWardenDoctrine)
                     return true;
 
                 if (ActiveRetaliations.TryGetValue(pWar.id, out RetaliationTracker tr))
                 {
-                    Kingdom aggressor = MapBox.instance?.kingdoms?.get(tr.AggressorKingdomId);
-                    if (aggressor != null && aggressor.isAlive() && aggressor.getPopulationPeople() > tr.MercyTargetPop)
+                    if (pWar.getMainAttacker() == null || pWar.getMainDefender() == null)
+                        return true;
+
+                    var kingdoms = MapBox.instance?.kingdoms;
+                    Kingdom aggressor = kingdoms?.get(tr.AggressorKingdomId);
+                    Kingdom warden = kingdoms?.get(tr.WardenKingdomId);
+
+                    if (aggressor == null || !aggressor.isAlive() || aggressor.countCities() <= 0 ||
+                        warden == null || !warden.isAlive() || warden.countCities() <= 0)
+                    {
+                        return true;
+                    }
+
+                    if (aggressor.getPopulationPeople() > tr.MercyTargetPop)
                     {
                         return false; // Relentless retaliation until mercy target is reached
                     }
@@ -441,6 +454,123 @@ namespace ApexFactions
             }
             catch { }
             return true;
+        }
+
+        private static readonly AccessTools.FieldRef<City, Kingdom> CityKingdomRef = InitCityKingdomRef();
+        private static readonly AccessTools.FieldRef<Actor, ActorData> ActorDataRef = InitActorDataRef();
+
+        private static AccessTools.FieldRef<City, Kingdom> InitCityKingdomRef()
+        {
+            try { return AccessTools.FieldRefAccess<City, Kingdom>("kingdom"); }
+            catch { return null; }
+        }
+
+        private static AccessTools.FieldRef<Actor, ActorData> InitActorDataRef()
+        {
+            try { return AccessTools.FieldRefAccess<Actor, ActorData>("data"); }
+            catch { return null; }
+        }
+
+        // 4. Warden Tradition Lock: Wardens never join non-Warden civ cities
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(Actor), nameof(Actor.joinCity))]
+        private static bool JoinCityPrefix(Actor __instance, City pCity)
+        {
+            try
+            {
+                if (__instance?.asset?.id == WardenSpeciesRegistry.WardenAssetId && pCity != null)
+                {
+                    Kingdom cityKingdom = CityKingdomRef != null ? CityKingdomRef(pCity) : null;
+                    if (cityKingdom != null && cityKingdom.isCiv() && !IsWardenKingdom(cityKingdom))
+                    {
+                        return false;
+                    }
+                }
+            }
+            catch { }
+            return true;
+        }
+
+        // 5. Warden Tradition Lock: Wardens never defect to non-Warden civ kingdoms
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(Actor), "setKingdom")]
+        private static bool SetKingdomPrefix(Actor __instance, Kingdom pKingdomToSet)
+        {
+            try
+            {
+                if (__instance?.asset?.id == WardenSpeciesRegistry.WardenAssetId &&
+                    pKingdomToSet != null && pKingdomToSet.isCiv() &&
+                    !IsWardenKingdom(pKingdomToSet))
+                {
+                    return false;
+                }
+            }
+            catch { }
+            return true;
+        }
+
+        // 6. Warden Tradition Lock: Warden kingdoms always crown a Warden king if one is alive
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(Kingdom), nameof(Kingdom.setKing))]
+        private static void SetKingPrefix(Kingdom __instance, ref Actor pActor, bool pFromLoad)
+        {
+            try
+            {
+                if (pFromLoad || __instance == null || !IsWardenKingdom(__instance))
+                    return;
+
+                if (pActor == null || pActor.asset?.id == WardenSpeciesRegistry.WardenAssetId)
+                    return;
+
+                Actor bestWarden = FindStrongestAliveWarden(__instance);
+                if (bestWarden != null)
+                {
+                    if (bestWarden.city != null && bestWarden.city.leader == bestWarden)
+                    {
+                        bestWarden.city.removeLeader();
+                    }
+                    pActor = bestWarden;
+                }
+            }
+            catch { }
+        }
+
+        private static Actor FindStrongestAliveWarden(Kingdom kingdom)
+        {
+            if (kingdom == null) return null;
+
+            Actor best = null;
+            int bestLevel = -1;
+            int bestKills = -1;
+            int bestMaxHp = -1;
+
+            var units = kingdom.getUnits();
+            if (units == null) return null;
+
+            foreach (Actor u in units)
+            {
+                if (u == null || !u.isAlive()) continue;
+                if (u.asset == null || u.asset.is_boat) continue;
+                if (u.asset.id != WardenSpeciesRegistry.WardenAssetId) continue;
+
+                ActorData actorData = ActorDataRef != null ? ActorDataRef(u) : null;
+                int level = actorData != null ? actorData.level : u.level;
+                int kills = actorData != null ? actorData.kills : 0;
+                int maxHp = u.getMaxHealth();
+
+                if (best == null ||
+                    level > bestLevel ||
+                    (level == bestLevel && kills > bestKills) ||
+                    (level == bestLevel && kills == bestKills && maxHp > bestMaxHp))
+                {
+                    best = u;
+                    bestLevel = level;
+                    bestKills = kills;
+                    bestMaxHp = maxHp;
+                }
+            }
+
+            return best;
         }
 
         public static WorldTile FindSafeLandNearCamera()

@@ -58,8 +58,9 @@ namespace CoreScale
         {
             if (Main.Settings == null || !Main.Settings.UnlockParallelism) return;
 
-            Config.parallel_jobs_updater = true;
-            // Keep parallel_chunk_manager off: enabling it races MapRegion rebuilds against RegionPathFinder
+            // Keep both parallel flags off: parallel_jobs_updater races EnemyFinderContainer.getData
+            // on disposed kingdoms on high-thread CPUs, and parallel_chunk_manager races RegionPathFinder.
+            Config.parallel_jobs_updater = false;
             Config.parallel_chunk_manager = false;
 
             // Tune Unity incremental GC slice to 2ms so Mono avoids big stop-the-world hitches
@@ -293,6 +294,55 @@ namespace CoreScale
                 return false;
             }
             _frameCount++;
+            return true;
+        }
+    }
+
+    // Guard EnemyFinderContainer.getData against disposed/null kingdoms so it never throws NRE
+    [HarmonyPatch(typeof(EnemyFinderContainer))]
+    public static class EnemyFinderSafetyPatch
+    {
+        private static readonly AccessTools.FieldRef<EnemyFinderContainer, Kingdom> KingdomRef = InitKingdomRef();
+
+        private static AccessTools.FieldRef<EnemyFinderContainer, Kingdom> InitKingdomRef()
+        {
+            try
+            {
+                return AccessTools.FieldRefAccess<EnemyFinderContainer, Kingdom>("_kingdom");
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(nameof(EnemyFinderContainer.getData))]
+        private static bool GetDataPrefix(EnemyFinderContainer __instance, MapChunk pChunk, ref EnemyFinderData __result)
+        {
+            try
+            {
+                if (__instance == null || pChunk == null)
+                {
+                    __result = new EnemyFinderData();
+                    return false;
+                }
+
+                if (KingdomRef != null)
+                {
+                    Kingdom kingdom = KingdomRef(__instance);
+                    if (kingdom == null || kingdom.asset == null)
+                    {
+                        __result = new EnemyFinderData();
+                        return false;
+                    }
+                }
+            }
+            catch
+            {
+                __result = new EnemyFinderData();
+                return false;
+            }
             return true;
         }
     }

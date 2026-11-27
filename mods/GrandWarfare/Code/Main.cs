@@ -26,12 +26,13 @@ namespace GrandWarfare
 
         private bool _showWarRoom = false;
         private GuiOverlayRunner _panelRunner;
-        private int _warRoomTab = 0; // 0 = Warfare & Logistics, 1 = Intelligence & Spies
+        private int _warRoomTab = 0; // 0 = Warfare & Logistics, 1 = Intelligence & Spies, 2 = Geopolitics & Trade
         private Vector2 _intelScroll;
+        private Vector2 _geoScroll;
         private float _supplyTimer = 0f;
         private float _navalTimer = 0f;
         private float _lastUpdateWarnTime = -99f;
-        private Rect _windowRect = new Rect(610, 86, 365, 420);
+        private Rect _windowRect = new Rect(590, 86, 405, 445);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -82,12 +83,15 @@ namespace GrandWarfare
                 case "pacts": return Settings.EnableDefensePacts;
                 case "espionage": return Settings.EnableEspionage;
                 case "espionage_chaotic": return Settings.ChaoticEspionageMode;
+                case "geopolitics": return Settings.EnableGeopoliticsAndTrade;
+                case "warfare_suite": return Settings.EnableEspionage && Settings.EnableGeopoliticsAndTrade;
                 default: return false;
             }
         }
 
         public string ToggleNavalCombat()
         {
+            if (Settings == null) return "";
             Settings.EnableNavalCombat = !Settings.EnableNavalCombat;
             Settings.Save(_declare.FolderPath);
             return $"Naval Broadsides: {(Settings.EnableNavalCombat ? "ON" : "OFF")}";
@@ -95,6 +99,7 @@ namespace GrandWarfare
 
         public string ToggleCoastalBombardment()
         {
+            if (Settings == null) return "";
             Settings.EnableCoastalBombardment = !Settings.EnableCoastalBombardment;
             Settings.Save(_declare.FolderPath);
             return $"Coastal Bombardment: {(Settings.EnableCoastalBombardment ? "ON" : "OFF")}";
@@ -102,6 +107,7 @@ namespace GrandWarfare
 
         public string ToggleNavalBlockades()
         {
+            if (Settings == null) return "";
             Settings.EnableNavalBlockades = !Settings.EnableNavalBlockades;
             Settings.Save(_declare.FolderPath);
             return $"Naval Port Blockades: {(Settings.EnableNavalBlockades ? "ON" : "OFF")}";
@@ -109,6 +115,7 @@ namespace GrandWarfare
 
         public string ToggleSupplyAttrition()
         {
+            if (Settings == null) return "";
             Settings.EnableSupplyAttrition = !Settings.EnableSupplyAttrition;
             Settings.Save(_declare.FolderPath);
             return $"Supply Line Attrition: {(Settings.EnableSupplyAttrition ? "ON" : "OFF")}";
@@ -116,6 +123,7 @@ namespace GrandWarfare
 
         public string ToggleDefensePacts()
         {
+            if (Settings == null) return "";
             Settings.EnableDefensePacts = !Settings.EnableDefensePacts;
             Settings.Save(_declare.FolderPath);
             return $"Mutual Defense Pacts: {(Settings.EnableDefensePacts ? "ON" : "OFF")}";
@@ -123,6 +131,7 @@ namespace GrandWarfare
 
         public string ToggleEspionage()
         {
+            if (Settings == null) return "";
             Settings.EnableEspionage = !Settings.EnableEspionage;
             Settings.Save(_declare.FolderPath);
             return $"Kingdom Espionage & Counter-Intel: {(Settings.EnableEspionage ? "ON" : "OFF")}";
@@ -130,6 +139,7 @@ namespace GrandWarfare
 
         public string ToggleEspionageIntensity()
         {
+            if (Settings == null) return "";
             Settings.ChaoticEspionageMode = !Settings.ChaoticEspionageMode;
             Settings.Save(_declare.FolderPath);
             return $"Espionage Intensity: {(Settings.ChaoticEspionageMode ? "Active / Chaotic" : "Rare / Balanced")}";
@@ -138,6 +148,44 @@ namespace GrandWarfare
         public string DispatchSpyNow()
         {
             return EspionageSystem.DispatchSpyNow();
+        }
+
+        public string ToggleGeopoliticsAndTrade()
+        {
+            if (Settings == null) return "";
+            Settings.EnableGeopoliticsAndTrade = !Settings.EnableGeopoliticsAndTrade;
+            Settings.Save(_declare.FolderPath);
+            return $"Geopolitics & Alliance Trade: {(Settings.EnableGeopoliticsAndTrade ? "ON" : "OFF")}";
+        }
+
+        public string ToggleWarfareAndIntelBundle()
+        {
+            if (Settings == null) return "";
+            bool next = !(Settings.EnableEspionage && Settings.EnableGeopoliticsAndTrade);
+            Settings.EnableEspionage = next;
+            Settings.EnableGeopoliticsAndTrade = next;
+            Settings.EnableNavalCombat = next;
+            Settings.EnableCoastalBombardment = next;
+            Settings.EnableNavalBlockades = next;
+            Settings.EnableSupplyAttrition = next;
+            Settings.EnableDefensePacts = next;
+            Settings.Save(_declare.FolderPath);
+            return $"Warfare, Geopolitics & Intel: {(next ? "ON" : "OFF")}";
+        }
+
+        public string ArmoryBlessingAtTile(WorldTile tile)
+        {
+            return DivineInterventionSystem.ArmoryBlessingAtTile(tile);
+        }
+
+        public string AnointWarHeroAtTile(WorldTile tile)
+        {
+            return DivineInterventionSystem.AnointWarHeroAtTile(tile);
+        }
+
+        public string DeployMercenariesAtTile(WorldTile tile)
+        {
+            return DivineInterventionSystem.DeployMercenariesAtTile(tile);
         }
 
         public string GetWarCause(long warId)
@@ -164,11 +212,13 @@ namespace GrandWarfare
             try
             {
                 EspionageSystem.EnsureAssetsRegistered();
+                GeopoliticsAndTradeSystem.EnsureAssetsRegistered();
 
                 if (Config.paused || MapBox.instance == null) return;
 
                 float dt = Time.deltaTime;
                 EspionageSystem.Tick(dt);
+                GeopoliticsAndTradeSystem.Tick(dt);
 
                 if (Settings.EnableNavalCombat)
                 {
@@ -219,18 +269,25 @@ namespace GrandWarfare
 
             GUILayout.BeginHorizontal();
             if (GameUiStyle.ToggleButton(
-                "Warfare & Logistics",
+                "Warfare",
                 _warRoomTab == 0,
                 "Warfare & Logistics|Naval broadsides, coastal shelling, port blockades, supply attrition, and mutual defense pacts."))
             {
                 _warRoomTab = 0;
             }
             if (GameUiStyle.ToggleButton(
-                "Intelligence & Spies",
+                "Intel & Spies",
                 _warRoomTab == 1,
                 "Intelligence & Counter-Intelligence|Manage covert spy infiltration, palace coups, counter-intelligence, and peaceful throne takeovers."))
             {
                 _warRoomTab = 1;
+            }
+            if (GameUiStyle.ToggleButton(
+                "Geopolitics",
+                _warRoomTab == 2,
+                "Geopolitics & Alliance Trade|Inspect kingdom governments, trade specialties, and live cross-border alliance trade shipments."))
+            {
+                _warRoomTab = 2;
             }
             GUILayout.EndHorizontal();
 
@@ -240,9 +297,13 @@ namespace GrandWarfare
             {
                 DrawWarfareTab();
             }
-            else
+            else if (_warRoomTab == 1)
             {
                 DrawIntelligenceTab();
+            }
+            else
+            {
+                DrawGeopoliticsTab();
             }
 
             GameUiStyle.CaptureTooltip();
@@ -379,6 +440,91 @@ namespace GrandWarfare
                 for (int i = eventsSnapshot.Count - 1; i >= 0; i--)
                 {
                     GameUiStyle.Subtle("• " + eventsSnapshot[i]);
+                }
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        private void DrawGeopoliticsTab()
+        {
+            GameUiStyle.Label(
+                $"Shipments: {GeopoliticsAndTradeSystem.TotalShipments}  |  Volume: {GeopoliticsAndTradeSystem.TotalResourcesTraded}  |  Boats: {GeopoliticsAndTradeSystem.TradeBoatsLaunched}",
+                "Geopolitics & Trade Overview|Total real resource shipments delivered between allied capitals and trading vessels launched from coastal docks.",
+                isHeader: true);
+
+            if (GameUiStyle.ToggleButton(
+                $"Geopolitics & Alliance Trade: {(Settings.EnableGeopoliticsAndTrade ? "ON" : "OFF")}",
+                Settings.EnableGeopoliticsAndTrade,
+                "Kingdom Governments & Real Trade|Assigns each kingdom a government and trade specialty, and ships real food, war materials, and gold between allied capitals.|Saved automatically"))
+            {
+                ToggleGeopoliticsAndTrade();
+            }
+
+            if (GameUiStyle.Button(
+                "Run Alliance Trade Pulse",
+                "Manual Trade Pulse|Immediately runs government buffs and alliance trade shipments across all active alliances."))
+            {
+                string msg = GeopoliticsAndTradeSystem.RunTradePulseNow();
+                try { WorldTip.showNowTop(msg, false); } catch { }
+            }
+
+            GUILayout.Space(5);
+            _geoScroll = GUILayout.BeginScrollView(_geoScroll, GUILayout.Height(255));
+
+            GameUiStyle.Label("Kingdom Regimes & Specialties", "World Geopolitics|Each empire's persistent government and trade specialty. Click Gov or Spec to cycle them.", isHeader: true);
+            var world = MapBox.instance;
+            if (world?.kingdoms == null)
+            {
+                GameUiStyle.Subtle("Load a world to inspect kingdom regimes.");
+            }
+            else
+            {
+                int shown = 0;
+                var kingdomsSnapshot = new List<Kingdom>(world.kingdoms);
+                for (int i = 0; i < kingdomsSnapshot.Count && shown < 10; i++)
+                {
+                    Kingdom k = kingdomsSnapshot[i];
+                    if (k == null || !k.isAlive() || !k.isCiv()) continue;
+                    var st = GeopoliticsAndTradeSystem.GetOrCreateState(k);
+                    if (st == null) continue;
+
+                    string govLabel = GeopoliticsAndTradeSystem.FormatGovernment(st.Government);
+                    string specLabel = GeopoliticsAndTradeSystem.FormatSpecialty(st.Specialty);
+                    string tip = $"{k.name}|Government: {govLabel}\nTrade Specialty: {specLabel}\nShipments Sent: {st.ShipmentsSent}  |  Received: {st.ShipmentsReceived}";
+
+                    GUILayout.BeginHorizontal();
+                    GameUiStyle.Label($"• {k.name} · {govLabel} / {specLabel}", tip);
+                    if (GameUiStyle.Button("Gov", $"Cycle {k.name} Government|Switch between Monarchy, Republic, Collectivist, Merchant League, Military Junta, and Technocracy.", GUILayout.Width(38)))
+                    {
+                        GeopoliticsAndTradeSystem.CycleGovernment(k);
+                    }
+                    if (GameUiStyle.Button("Spec", $"Cycle {k.name} Specialty|Switch between Balanced, Breadbasket, Armory State, Maritime Hub, and Research Hub.", GUILayout.Width(42)))
+                    {
+                        GeopoliticsAndTradeSystem.CycleSpecialty(k);
+                    }
+                    GUILayout.EndHorizontal();
+                    shown++;
+                }
+
+                if (shown == 0)
+                {
+                    GameUiStyle.Subtle("No active civilized kingdoms yet.");
+                }
+            }
+
+            GUILayout.Space(6);
+            GameUiStyle.Label("Recent Alliance Trade Shipments", "Trade Ledger|Latest real food, metal, wood, stone, and gold shipments delivered between allied capitals.", isHeader: true);
+            if (GeopoliticsAndTradeSystem.RecentTradeLogs.Count == 0)
+            {
+                GameUiStyle.Subtle("No alliance trade shipments recorded yet.");
+            }
+            else
+            {
+                var logsSnapshot = new List<string>(GeopoliticsAndTradeSystem.RecentTradeLogs);
+                for (int i = logsSnapshot.Count - 1; i >= 0; i--)
+                {
+                    GameUiStyle.Subtle("• " + logsSnapshot[i]);
                 }
             }
 

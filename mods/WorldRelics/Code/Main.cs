@@ -57,6 +57,7 @@ namespace WorldRelics
         public void OnUnload()
         {
             TectonicDriftSystem.StopSilent();
+            InfrastructureSystem.Reset();
             DenseCitiesSystem.RestoreVanilla();
             _harmony?.UnpatchSelf();
             Debug.Log("[WorldRelics] Unloaded.");
@@ -77,14 +78,70 @@ namespace WorldRelics
                 case "bridges": return Settings.EnableSeaBridges;
                 case "ruins": return Settings.EnableRuinDecay;
                 case "dense_cities": return Settings.EnableDenseCities;
+                case "highways": return Settings.EnableImperialHighways;
+                case "citadels": return Settings.EnableCitadelCompounds;
+                case "infra": return Settings.EnableImperialHighways || Settings.EnableCitadelCompounds;
+                case "relics_cities":
+                    return Settings.EnableDenseCities
+                        || Settings.EnableImperialHighways
+                        || Settings.EnableCitadelCompounds
+                        || Settings.EnableCityWalls;
                 case "tectonic_slow": return Settings.TectonicSlowGeological;
                 case "tectonic_natural": return Settings.EnableNaturalTectonicEvents;
                 default: return false;
             }
         }
 
+        public string BuildInfrastructureNow()
+        {
+            int highways = InfrastructureSystem.BuildImperialHighways(force: true);
+            int citadels = InfrastructureSystem.BuildCitadelCompounds(force: true);
+            string msg;
+            if (highways > 0 || citadels > 0)
+            {
+                msg = $"Built {highways} imperial highway(s) and {citadels} fortified capital citadel(s)!";
+            }
+            else
+            {
+                msg = "No eligible capitals or city pairs needed new highways or citadels.";
+            }
+            _status = msg;
+            return msg;
+        }
+
+        public string ToggleInfrastructure()
+        {
+            if (Settings == null) return "";
+            bool next = !(Settings.EnableImperialHighways || Settings.EnableCitadelCompounds);
+            Settings.EnableImperialHighways = next;
+            Settings.EnableCitadelCompounds = next;
+            Settings.Save(_declare.FolderPath);
+            string msg = $"Imperial Highways & Citadels: {(next ? "ON" : "OFF")}";
+            _status = msg;
+            return msg;
+        }
+
+        public string ToggleRelicsAndCitiesBundle()
+        {
+            if (Settings == null) return "";
+            bool next = !GetState("relics_cities");
+            Settings.EnableDenseCities = next;
+            Settings.EnableCityWalls = next;
+            Settings.EnableSeaBridges = next;
+            Settings.EnableImperialHighways = next;
+            Settings.EnableCitadelCompounds = next;
+            DenseCitiesSystem.Apply(next);
+            Settings.Save(_declare.FolderPath);
+            string msg = next
+                ? "Dense Cities & Imperial Infrastructure: ON (highways, citadels, walls, bridges, dense housing)"
+                : "Dense Cities & Imperial Infrastructure: OFF (vanilla footprints restored)";
+            _status = msg;
+            return msg;
+        }
+
         public string ToggleDenseCities()
         {
+            if (Settings == null) return "";
             Settings.EnableDenseCities = !Settings.EnableDenseCities;
             DenseCitiesSystem.Apply(Settings.EnableDenseCities);
             Settings.Save(_declare.FolderPath);
@@ -95,6 +152,7 @@ namespace WorldRelics
 
         public string ToggleCityWalls()
         {
+            if (Settings == null) return "";
             Settings.EnableCityWalls = !Settings.EnableCityWalls;
             Settings.Save(_declare.FolderPath);
             return $"Auto City Walls: {(Settings.EnableCityWalls ? "ON" : "OFF")}";
@@ -102,6 +160,7 @@ namespace WorldRelics
 
         public string ToggleSeaBridges()
         {
+            if (Settings == null) return "";
             Settings.EnableSeaBridges = !Settings.EnableSeaBridges;
             Settings.Save(_declare.FolderPath);
             return $"Auto Sea Strait Bridges: {(Settings.EnableSeaBridges ? "ON" : "OFF")}";
@@ -109,6 +168,7 @@ namespace WorldRelics
 
         public string ToggleRuinDecay()
         {
+            if (Settings == null) return "";
             Settings.EnableRuinDecay = !Settings.EnableRuinDecay;
             Settings.Save(_declare.FolderPath);
             return $"Centuries Ruin Decay: {(Settings.EnableRuinDecay ? "ON" : "OFF")}";
@@ -188,6 +248,7 @@ namespace WorldRelics
 
                 float dt = Time.deltaTime;
                 TectonicDriftSystem.Tick(dt);
+                InfrastructureSystem.Tick(dt);
 
                 _infraTimer += dt;
                 if (_infraTimer >= 18f)
@@ -228,7 +289,7 @@ namespace WorldRelics
             GameUiStyle.DrawCloseButton(_windowRect, ToggleHud);
             _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(440));
 
-            GameUiStyle.Label($"Walls Built: {InfrastructureBuilder.WallsBuilt}  |  Bridges: {InfrastructureBuilder.BridgesBuilt}", "Infrastructure Built|Total city perimeter wall tiles and stone sea bridges constructed in this session.", isHeader: true);
+            GameUiStyle.Label($"Walls: {InfrastructureBuilder.WallsBuilt} | Bridges: {InfrastructureBuilder.BridgesBuilt} | Highways: {InfrastructureSystem.HighwaysBuilt} | Citadels: {InfrastructureSystem.CitadelsBuilt}", "Infrastructure Built|Total city perimeter wall tiles, sea bridges, wide imperial highways, and fortified capital citadels built in this session.", isHeader: true);
             GameUiStyle.Label($"Tracked Ruin Sites: {RuinsDecaySystem.RuinSites.Count}", "Fallen Empires|Ruined cities whose abandoned walls and roads are slowly weathering over centuries.");
             GUILayout.Space(6);
 
@@ -238,6 +299,26 @@ namespace WorldRelics
                 "Dense Cities Mode|Tightens city building footprints, boosts residential and hall housing capacity (up to 2.5x on manors/halls), and speeds up building upgrades by 30%. Fully reversible to vanilla.|Saved automatically"))
             {
                 _status = ToggleDenseCities();
+            }
+
+            if (GameUiStyle.ToggleButton(
+                $"Imperial Highways (45+ pop): {(Settings.EnableImperialHighways ? "ON" : "OFF")}",
+                Settings.EnableImperialHighways,
+                "Wide Imperial Highways|Connects major friendly or allied cities (45+ pop) with 2-3 tile wide cobblestone highways and 2-tile stone bridges over narrow water gaps.|Saved automatically"))
+            {
+                Settings.EnableImperialHighways = !Settings.EnableImperialHighways;
+                Settings.Save(_declare.FolderPath);
+                _status = $"Imperial Highways: {(Settings.EnableImperialHighways ? "ON" : "OFF")}";
+            }
+
+            if (GameUiStyle.ToggleButton(
+                $"Fortified Capital Citadels (70+ pop): {(Settings.EnableCitadelCompounds ? "ON" : "OFF")}",
+                Settings.EnableCitadelCompounds,
+                "Fortified Citadel Compounds|Surrounds major capitals (70+ pop, 4+ zones) with a double-thick gated stone or iron fortress ring, paved crossroad, and gentle defender HP recovery.|Saved automatically"))
+            {
+                Settings.EnableCitadelCompounds = !Settings.EnableCitadelCompounds;
+                Settings.Save(_declare.FolderPath);
+                _status = $"Fortified Capital Citadels: {(Settings.EnableCitadelCompounds ? "ON" : "OFF")}";
             }
 
             if (GameUiStyle.ToggleButton(
@@ -268,6 +349,13 @@ namespace WorldRelics
             }
 
             GUILayout.Space(4);
+            if (GameUiStyle.Button(
+                "Build Imperial Highways & Citadels Now",
+                "Construct Highways & Capital Citadels Immediately|Links eligible friendly cities with wide paved highways and fortifies major capitals with double-wall gated citadels right now."))
+            {
+                BuildInfrastructureNow();
+            }
+
             if (GameUiStyle.Button(
                 "Fortify Large Cities Now",
                 "Build City Walls Immediately|Scans all eligible large cities and places gated defensive perimeter walls right now."))

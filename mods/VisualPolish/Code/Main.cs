@@ -21,7 +21,7 @@ namespace VisualPolish
         private float _cycleTime = 0f;
         private float _ageCheckTimer = 0f;
         private float _lastUpdateWarnTime = -99f;
-        private Rect _windowRect = new Rect(305, 86, 315, 395);
+        private Rect _windowRect = new Rect(305, 86, 315, 470);
 
         private Texture2D _vignetteTex;
         private Texture2D _pixelTex;
@@ -86,6 +86,9 @@ namespace VisualPolish
                 case "photo": return Config.ui_main_hidden;
                 case "always_day": return Settings.AlwaysDayClientSide;
                 case "age_hope": return Settings.LockAgeOfHope;
+                case "colors_borders": return Settings.AutoDistinctKingdomColors || Settings.EnhancedBorders;
+                case "distinct_colors": return Settings.AutoDistinctKingdomColors;
+                case "enhanced_borders": return Settings.EnhancedBorders;
                 default: return false;
             }
         }
@@ -140,6 +143,38 @@ namespace VisualPolish
             Settings.Save(_declare.FolderPath);
             DaylightAndAgePatches.ApplyLockAgeOfHope(Settings.LockAgeOfHope);
             return $"Lock Age of Hope: {(Settings.LockAgeOfHope ? "ON" : "OFF")}";
+        }
+
+        public string ToggleColorsAndBorders()
+        {
+            if (Settings == null) return "";
+            bool next = !(Settings.AutoDistinctKingdomColors || Settings.EnhancedBorders);
+            Settings.AutoDistinctKingdomColors = next;
+            Settings.EnhancedBorders = next;
+            Settings.Save(_declare.FolderPath);
+            KingdomColorAndBorderSystem.ApplyNow(runColorPass: next);
+            return $"Distinct Colors & Borders: {(next ? "ON" : "OFF")}";
+        }
+
+        public string ToggleAutoDistinctColors()
+        {
+            if (Settings == null) return "";
+            Settings.AutoDistinctKingdomColors = !Settings.AutoDistinctKingdomColors;
+            Settings.Save(_declare.FolderPath);
+            if (Settings.AutoDistinctKingdomColors)
+            {
+                KingdomColorAndBorderSystem.ApplyNow(runColorPass: true);
+            }
+            return $"Auto Distinct Kingdom Colors: {(Settings.AutoDistinctKingdomColors ? "ON" : "OFF")}";
+        }
+
+        public string ToggleEnhancedBorders()
+        {
+            if (Settings == null) return "";
+            Settings.EnhancedBorders = !Settings.EnhancedBorders;
+            Settings.Save(_declare.FolderPath);
+            KingdomColorAndBorderSystem.ApplyNow(runColorPass: false);
+            return $"Enhanced Borders: {(Settings.EnhancedBorders ? "ON" : "OFF")}";
         }
 
         private void BuildTextures()
@@ -198,6 +233,8 @@ namespace VisualPolish
                         DaylightAndAgePatches.EnforceAgeOfHopeIfLocked();
                     }
                 }
+
+                KingdomColorAndBorderSystem.Tick(Time.unscaledDeltaTime);
             }
             catch (Exception e)
             {
@@ -313,6 +350,22 @@ namespace VisualPolish
                 ToggleLockAgeOfHope();
             }
 
+            if (GameUiStyle.ToggleButton(
+                $"Distinct Kingdom Colors: {(Settings.AutoDistinctKingdomColors ? "ON" : "OFF")}",
+                Settings.AutoDistinctKingdomColors,
+                "Auto Distinct Kingdom Colors|Recolors newly colliding kingdoms when two active civs share nearly identical RGB territory colors.|Preserves already-distinct colors"))
+            {
+                ToggleAutoDistinctColors();
+            }
+
+            if (GameUiStyle.ToggleButton(
+                $"Enhanced Borders: {(Settings.EnhancedBorders ? "ON" : "OFF")}",
+                Settings.EnhancedBorders,
+                "Enhanced Territory Borders|Boosts border brightness and minimap opacity so kingdom borders read cleanly at any zoom."))
+            {
+                ToggleEnhancedBorders();
+            }
+
             GUILayout.Space(6);
             float newVig = GameUiStyle.SliderRow(
                 $"Vignette: {Settings.VignetteStrength:0.00}",
@@ -374,28 +427,6 @@ namespace VisualPolish
                 if (OrthoMinField != null && !OrthoMinField.IsLiteral && !OrthoMinField.IsInitOnly)
                 {
                     OrthoMinField.SetValue(__instance, Main.Settings.CloseZoomMin);
-                }
-            }
-            catch { }
-        }
-    }
-
-    [HarmonyPatch(typeof(ZoneCalculator))]
-    public static class StrategicBorderPatch
-    {
-        private static readonly FieldInfo BorderBrightnessField =
-            AccessTools.Field(typeof(ZoneCalculator), "border_brightness");
-
-        [HarmonyPostfix]
-        [HarmonyPatch("create")]
-        private static void CreatePostfix(ZoneCalculator __instance)
-        {
-            if (__instance == null || Main.Settings == null || BorderBrightnessField == null) return;
-            try
-            {
-                if (BorderBrightnessField.GetValue(__instance) is float cur)
-                {
-                    BorderBrightnessField.SetValue(__instance, Mathf.Clamp(cur * Main.Settings.StrategicBorderBoost, 0.5f, 2.0f));
                 }
             }
             catch { }

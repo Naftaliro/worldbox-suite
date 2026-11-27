@@ -293,13 +293,18 @@
           <h2 style="margin:0;">Stitch Configuration</h2>
           <button id="btn-stitch-clear" class="btn secondary" style="padding:4px 10px; font-size:12px;" title="Uncheck all selected worlds and clear the stitch preview">Clear Selection</button>
         </div>
-        <p class="muted" style="margin-top:0;">Check 2 or more worlds to combine into one larger playable .wbox save.</p>
-        <label class="muted" style="display:block; margin-bottom:10px;" title="Previous stitched maps are hidden by default so you don't accidentally re-stitch an old combined map">
-          <input id="st-include-outputs" type="checkbox" /> Include previous stitched outputs
-        </label>
+        <p class="muted" style="margin-top:0;">Check 2 or more worlds or built-in templates to combine into one larger playable .wbox save.</p>
+        <div class="muted" style="font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:0.4px; margin-bottom:6px; color:var(--lavender);">Built-in Templates</div>
+        <div id="stitch-templates" class="save-list" style="margin-bottom:12px;"></div>
+        <div class="row" style="justify-content:space-between; margin-bottom:6px;">
+          <span class="muted" style="font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:0.4px; color:var(--lavender);">Your Saved Worlds</span>
+          <label class="muted" style="font-size:12px;" title="Previous stitched maps are hidden by default so you don't accidentally re-stitch an old combined map">
+            <input id="st-include-outputs" type="checkbox" /> Include outputs
+          </label>
+        </div>
         <div id="stitch-picker" class="save-list" style="margin-bottom:10px;"></div>
         <div id="st-selection-summary" class="muted" style="margin-bottom:12px; padding:8px 10px; background:var(--surface0); border:1px solid var(--border); border-radius:8px;">
-          Selected (0): Check 2 or more worlds above.
+          Selected (0): Check 2 or more worlds or templates above.
         </div>
 
         <label class="field">Merged World Name
@@ -473,6 +478,7 @@
 <script>
 const state = {
   saves: [],
+  templates: [],
   selectedId: null,
   stitchOrder: [],
   lastStitchedId: null,
@@ -510,22 +516,37 @@ function statBox(label, val) {
   return `<div class="stat"><div class="label">${label}</div><div class="val">${val}</div></div>`;
 }
 
+function allSelectableWorlds() {
+  return [...state.saves, ...state.templates];
+}
+
 async function loadSaves() {
   const data = await api("/api/saves");
-  state.saves = data.saves.filter((s) => !s.error);
+  state.saves = (data.saves || []).filter((s) => !s.error);
+  if (Array.isArray(data.templates)) {
+    state.templates = data.templates;
+  } else {
+    try {
+      const tpl = await api("/api/templates");
+      state.templates = tpl.templates || [];
+    } catch {
+      state.templates = [];
+    }
+  }
   renderSaveLists();
-  if (!state.selectedId && state.saves.length) {
-    selectSave(state.saves[0].id);
+  const initialPool = state.saves.length ? state.saves : state.templates;
+  if (!state.selectedId && initialPool.length) {
+    selectSave(initialPool[0].id);
   }
 }
 
 function updateStitchSummary() {
   const el = document.getElementById("st-selection-summary");
   if (!el) return;
-  const byId = Object.fromEntries(state.saves.map((s) => [s.id, s]));
+  const byId = Object.fromEntries(allSelectableWorlds().map((s) => [s.id, s]));
   const picked = state.stitchOrder.map((id) => byId[id]).filter(Boolean);
   if (!picked.length) {
-    el.textContent = "Selected (0): Check 2 or more worlds above.";
+    el.textContent = "Selected (0): Check 2 or more worlds or templates above.";
     return;
   }
   const labels = picked.map((s, idx) => {
@@ -551,25 +572,67 @@ function clearStitchPreview(message = "Your combined continent map will appear h
   document.getElementById("st-stats").innerHTML = "";
 }
 
+function renderStitchPickerItem(container, s) {
+  const sum = s.summary;
+  const slotTag = s.slot_name ? `<span class="badge">${s.slot_name}</span> ` : "";
+  const tplTag = s.is_template ? `<span class="badge warn">template</span> ` : "";
+  const pick = document.createElement("label");
+  pick.className = "save-item";
+  pick.style.display = "block";
+  const orderIdx = state.stitchOrder.indexOf(s.id);
+  const checked = orderIdx >= 0;
+  if (checked) pick.classList.add("selected");
+  const orderBadge = checked ? `<span class="badge green">#${orderIdx + 1}</span> ` : "";
+  pick.title = s.description || `Include ${sum.name} (${s.filename}) in stitched world`;
+  const detailLine = s.is_template
+    ? `${sum.land_percent}% land · ${s.description || "Procedural continent template"}`
+    : `${s.filename} · ${sum.counts.kingdoms} kingdoms · ${sum.counts.actors} units`;
+  pick.innerHTML = `
+    <div class="title">
+      <span><input type="checkbox" ${checked ? "checked" : ""} /> ${orderBadge}${sum.name}</span>
+      <span>${tplTag}${slotTag}<span class="muted">${sum.width_chunks}x${sum.height_chunks}</span></span>
+    </div>
+    <div class="muted">${detailLine}</div>
+  `;
+  pick.querySelector("input").onchange = (e) => {
+    if (e.target.checked) {
+      if (!state.stitchOrder.includes(s.id)) state.stitchOrder.push(s.id);
+    } else {
+      state.stitchOrder = state.stitchOrder.filter((x) => x !== s.id);
+    }
+    renderSaveLists();
+  };
+  container.appendChild(pick);
+}
+
 function renderSaveLists() {
   const insList = document.getElementById("inspector-save-list");
+  const stTemplates = document.getElementById("stitch-templates");
   const stPicker = document.getElementById("stitch-picker");
   const includeOutputs = Boolean(document.getElementById("st-include-outputs")?.checked);
   insList.innerHTML = "";
+  if (stTemplates) stTemplates.innerHTML = "";
   stPicker.innerHTML = "";
 
-  const validIds = new Set(
-    state.saves
+  const validIds = new Set([
+    ...state.templates.map((t) => t.id),
+    ...state.saves
       .filter((s) => includeOutputs || s.bucket !== "output")
-      .map((s) => s.id)
-  );
+      .map((s) => s.id),
+  ]);
   state.stitchOrder = state.stitchOrder.filter((id) => validIds.has(id));
+
+  // Built-in procedural templates in Stitcher
+  if (stTemplates) {
+    if (!state.templates.length) {
+      stTemplates.innerHTML = '<div class="muted">No built-in templates available.</div>';
+    } else {
+      state.templates.forEach((t) => renderStitchPickerItem(stTemplates, t));
+    }
+  }
 
   if (!state.saves.length) {
     insList.innerHTML = '<div class="muted">No .wbox files found in saves folder.</div>';
-    stPicker.innerHTML = '<div class="muted">Upload or add .wbox files first.</div>';
-    updateStitchSummary();
-    return;
   }
 
   state.saves.forEach((s) => {
@@ -592,34 +655,36 @@ function renderSaveLists() {
       return;
     }
 
-    const pick = document.createElement("label");
-    pick.className = "save-item";
-    pick.style.display = "block";
-    const orderIdx = state.stitchOrder.indexOf(s.id);
-    const checked = orderIdx >= 0;
-    if (checked) pick.classList.add("selected");
-    const orderBadge = checked ? `<span class="badge green">#${orderIdx + 1}</span> ` : "";
-    pick.title = `Include ${sum.name} (${s.filename}) in stitched world`;
-    pick.innerHTML = `
-      <div class="title">
-        <span><input type="checkbox" ${checked ? "checked" : ""} /> ${orderBadge}${sum.name}</span>
-        <span>${slotTag}<span class="muted">${sum.width_chunks}x${sum.height_chunks}</span></span>
-      </div>
-      <div class="muted">${s.filename} · ${sum.counts.kingdoms} kingdoms · ${sum.counts.actors} units</div>
-    `;
-    pick.querySelector("input").onchange = (e) => {
-      if (e.target.checked) {
-        if (!state.stitchOrder.includes(s.id)) state.stitchOrder.push(s.id);
-      } else {
-        state.stitchOrder = state.stitchOrder.filter((x) => x !== s.id);
-      }
-      renderSaveLists();
-    };
-    stPicker.appendChild(pick);
+    renderStitchPickerItem(stPicker, s);
   });
 
+  // Also list built-in templates in Inspector so users can preview them directly
+  if (state.templates.length) {
+    const hdr = document.createElement("div");
+    hdr.className = "muted";
+    hdr.style.cssText = "font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:0.4px; margin-top:8px; color:var(--lavender);";
+    hdr.textContent = "Built-in Templates";
+    insList.appendChild(hdr);
+
+    state.templates.forEach((t) => {
+      const sum = t.summary;
+      const item = document.createElement("div");
+      item.className = "save-item" + (state.selectedId === t.id ? " selected" : "");
+      item.title = t.description || `Preview ${sum.name}`;
+      item.innerHTML = `
+        <div class="title">
+          <span>${sum.name}</span>
+          <span><span class="badge warn">template</span></span>
+        </div>
+        <div class="muted">${sum.width_chunks}x${sum.height_chunks} chunks · ${sum.land_percent}% land</div>
+      `;
+      item.onclick = () => selectSave(t.id);
+      insList.appendChild(item);
+    });
+  }
+
   if (!stPicker.children.length) {
-    stPicker.innerHTML = '<div class="muted">No source saves found. Upload .wbox files or enable "Include previous stitched outputs".</div>';
+    stPicker.innerHTML = '<div class="muted">No saved worlds yet — check 2+ Built-in Templates above or upload .wbox files.</div>';
   }
   updateStitchSummary();
 }
@@ -658,7 +723,7 @@ function updateInspectorImage() {
 function selectSave(id) {
   state.selectedId = id;
   renderSaveLists();
-  const s = state.saves.find((x) => x.id === id);
+  const s = allSelectableWorlds().find((x) => x.id === id);
   if (!s) return;
   const sum = s.summary;
   document.getElementById("ins-title").textContent = sum.name;
@@ -668,9 +733,9 @@ function selectSave(id) {
   const dl = document.getElementById("ins-download");
   dl.href = `/api/saves/${encodeURIComponent(id)}/download`;
   dl.style.display = "inline-block";
-  document.getElementById("ins-tweaks").style.display = "flex";
+  document.getElementById("ins-tweaks").style.display = s.is_template ? "none" : "flex";
   document.getElementById("ins-slot-export").style.display = "flex";
-  document.getElementById("ins-launcher").style.display = "flex";
+  document.getElementById("ins-launcher").style.display = s.is_template ? "none" : "flex";
   document.getElementById("twk-world-name").value = sum.name;
   refreshWorldProfileSelect();
 

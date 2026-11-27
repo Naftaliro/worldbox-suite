@@ -292,8 +292,7 @@ namespace ModernAge
                         $"{k.name}|Tech Tier {st.TechTier} · Government: {st.Government} · Trade Specialty: {st.Specialty}.");
                     if (GameUiStyle.Button("Gov", $"Switch {k.name} Government|Cycle between Monarchy, Republic, Collectivist, Merchant League, Military Junta, and Technocracy.", GUILayout.Width(42)))
                     {
-                        int n = Enum.GetValues(typeof(GovernmentType)).Length;
-                        st.Government = (GovernmentType)(((int)st.Government + 1) % n);
+                        GeopoliticsAndTradeSystem.CycleGovernment(k);
                     }
                     GUILayout.EndHorizontal();
                     shown++;

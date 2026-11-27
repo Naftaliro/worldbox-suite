@@ -743,10 +743,13 @@ namespace GrandWarfare
                                 if (target.isAlive() && spy.isAlive())
                                 {
                                     target.setKing(spy, false);
-                                    m.Stage = SpyStage.UsurpedThrone;
-                                    m.ConsolidationTimer = 0f;
-                                    CoupsSucceeded++;
-                                    RecordEvent($"Throne Seized! {m.OriginName}'s mole {m.SpyName} claimed the vacant throne of {m.TargetName}!", showToast: true);
+                                    if (target.king == spy)
+                                    {
+                                        m.Stage = SpyStage.UsurpedThrone;
+                                        m.ConsolidationTimer = 0f;
+                                        CoupsSucceeded++;
+                                        RecordEvent($"Throne Seized! {m.OriginName}'s mole {m.SpyName} claimed the vacant throne of {m.TargetName}!", showToast: true);
+                                    }
                                 }
                             }
                             catch (Exception e)
@@ -776,10 +779,19 @@ namespace GrandWarfare
                                     if (target.isAlive() && spy.isAlive())
                                     {
                                         target.setKing(spy, false);
-                                        m.Stage = SpyStage.UsurpedThrone;
-                                        m.ConsolidationTimer = 0f;
-                                        CoupsSucceeded++;
-                                        RecordEvent($"Palace Coup! {m.OriginName}'s mole {m.SpyName} seized the throne of {m.TargetName}!", showToast: true);
+                                        if (target.king == spy)
+                                        {
+                                            m.Stage = SpyStage.UsurpedThrone;
+                                            m.ConsolidationTimer = 0f;
+                                            CoupsSucceeded++;
+                                            RecordEvent($"Palace Coup! {m.OriginName}'s mole {m.SpyName} seized the throne of {m.TargetName}!", showToast: true);
+                                        }
+                                        else
+                                        {
+                                            m.Influence = 72f;
+                                            m.Cover = Mathf.Max(5f, m.Cover - 30f);
+                                            RecordEvent($"Throne Blocked: {target.name}'s succession laws denied mole {m.SpyName} ({m.OriginName}) the crown.", showToast: false);
+                                        }
                                     }
                                 }
                                 catch (Exception e)
@@ -813,13 +825,14 @@ namespace GrandWarfare
                             {
                                 try { target.setKing(spy, false); } catch { }
                             }
-                            else
-                            {
-                                m.Stage = SpyStage.CityLeader;
-                                m.Influence = 75f;
-                                m.Cover = Mathf.Max(10f, m.Cover - 25f);
-                                break;
-                            }
+                        }
+
+                        if (target.king != spy)
+                        {
+                            m.Stage = SpyStage.CityLeader;
+                            m.Influence = 75f;
+                            m.Cover = Mathf.Max(10f, m.Cover - 25f);
+                            break;
                         }
 
                         m.ConsolidationTimer += MissionTickInterval;
@@ -916,6 +929,52 @@ namespace GrandWarfare
         private static void ExecutePeacefulUnion(SpyMission m, Actor spy, Kingdom origin, Kingdom target)
         {
             if (origin == null || !origin.isAlive() || target == null || !target.isAlive()) return;
+            if (spy == null || !spy.isAlive() || target.king != spy)
+            {
+                RecordEvent($"Union aborted: {m.SpyName} no longer holds the throne of {target.name}.", showToast: false);
+                return;
+            }
+
+            // Cleanly end or exit active wars involving the target kingdom before transferring its cities,
+            // preventing War.update from dereferencing a dissolved kingdom.
+            var world = MapBox.instance;
+            if (world?.wars != null)
+            {
+                try
+                {
+                    var activeWarsRaw = world.wars.getActiveWars();
+                    if (activeWarsRaw != null)
+                    {
+                        var activeWars = new List<War>(activeWarsRaw);
+                        for (int i = 0; i < activeWars.Count; i++)
+                        {
+                            War war = activeWars[i];
+                            if (war == null || !war.isAlive() || war.hasEnded()) continue;
+                            if (!war.hasKingdom(target)) continue;
+
+                            bool isMainOrSoleMember =
+                                war.getMainAttacker() == target ||
+                                war.getMainDefender() == target ||
+                                (war.isAttacker(target) && war.countAttackers() <= 1) ||
+                                (war.isDefender(target) && war.countDefenders() <= 1);
+
+                            if (isMainOrSoleMember)
+                            {
+                                world.wars.endWar(war, WarWinner.Merged);
+                            }
+                            else
+                            {
+                                war.leaveWar(target);
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[GrandWarfare] Pre-union war cleanup failed for {target.name}: {e.Message}");
+                }
+            }
+
             var citiesSnapshot = target.cities != null ? new List<City>(target.cities) : new List<City>();
             int transferred = 0;
 

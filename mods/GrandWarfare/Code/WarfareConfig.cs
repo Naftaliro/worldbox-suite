@@ -24,6 +24,7 @@ namespace GrandWarfare
         public bool EnableDefensePacts = true;
         public bool EnableEspionage = true;
         public bool ChaoticEspionageMode = false;
+        public bool EnableGeopoliticsAndTrade = true;
         public KeyCode WarRoomKey = KeyCode.F10;
 
         public static GrandWarfareConfig LoadOrCreate(string modFolder)

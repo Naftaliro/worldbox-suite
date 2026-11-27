@@ -6,6 +6,8 @@ import argparse
 import base64
 import json
 import re
+import tempfile
+import zlib
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -14,6 +16,9 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from tools.wbox import (
     StitchOptions,
+    generate_template_world,
+    is_template_id,
+    list_templates,
     load_wbox,
     render_map_png_bytes,
     save_wbox,
@@ -76,6 +81,36 @@ def _discover_saves(cfg: dict[str, Any]) -> dict[str, Path]:
     return found
 
 
+def _build_template_items() -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for meta in list_templates():
+        data = generate_template_world(meta["id"])
+        summary = summarize_save(data)
+        items.append(
+            {
+                "id": meta["id"],
+                "filename": meta["filename"],
+                "slot_name": "",
+                "bucket": "template",
+                "is_template": True,
+                "description": meta["description"],
+                "size_bytes": 0,
+                "summary": summary,
+            }
+        )
+    return items
+
+
+def _resolve_save_data(sid: str, cfg: dict[str, Any]) -> tuple[dict[str, Any], Path | None] | None:
+    if is_template_id(sid):
+        return generate_template_world(sid), None
+    saves_map = _discover_saves(cfg)
+    if sid not in saves_map:
+        return None
+    fpath = saves_map[sid]
+    return _get_cached_save(fpath), fpath
+
+
 def _safe_filename(name: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", name.strip()).strip("_")
     if not cleaned:
@@ -125,6 +160,10 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self._send_json(cfg)
                 return
 
+            if path == "/api/templates":
+                self._send_json({"templates": _build_template_items()})
+                return
+
             if path == "/api/saves":
                 saves_map = _discover_saves(cfg)
                 items = []
@@ -141,13 +180,14 @@ class StudioHandler(BaseHTTPRequestHandler):
                                 "filename": display_name,
                                 "slot_name": slot_name,
                                 "bucket": bucket,
+                                "is_template": False,
                                 "size_bytes": fpath.stat().st_size,
                                 "summary": summary,
                             }
                         )
                     except Exception as exc:
                         items.append({"id": sid, "filename": fpath.name, "error": str(exc)})
-                self._send_json({"saves": items})
+                self._send_json({"saves": items, "templates": _build_template_items()})
                 return
 
             if path.startswith("/api/saves/"):
@@ -155,17 +195,15 @@ class StudioHandler(BaseHTTPRequestHandler):
                 if len(parts) >= 5:
                     sid = unquote(parts[3])
                     action = parts[4]
-                    saves_map = _discover_saves(cfg)
-                    if sid not in saves_map:
+                    resolved = _resolve_save_data(sid, cfg)
+                    if resolved is None:
                         self._send_json({"error": "Save not found"}, 404)
                         return
-                    fpath = saves_map[sid]
+                    data, fpath = resolved
                     if action == "summary":
-                        data = _get_cached_save(fpath)
                         self._send_json(summarize_save(data))
                         return
                     if action == "preview.png":
-                        data = _get_cached_save(fpath)
                         show_k = qs.get("kingdoms", ["1"])[0] != "0"
                         show_b = qs.get("buildings", ["1"])[0] != "0"
                         scale = max(1, min(4, int(qs.get("scale", ["2"])[0])))
@@ -173,10 +211,17 @@ class StudioHandler(BaseHTTPRequestHandler):
                         self._send_bytes(png, "image/png")
                         return
                     if action == "download":
+                        if fpath is not None:
+                            raw_bytes = fpath.read_bytes()
+                            dl_name = fpath.name
+                        else:
+                            payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+                            raw_bytes = zlib.compress(payload, level=6)
+                            dl_name = _safe_filename(sid.replace(":", "_"))
                         self._send_bytes(
-                            fpath.read_bytes(),
+                            raw_bytes,
                             "application/octet-stream",
-                            extra_headers={"Content-Disposition": f'attachment; filename="{fpath.name}"'},
+                            extra_headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
                         )
                         return
 
@@ -238,11 +283,18 @@ class StudioHandler(BaseHTTPRequestHandler):
             if path == "/api/slots/export":
                 sid = str(body.get("save_id", ""))
                 slot_num = int(body.get("slot", 1))
-                saves_map = _discover_saves(cfg)
-                if sid not in saves_map:
+                resolved = _resolve_save_data(sid, cfg)
+                if resolved is None:
                     self._send_json({"error": "Save not found"}, 404)
                     return
-                res = export_wbox_to_slot(saves_map[sid], slot_num, cfg.get("worldbox_slots_dir", ""))
+                data, fpath = resolved
+                if fpath is not None:
+                    res = export_wbox_to_slot(fpath, slot_num, cfg.get("worldbox_slots_dir", ""))
+                else:
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        tmp_wbox = Path(tmpdir) / _safe_filename(sid.replace(":", "_"))
+                        save_wbox(data, tmp_wbox)
+                        res = export_wbox_to_slot(tmp_wbox, slot_num, cfg.get("worldbox_slots_dir", ""))
                 self._send_json(res)
                 return
 
@@ -260,9 +312,14 @@ class StudioHandler(BaseHTTPRequestHandler):
             if path == "/api/stitch":
                 save_ids: list[str] = body.get("save_ids", [])
                 saves_map = _discover_saves(cfg)
-                worlds = [_get_cached_save(saves_map[sid]) for sid in save_ids if sid in saves_map]
+                worlds: list[dict[str, Any]] = []
+                for sid in save_ids:
+                    if is_template_id(sid):
+                        worlds.append(generate_template_world(sid))
+                    elif sid in saves_map:
+                        worlds.append(_get_cached_save(saves_map[sid]))
                 if len(worlds) < 2:
-                    self._send_json({"error": "Select at least 2 worlds to stitch."}, 400)
+                    self._send_json({"error": "Select at least 2 worlds or templates to stitch."}, 400)
                     return
 
                 world_name = str(body.get("name") or "Twin Continents").strip()

@@ -125,26 +125,88 @@ namespace ModernAge
         private static readonly MethodInfo SetKingdomMethod =
             AccessTools.Method(typeof(Actor), "setKingdom", new[] { typeof(Kingdom) });
 
+        private static MethodInfo _gwGetGovMethod;
+        private static MethodInfo _gwGetSpecMethod;
+        private static MethodInfo _gwSetGovMethod;
+        private static bool _gwBridgeResolved;
+        private static float _gwBridgeRetryAt;
+
         private static Texture2D _radarTex;
         private static GUIStyle _radarLabelStyle;
+
+        private static bool EnsureGrandWarfareBridge()
+        {
+            if (_gwBridgeResolved) return _gwGetGovMethod != null && _gwGetSpecMethod != null;
+            if (Time.unscaledTime < _gwBridgeRetryAt) return false;
+
+            Type gwType = AccessTools.TypeByName("GrandWarfare.GeopoliticsAndTradeSystem");
+            if (gwType != null)
+            {
+                _gwGetGovMethod = AccessTools.Method(gwType, "GetGovernmentIndex", new[] { typeof(Kingdom) });
+                _gwGetSpecMethod = AccessTools.Method(gwType, "GetSpecialtyIndex", new[] { typeof(Kingdom) });
+                _gwSetGovMethod = AccessTools.Method(gwType, "SetGovernmentIndex", new[] { typeof(Kingdom), typeof(int) });
+                _gwBridgeResolved = true;
+                return _gwGetGovMethod != null && _gwGetSpecMethod != null;
+            }
+
+            _gwBridgeRetryAt = Time.unscaledTime + 5f;
+            return false;
+        }
 
         public static KingdomModernState GetOrCreateState(Kingdom k)
         {
             if (k == null) return null;
+            int govCount = Enum.GetValues(typeof(GovernmentType)).Length;
+            int specCount = Enum.GetValues(typeof(TradeSpecialty)).Length;
+
             if (!States.TryGetValue(k.id, out var st))
             {
-                int govCount = Enum.GetValues(typeof(GovernmentType)).Length;
-                int specCount = Enum.GetValues(typeof(TradeSpecialty)).Length;
                 st = new KingdomModernState
                 {
                     KingdomId = k.id,
                     TechTier = 0,
-                    Government = (GovernmentType)((int)(k.id % govCount)),
-                    Specialty = (TradeSpecialty)(1 + (int)((k.id * 3) % (specCount - 1)))
+                    Government = (GovernmentType)((int)(Math.Abs(k.id) % govCount)),
+                    Specialty = (TradeSpecialty)(1 + (int)(Math.Abs(k.id * 3) % (specCount - 1)))
                 };
                 States[k.id] = st;
             }
+
+            // When GrandWarfare is loaded, read the authoritative government & specialty from it
+            if (EnsureGrandWarfareBridge())
+            {
+                try
+                {
+                    if (_gwGetGovMethod.Invoke(null, new object[] { k }) is int gIdx && gIdx >= 0 && gIdx < govCount)
+                    {
+                        st.Government = (GovernmentType)gIdx;
+                    }
+                    if (_gwGetSpecMethod.Invoke(null, new object[] { k }) is int sIdx && sIdx >= 0 && sIdx < specCount)
+                    {
+                        st.Specialty = (TradeSpecialty)sIdx;
+                    }
+                }
+                catch { }
+            }
+
             return st;
+        }
+
+        public static void CycleGovernment(Kingdom k)
+        {
+            var st = GetOrCreateState(k);
+            if (st == null) return;
+            int n = Enum.GetValues(typeof(GovernmentType)).Length;
+            int next = ((int)st.Government + 1) % n;
+            st.Government = (GovernmentType)next;
+
+            if (EnsureGrandWarfareBridge() && _gwSetGovMethod != null)
+            {
+                try
+                {
+                    _gwSetGovMethod.Invoke(null, new object[] { k, next });
+                }
+                catch { }
+            }
         }
 
         public static void TickAll()
@@ -211,8 +273,10 @@ namespace ModernAge
 
         private static void ApplyGovernmentAndTrade(MapBox world, Kingdom k, KingdomModernState st, List<Kingdom> allCivs)
         {
-            // Collectivist: empire-wide resource pooling keeps frontline soldiers fed & healthy
-            if (st.Government == GovernmentType.Collectivist && world.units?.units_only_alive != null)
+            bool gwActive = EnsureGrandWarfareBridge();
+
+            // Fallback base government buffs when ModernAge runs solo without GrandWarfare
+            if (!gwActive && st.Government == GovernmentType.Collectivist && world.units?.units_only_alive != null)
             {
                 var alive = new List<Actor>(world.units.units_only_alive);
                 int healed = 0;
@@ -227,26 +291,26 @@ namespace ModernAge
                 }
             }
 
-            // International Cooperation & Lend-Lease with peaceful partners
+            // Modern-era International Cooperation & Tier 1-3 Lend-Lease with peaceful partners
             foreach (Kingdom partner in allCivs)
             {
                 if (partner == k || k.isEnemy(partner)) continue;
                 var pState = GetOrCreateState(partner);
 
-                // Breadbasket exports food/vitality to peaceful partners
-                if (st.Specialty == TradeSpecialty.Breadbasket && partner.king != null && partner.king.isAlive())
+                // Fallback breadbasket vitality boost when GrandWarfare is not installed
+                if (!gwActive && st.Specialty == TradeSpecialty.Breadbasket && partner.king != null && partner.king.isAlive())
                 {
                     partner.king.restoreHealthPercent(0.25f);
                 }
 
-                // Armory State sends Lend-Lease gear/vehicles to allied nations currently fighting a war!
+                // Armory State sends Modern Tier 1-3 Lend-Lease gear to allied nations currently fighting a war
                 if (st.Specialty == TradeSpecialty.ArmoryState && partner.hasEnemies() && st.TechTier >= 1)
                 {
                     EquipTierInfantry(world, partner, st.TechTier, 3);
                     st.LendLeaseDeliveries++;
                 }
 
-                // Research Hub helps peaceful allies advance faster
+                // Research Hub helps peaceful allies advance modern tech tiers faster
                 if (st.Specialty == TradeSpecialty.ResearchHub && st.TechTier > pState.TechTier)
                 {
                     pState.TechTier = st.TechTier;

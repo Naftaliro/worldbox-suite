@@ -1,8 +1,8 @@
 {
   "tab_suite_powers": "Suite: Powers",
-  "tab_suite_powers_desc": "Direct drop brushes and instant god actions for Wardens, Wolfkin, city walls, sea bridges, ruins, battles, and multi-continent worlds.",
+  "tab_suite_powers_desc": "Direct drop brushes and 1-click god actions for Wardens, Wolfkin, war heroes, mercenaries, imperial highways, citadels, tectonics, and multi-continent worlds.",
   "tab_suite_rules": "Suite: Rules",
-  "tab_suite_rules_desc": "One-click ON/OFF toggles for CoreScale performance, lighting, naval warfare, city walls, ruins, eras, portals, and co-op hosting.",
+  "tab_suite_rules_desc": "8 streamlined master toggles for CoreScale performance, Always Day, distinct kingdom borders, Live War Ticker, Warfare & Intel, Animal Kingdoms, Dense Cities & Infrastructure, and Co-Op Host.",
 
   "suite_drop_wardens": "Drop Sentinel Wardens",
   "suite_drop_wardens_description": "Click anywhere on land to drop Sentinel Warden settlers who follow the peaceful Sleeping Giant doctrine (never start wars, 3-strikes grudge retaliation).",
@@ -12,21 +12,41 @@
   "suite_drop_wolfkin_description": "Click anywhere on land to drop 12 sapient Wolfkin ready to found their own wolf civilization.",
   "suite_drop_wolfkin_tip": "Click on map to place",
 
-  "suite_anoint_wardens": "Anoint Top Kingdom as Wardens",
-  "suite_anoint_wardens_description": "Bestow the peaceful Sleeping Giant Warden doctrine onto the largest non-Warden kingdom in the world.",
-  "suite_anoint_wardens_tip": "Instant action",
-
-  "suite_awaken_wolves": "Awaken Wild Wolves",
-  "suite_awaken_wolves_description": "Instantly grant sapience to every wild wolf subspecies on the map so they can build kingdoms.",
-  "suite_awaken_wolves_tip": "Instant action",
+  "suite_open_species": "Species Kingdom Manager",
+  "suite_open_species_description": "Open the ApexFactions panel to configure all 30 animal species, Sentinel Wardens, and Snake Mode.",
+  "suite_open_species_tip": "Hotkey: F12",
 
   "suite_awaken_animals": "Awaken All Wild Animals",
   "suite_awaken_animals_description": "Instantly grant sapience to all eligible wild animal subspecies across the entire map.",
   "suite_awaken_animals_tip": "Instant action",
 
-  "suite_open_species": "Species Kingdom Manager",
-  "suite_open_species_description": "Open the ApexFactions panel to configure animal kingdom rules, Sentinel Wardens, Snake Mode, and wild species sapience.",
-  "suite_open_species_tip": "Hotkey: F12",
+  "suite_open_war_monitor": "War & Diplomacy Monitor",
+  "suite_open_war_monitor_description": "Inspect active wars, war causes, top diplomatic opinion drivers, relations matrix, and Force Peace controls.",
+  "suite_open_war_monitor_tip": "Hotkey: F4",
+
+  "suite_armory_blessing": "Armory Blessing",
+  "suite_armory_blessing_description": "Click on a city or army to outfit nearby soldiers with high-tier forged weapons and armor.",
+  "suite_armory_blessing_tip": "Click on map · GrandWarfare",
+
+  "suite_anoint_hero": "Anoint War Hero",
+  "suite_anoint_hero_description": "Click near a unit or city to elevate a warrior into a legendary War Hero with boosted stats and elite gear.",
+  "suite_anoint_hero_tip": "Click on map · GrandWarfare",
+
+  "suite_merc_drop": "Deploy Mercenary Company",
+  "suite_merc_drop_description": "Click on land to drop a seasoned band of hired mercenaries fighting for the nearest kingdom.",
+  "suite_merc_drop_tip": "Click on map · GrandWarfare",
+
+  "suite_dispatch_spy": "Dispatch Covert Spy",
+  "suite_dispatch_spy_description": "Infiltrate a covert agent from a rival kingdom into a stronger target capital to climb the court, stage a palace coup, and unite the realm peacefully.",
+  "suite_dispatch_spy_tip": "GrandWarfare · War Room: F10",
+
+  "suite_jump_battle": "Jump to Active Battle",
+  "suite_jump_battle_description": "Pan the camera straight to the hottest ongoing combat clash or active war capital.",
+  "suite_jump_battle_tip": "War Monitor: F4",
+
+  "suite_build_infra": "Build Imperial Highways & Citadels",
+  "suite_build_infra_description": "Construct wide cobblestone imperial highways between major friendly cities and build double-thick gated stone citadels around major capitals.",
+  "suite_build_infra_tip": "WorldRelics · Details: Alt+R",
 
   "suite_fortify_now": "Fortify Large Cities Now",
   "suite_fortify_now_description": "Build gated stone and iron perimeter walls around all eligible large cities right away.",
@@ -40,53 +60,25 @@
   "suite_age_ruins_description": "Fast-forward weathering on all fallen city ruins so walls crack and grow mossy and wild.",
   "suite_age_ruins_tip": "WorldRelics",
 
-  "suite_open_war_monitor": "War & Diplomacy Monitor",
-  "suite_open_war_monitor_description": "Inspect active wars, war causes, top diplomatic opinion drivers, relations matrix, and Force Peace controls.",
-  "suite_open_war_monitor_tip": "Hotkey: F4",
-
-  "suite_jump_battle": "Jump to Active Battle",
-  "suite_jump_battle_description": "Pan the camera straight to the hottest ongoing combat clash or active war capital.",
-  "suite_jump_battle_tip": "War Monitor: F4",
-
-  "suite_form_pact": "Form Defense Pact",
-  "suite_form_pact_description": "Link the two largest peaceful kingdoms into a mutual defense treaty so they join wars to protect each other.",
-  "suite_form_pact_tip": "GrandWarfare",
-
-  "suite_dispatch_spy": "Dispatch Covert Spy",
-  "suite_dispatch_spy_description": "Infiltrate a covert agent from a rival kingdom into a stronger target capital to climb the court, stage a palace coup, and unite the realm peacefully.",
-  "suite_dispatch_spy_tip": "GrandWarfare · War Room: F10",
-
-  "suite_compress_armies": "Compress Mega-Armies",
-  "suite_compress_armies_description": "Fold oversized armies into stronger veteran champions right now to boost FPS during huge wars.",
-  "suite_compress_armies_tip": "CoreScale",
-
-  "suite_cycle_continent": "Cycle Continent Layout",
-  "suite_cycle_continent_description": "Cycle the Multi-Continent Builder between East-West Twins, Four Quadrants, North-South Divide, and Super Archipelago.",
-  "suite_cycle_continent_tip": "Full Builder: F2",
-
-  "suite_gen_continent": "Generate Multi-Continent World",
-  "suite_gen_continent_description": "Sculpt a brand-new pre-stitched multi-continent map right in-game with stepping-stone islands and starting settlers.",
-  "suite_gen_continent_tip": "Replaces current map!",
-
   "suite_pangaea_drift": "Pangaea Plate Drift",
-  "suite_pangaea_drift_description": "Physically slide two halves of a continent apart across open ocean, carving a jagged sea and volcanic islets while carrying living units on their drifting plates. Collapses buildings first to keep zones safe.",
+  "suite_pangaea_drift_description": "Physically slide two halves of a continent apart across open ocean, carving a jagged sea and volcanic islets while carrying living units on their drifting plates.",
   "suite_pangaea_drift_tip": "Click again to stop · WorldRelics",
 
   "suite_tectonic_rift": "Empire-Safe Tectonic Rift",
-  "suite_tectonic_rift_description": "Open an organic widening ocean strait across any map without harming inland empires. Evacuates units to nearby dry shores and preserves inland cities, walls, and cliffs.",
+  "suite_tectonic_rift_description": "Open an organic widening ocean strait across any map without harming inland empires. Evacuates units to nearby dry shores and preserves inland cities and walls.",
   "suite_tectonic_rift_tip": "Click again to stop · WorldRelics",
 
-  "suite_dispatch_fleet": "Dispatch Ocean Expedition",
-  "suite_dispatch_fleet_description": "Queue 12 soldiers from your strongest kingdom into the ocean portal to invade or reinforce another linked save.",
-  "suite_dispatch_fleet_tip": "Portal Setup: F11",
+  "suite_gen_continent": "Generate Multi-Continent World",
+  "suite_gen_continent_description": "Sculpt a brand-new pre-stitched multi-continent map right in-game with stepping-stone islands and starting settlers.",
+  "suite_gen_continent_tip": "Full Builder: F2",
 
-  "suite_land_fleets": "Land Incoming Fleets",
-  "suite_land_fleets_description": "Spawn any expedition fleets waiting in portal_queue.json along this world's coastline.",
-  "suite_land_fleets_tip": "LinkedContinents",
+  "suite_dispatch_fleet": "Dispatch Ocean Expedition",
+  "suite_dispatch_fleet_description": "Queue soldiers from your strongest kingdom into the ocean portal to invade or reinforce another linked save.",
+  "suite_dispatch_fleet_tip": "Portal Setup: F11",
 
   "suite_record_chronicle": "Record Chronicle Snapshot",
   "suite_record_chronicle_description": "Save a JSON history snapshot of all kingdoms, eras, and wars readable in WorldBox Studio.",
-  "suite_record_chronicle_tip": "EraChronicle",
+  "suite_record_chronicle_tip": "EraChronicle · F7",
 
   "suite_modern_advance": "Advance #1 Kingdom +1 Tech Tier",
   "suite_modern_advance_description": "Promote the largest kingdom from Tier 1 blackpowder to Tier 2 armor/props or Tier 3 MBTs, jets, and SAMs.",
@@ -100,127 +92,39 @@
   "suite_drop_air_description": "Click anywhere on the map to launch Supersonic Jets and Attack Helicopters for the largest kingdom.",
   "suite_drop_air_tip": "Click on map to place",
 
-  "suite_tog_turbo": "Turbo Performance Mode",
-  "suite_tog_turbo_description": "Aggressive FPS boost: disables shadows, tile flash uploads, unit/building shake, and status/slash particles, and staggers flora spread and target scans.",
-  "suite_tog_turbo_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_lod": "Adaptive Simulation LOD",
-  "suite_tog_lod_description": "Progressively throttle heavy background AI batches at 3k, 8k, and 15k population to keep giant worlds smooth.",
-  "suite_tog_lod_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_anim": "Strategic Animation Culling",
-  "suite_tog_anim_description": "Skip tiny unit sprite animations when zoomed far out into strategic view for higher FPS.",
-  "suite_tog_anim_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_shadows": "Force Disable Shadows",
-  "suite_tog_shadows_description": "Turn unit and building shadows completely OFF for extra frame rate on huge maps.",
-  "suite_tog_shadows_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_battalions": "Auto Army Battalions",
-  "suite_tog_battalions_description": "Automatically merge huge squads into veteran champions during big wars.",
-  "suite_tog_battalions_tip": "Click to toggle ON/OFF",
+  "suite_tog_turbo": "CoreScale Turbo & Performance Mode",
+  "suite_tog_turbo_description": "Toggle aggressive FPS boost (shadow cull, animation culling, particle & flash reductions, staggered scans). Fine sliders available in F8.",
+  "suite_tog_turbo_tip": "Click to toggle · Details: F8",
 
   "suite_tog_always_day": "Always Day (Visual)",
-  "suite_tog_always_day_description": "Clear night, moon, ash, and storm darkness overlays while keeping all World Age gameplay mechanics and disasters intact.",
-  "suite_tog_always_day_tip": "Purely visual override",
+  "suite_tog_always_day_description": "Clear night, moon, ash, and storm darkness overlays client-side while keeping all World Age gameplay mechanics intact. Fine lighting & Age of Hope lock in F9.",
+  "suite_tog_always_day_tip": "Click to toggle · Details: F9",
 
-  "suite_tog_age_hope": "Lock Age of Hope",
-  "suite_tog_age_hope_description": "Switch the current world age to Age of Hope and pause age progression so the world stays bright and calm.",
-  "suite_tog_age_hope_tip": "World rule toggle",
-
-  "suite_tog_preset": "Cycle Lighting Preset",
-  "suite_tog_preset_description": "Cycle between Vanilla (0 overhead), Crisp Vibrant, Golden Hour, Moonlit Night, Parchment Atlas, and Twilight.",
-  "suite_tog_preset_tip": "Sliders: F9",
-
-  "suite_tog_daynight": "Dynamic Day/Night Cycle",
-  "suite_tog_daynight_description": "Smoothly transition the world through golden dawn, bright noon, warm dusk, and moonlit night.",
-  "suite_tog_daynight_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_vignette": "Screen Vignette",
-  "suite_tog_vignette_description": "Toggle soft darkened framing around the edges of the screen.",
-  "suite_tog_vignette_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_photo": "Photo Mode (Hide HUD)",
-  "suite_tog_photo_description": "Hide WorldBox's interface for clean screenshots. Press F6 anytime to bring the HUD back.",
-  "suite_tog_photo_tip": "Hotkey: F6",
+  "suite_tog_borders": "Distinct Kingdom Colors & Sharp Borders",
+  "suite_tog_borders_description": "Automatically separate neighboring kingdom colors for instant map readability and sharpen territory borders. Fine visual controls in F9.",
+  "suite_tog_borders_tip": "Click to toggle · VisualPolish: F9",
 
   "suite_tog_war_ticker": "Live War Ticker",
   "suite_tog_war_ticker_description": "Show a compact, collapsible top-right war feed with causes, casualties, and 1-click Go jump buttons whenever wars are active.",
-  "suite_tog_war_ticker_tip": "Hotkey: F3",
+  "suite_tog_war_ticker_tip": "Click to toggle · Hotkey: F3",
 
-  "suite_tog_naval": "Naval Ship Broadsides",
-  "suite_tog_naval_description": "Allow warships of warring kingdoms to fire volleys and sink hostile ships at sea.",
-  "suite_tog_naval_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_coastal": "Coastal Bombardment",
-  "suite_tog_coastal_description": "Allow warships to shell enemy land troops near shorelines.",
-  "suite_tog_coastal_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_blockades": "Naval Port Blockades",
-  "suite_tog_blockades_description": "Enemy ships hovering within 24 tiles of a hostile coastal city starve its defending garrison.",
-  "suite_tog_blockades_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_supply": "Supply-Line Attrition",
-  "suite_tog_supply_description": "Armies campaigning far outside friendly city supply range gradually lose nutrition and health.",
-  "suite_tog_supply_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_pacts": "Mutual Defense Pacts",
-  "suite_tog_pacts_description": "Automatically pull pact allies into defensive wars whenever a member is attacked.",
-  "suite_tog_pacts_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_espionage": "Kingdom Espionage & Counter-Intel",
-  "suite_tog_espionage_description": "Allow rival kingdoms to plant covert spies in enemy capitals, stage palace coups, and unite realms peacefully — or suffer diplomatic scandals and retaliation wars when counter-intelligence catches them.",
-  "suite_tog_espionage_tip": "GrandWarfare · Details: F10",
+  "suite_tog_warfare_suite": "Warfare, Espionage & Alliance Trade",
+  "suite_tog_warfare_suite_description": "Master toggle for naval broadsides, coastal bombardment, blockades, supply lines, defense pacts, espionage, and alliance trade. Fine controls in F10.",
+  "suite_tog_warfare_suite_tip": "Click to toggle · War Room: F10",
 
   "suite_tog_auto_kingdoms": "Auto Animal Kingdoms",
-  "suite_tog_auto_kingdoms_description": "Automatically awaken wild animal packs over time so they can form sapient animal kingdoms across the map.",
-  "suite_tog_auto_kingdoms_tip": "ApexFactions: F12",
+  "suite_tog_auto_kingdoms_description": "Automatically awaken wild animal packs over time to found sapient animal kingdoms. Manage all 30 species and Snake Mode in F12.",
+  "suite_tog_auto_kingdoms_tip": "Click to toggle · Species: F12",
 
-  "suite_tog_snake_mode": "Snake Mode (Treacherous Diplomacy)",
-  "suite_tog_snake_mode_description": "Enable scheming betrayal diplomacy where opportunistic kingdoms can backstab rivals and spark Snake Betrayal wars.",
-  "suite_tog_snake_mode_tip": "ApexFactions: F12",
+  "suite_tog_dense_cities": "Dense Cities & Imperial Infrastructure",
+  "suite_tog_dense_cities_description": "Master toggle for condensed dense city housing, wide imperial highways, fortified capital citadels, perimeter walls, and strait bridges. Fine controls in Alt+R.",
+  "suite_tog_dense_cities_tip": "Click to toggle · WorldRelics: Alt+R",
 
-  "suite_tog_dense_cities": "Dense Cities (Condensed Buildings)",
-  "suite_tog_dense_cities_description": "Tighten city building footprints, boost residential and hall housing capacity (up to 2.5x on manors and halls), and speed up complex upgrades by 30%. Fully reversible.",
-  "suite_tog_dense_cities_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_walls": "Auto City Walls",
-  "suite_tog_walls_description": "Cities with 85+ population automatically build gated stone and iron perimeter walls.",
-  "suite_tog_walls_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_bridges": "Auto Sea Strait Bridges",
-  "suite_tog_bridges_description": "Friendly coastal cities across narrow straits automatically construct stone sea bridges.",
-  "suite_tog_bridges_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_ruins": "Centuries Ruin Decay",
-  "suite_tog_ruins_description": "Fallen fortified cities preserve their walls and slowly weather into ancient mossy ruins.",
-  "suite_tog_ruins_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_tectonic_speed": "Geological Tectonic Speed",
-  "suite_tog_tectonic_speed_description": "Switch continental drift and tectonic rifts between fast Cinematic speed (0.9s/step) and slow Geological speed (6.0s/step over minutes).",
-  "suite_tog_tectonic_speed_tip": "ON = Geological · OFF = Cinematic",
-
-  "suite_tog_eras": "Kingdom Era Progression",
-  "suite_tog_eras_description": "Advance kingdoms through 5 era tiers with king and veteran army milestone bonuses.",
-  "suite_tog_eras_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_snapshots": "Auto Chronicle Snapshots",
-  "suite_tog_snapshots_description": "Periodically export JSON world history snapshots for WorldBox Studio charts.",
-  "suite_tog_snapshots_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_portals": "Auto Ocean Edge Portals",
-  "suite_tog_portals_description": "Automatically queue troop ships sailing past the configured ocean edge for cross-world travel.",
-  "suite_tog_portals_tip": "Click to toggle ON/OFF",
-
-  "suite_tog_coop": "Co-Op God Mode Server",
-  "suite_tog_coop_description": "Start or stop the zero-admin browser Co-Op God Console server and show your LAN URL + 4-digit PIN.",
-  "suite_tog_coop_tip": "Co-Op Details: Alt+C",
+  "suite_tog_coop": "Co-Op God Console Host",
+  "suite_tog_coop_description": "Start or stop the browser Co-Op God Console server and show your LAN URL + 4-digit PIN.",
+  "suite_tog_coop_tip": "Click to toggle · Co-Op: Alt+C",
 
   "suite_tog_modern_auto": "ModernAge Auto Tech",
   "suite_tog_modern_auto_description": "Kingdoms automatically advance across Tier 1 blackpowder, Tier 2 industrial, and Tier 3 modern tech.",
-  "suite_tog_modern_auto_tip": "ModernAge Expansion",
-
-  "suite_tog_modern_radar": "Capital Radar SAM Domes",
-  "suite_tog_modern_radar_description": "Show radar air-defense domes around Tier 3 capitals that intercept hostile aircraft.",
-  "suite_tog_modern_radar_tip": "ModernAge Expansion"
+  "suite_tog_modern_auto_tip": "ModernAge · Details: Alt+M"
 }

@@ -15,6 +15,9 @@ namespace WorldRelics
         public bool EnableSeaBridges = true;
         public int MaxBridgeWaterTiles = 28;
 
+        public bool EnableImperialHighways = true;
+        public bool EnableCitadelCompounds = true;
+
         public bool EnableRuinDecay = true;
         public int AncientStageYears = 45;
         public int MossyStageYears = 120;

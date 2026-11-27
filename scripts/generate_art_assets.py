@@ -2299,6 +2299,797 @@ def make_btn_dispatch_spy() -> Canvas:
     return c
 
 
+def make_btn_armory_blessing() -> Canvas:
+    """Armory Blessing: Bright cyan-blue & gold anvil with a glowing forged sword rising above it."""
+    c = Canvas(32, 32)
+
+    # Electric cyan-aqua ramp for the blessed forge anvil & glowing blade
+    cya_0: Color = (8, 72, 110, 255)
+    cya_1: Color = (14, 128, 184, 255)
+    cya_2: Color = (32, 194, 240, 255)
+    cya_3: Color = (120, 238, 255, 255)
+    cya_4: Color = (232, 254, 255, 255)
+    pure_w: Color = (255, 255, 255, 255)
+
+    # 1. Heavy cyan-blue & gold blacksmith anvil (lower half, y=16..29)
+    anvil = Canvas(32, 32)
+
+    # Pointed horn jutting left (x=2..10, y=17..21)
+    anvil.poly([(2.0, 18.0), (10.5, 16.5), (10.5, 21.5), (5.5, 20.5)], cya_2)
+    anvil.line(3, 18, 10, 17, cya_3)
+    anvil.px(2, 18, cya_4)
+    anvil.line(5, 20, 10, 21, cya_1)
+    anvil.line(7, 21, 10, 21, cya_0)
+
+    # Broad anvil face/deck (x=10..28, y=16..20)
+    anvil.fill_rect(10, 16, 28, 20, cya_2)
+    anvil.hline(10, 27, 16, cya_4)
+    anvil.px(28, 16, cya_3)
+    anvil.hline(10, 27, 17, cya_3)
+    anvil.px(28, 17, cya_2)
+    # Rich gilded trim band across anvil face
+    anvil.hline(10, 28, 18, GOLD_3)
+    anvil.hline(24, 28, 18, GOLD_2)
+    anvil.hline(10, 15, 18, GOLD_4)
+    anvil.hline(10, 28, 19, GOLD_1)
+    anvil.hline(11, 27, 20, cya_0)
+    anvil.px(28, 19, GOLD_0)
+
+    # Sculpted waist (x=12..24, y=21..25)
+    anvil.fill_rect(12, 21, 24, 25, cya_1)
+    anvil.fill_rect(13, 21, 23, 25, cya_2)
+    anvil.vline(13, 21, 24, cya_3)
+    anvil.vline(22, 21, 24, cya_1)
+    anvil.vline(23, 21, 25, cya_0)
+    # Gilded forge emblem on anvil waist
+    anvil.fill_rect(16, 22, 19, 24, GOLD_2)
+    anvil.fill_rect(17, 22, 18, 23, GOLD_4)
+    anvil.px(19, 24, GOLD_0)
+
+    # Heavy flared base foot (x=7..28, y=26..29)
+    anvil.poly([(7.0, 29.0), (11.0, 25.5), (24.5, 25.5), (28.5, 29.0)], cya_1)
+    anvil.hline(10, 25, 26, GOLD_3)
+    anvil.hline(20, 25, 26, GOLD_2)
+    anvil.hline(9, 26, 27, cya_2)
+    anvil.hline(9, 14, 27, cya_3)
+    anvil.hline(8, 27, 28, cya_1)
+    anvil.hline(7, 28, 29, cya_0)
+    # Crisp bottom arch notch under the foot
+    anvil.fill_rect(16, 29, 19, 29, TRANSPARENT)
+
+    anvil.add_outline(OUTLINE_DARK)
+    c.blit(anvil)
+
+    # 2. Razor-sharp glowing cyan-white forged sword rising vertically above the anvil deck (cx=18, y=2..16)
+    sword = Canvas(32, 32)
+    cx = 18
+
+    # Crisp tapered broadsword blade (y=2..11) — sharp point, bright white spine, glowing cyan edges
+    sword.px(cx, 2, pure_w)
+    sword.px(cx, 3, pure_w)
+    sword.px(cx - 1, 3, cya_4)
+    sword.px(cx + 1, 3, cya_3)
+    for y in range(4, 12):
+        sword.px(cx - 2, y, cya_3 if y >= 6 else TRANSPARENT)
+        sword.px(cx - 1, y, cya_4)
+        sword.px(cx, y, pure_w)
+        sword.px(cx + 1, y, cya_3)
+        sword.px(cx + 2, y, cya_2 if y >= 6 else TRANSPARENT)
+    # Tapered beveled shoulder at y=4..5
+    sword.px(cx - 1, 4, cya_4)
+    sword.px(cx + 1, 4, cya_2)
+    sword.px(cx - 1, 5, cya_4)
+    sword.px(cx + 1, 5, cya_3)
+
+    # Swept ornate golden crossguard (y=11..13, x=12..24)
+    sword.hline(13, 23, 12, GOLD_3)
+    sword.hline(14, 22, 13, GOLD_2)
+    sword.hline(15, 21, 13, GOLD_1)
+    # Upward swept wingtips on guard
+    sword.px(12, 11, GOLD_4)
+    sword.px(13, 11, GOLD_3)
+    sword.px(24, 11, GOLD_3)
+    sword.px(23, 11, GOLD_2)
+    sword.px(13, 12, GOLD_4)
+    # Glowing cyan forge gem set into the crossguard
+    sword.px(cx, 12, cya_4)
+    sword.px(cx, 13, cya_2)
+
+    # Grip & golden pommel hovering just above the anvil face (y=14..16)
+    sword.vline(cx, 14, 15, cya_3)
+    sword.px(cx - 1, 14, GOLD_2)
+    sword.px(cx + 1, 14, GOLD_1)
+    sword.hline(cx - 1, cx + 1, 15, GOLD_3)
+    sword.px(cx, 15, GOLD_4)
+    sword.px(cx, 16, GOLD_2)
+
+    sword.add_outline(OUTLINE_DARK)
+    c.blit(sword)
+
+    # 3. Crisp radiant golden-white blessing sparks & cyan forge motes flanking the rising blade
+    sparks = Canvas(32, 32)
+    for sx, sy in [(7, 6), (27, 7)]:
+        sparks.hline(sx - 2, sx + 2, sy, GOLD_3)
+        sparks.vline(sx, sy - 2, sy + 2, GOLD_3)
+        sparks.px(sx, sy, pure_w)
+    for sx, sy in [(10, 12), (26, 13)]:
+        sparks.px(sx, sy, pure_w)
+        sparks.px(sx - 1, sy, cya_3)
+        sparks.px(sx + 1, sy, cya_2)
+        sparks.px(sx, sy - 1, cya_4)
+        sparks.px(sx, sy + 1, cya_2)
+    sparks.add_outline(OUTLINE_DARK)
+    c.blit(sparks)
+    return c
+
+
+def make_btn_anoint_hero() -> Canvas:
+    """Anoint War Hero: Radiant golden winged star halo crowning a bright white-silver knight helmet."""
+    c = Canvas(32, 32)
+
+    # Gleaming white-silver paladin steel ramp
+    slv_0: Color = (92, 106, 132, 255)
+    slv_1: Color = (146, 162, 190, 255)
+    slv_2: Color = (196, 210, 232, 255)
+    slv_3: Color = (234, 242, 254, 255)
+    slv_4: Color = (255, 255, 255, 255)
+
+    # 1. Clean sculpted golden valkyrie wings, arched halo & crowning 4-point star (y=1..14)
+    halo = Canvas(32, 32)
+    wing_pal: dict[str, Color] = {
+        ".": TRANSPARENT,
+        "a": GOLD_1,
+        "g": GOLD_2,
+        "y": GOLD_3,
+        "w": GOLD_4,
+        "x": slv_4,
+    }
+    wing_rows = [
+        "..............ww..............",
+        "..............wx..............",
+        ".............wyxw.............",
+        "..ww.........wyxw.........ww..",
+        ".wwwyy....wwyxxxxyww....yyggg.",
+        "..gyyyyg.....ywwy.....gyyyyg..",
+        "...gyyyygg...gwwg...ggyyyyg...",
+        "..wyyyyyyyg..gwwg..gyyyyyyg...",
+        "...agyyyyygg.gwwg.ggyyyyga....",
+        "....agyyyyyggggggggyyyyga.....",
+        ".....aagyyggggggggggyyga......",
+        ".......aaaggg....gggaaa.......",
+        ".........aa........aa.........",
+    ]
+    halo.stamp(wing_rows, wing_pal, ox=1, oy=1)
+
+    halo.add_outline(OUTLINE_WARM)
+    c.blit(halo)
+
+    # 2. Bright white-silver knight paladin greathelm (foreground centerpiece, x=9..22, y=10..29)
+    helm = Canvas(32, 32)
+    helm_pal: dict[str, Color] = {
+        ".": TRANSPARENT,
+        "K": OUTLINE_DARK,
+        "0": slv_0,
+        "1": slv_1,
+        "2": slv_2,
+        "3": slv_3,
+        "4": slv_4,
+        "a": GOLD_1,
+        "g": GOLD_2,
+        "y": GOLD_3,
+        "w": GOLD_4,
+    }
+    helm_rows = [
+        "..............44..............",
+        "............344432............",
+        "..........3444443210..........",
+        ".........344444432210.........",
+        "........34443344322110........",
+        "........34433344322110........",
+        "........ywygggywygagga........",
+        "........34433344322110........",
+        "........34KKKK44KKKK10........",
+        "........34KwKK44KKwK10........",
+        "........344333KK222110........",
+        "........344333KK222110........",
+        "........34K3K3KK2K1K10........",
+        ".........34333KK22210.........",
+        ".........34K3KKK2K1K0.........",
+        "..........3433KK2210..........",
+        "..........3433KK2210..........",
+        "...........34332210...........",
+        "...........ywygggaa...........",
+        "............yggaaa............",
+    ]
+    helm.stamp(helm_rows, helm_pal, ox=1, oy=10)
+
+    helm.add_outline(OUTLINE_DARK)
+    c.blit(helm)
+    return c
+
+
+def make_btn_merc_drop() -> Canvas:
+    """Mercenary Drop: Vibrant emerald-green & gold heraldic war banner flanked by crossed steel battleaxes."""
+    c = Canvas(32, 32)
+
+    # Rich vibrant emerald-green ramp
+    emr_0: Color = (10, 66, 36, 255)
+    emr_1: Color = (20, 120, 62, 255)
+    emr_2: Color = (36, 182, 92, 255)
+    emr_3: Color = (86, 232, 130, 255)
+    emr_4: Color = (182, 252, 192, 255)
+
+    # 1. Crossed steel battleaxes flanking behind the banner (x=2..29, y=4..28)
+    axes = Canvas(32, 32)
+
+    # Diagonal wooden hafts crossing from bottom corners up into the axe sockets (no awkward nubs past heads)
+    for i in range(21):
+        # Haft 1: bottom-left (4, 27) -> upper-right socket (24, 7)
+        x1 = 4 + i
+        y1 = 27 - i
+        axes.px(x1, y1, BRN_2)
+        axes.px(x1 + 1, y1, BRN_1)
+        axes.px(x1, y1 - 1, BRN_3)
+        # Haft 2: bottom-right (27, 27) -> upper-left socket (7, 7)
+        x2 = 27 - i
+        y2 = 27 - i
+        axes.px(x2, y2, BRN_2)
+        axes.px(x2 - 1, y2, BRN_1)
+        axes.px(x2, y2 - 1, BRN_3)
+
+    # Brass pommel caps at bottom ends of crossed hafts
+    for px0, py0 in [(3, 27), (27, 27)]:
+        axes.fill_rect(px0, py0, px0 + 1, py0 + 1, GOLD_3)
+        axes.px(px0 + 1, py0 + 1, GOLD_1)
+
+    # Bold bearded steel crescent battleaxe head on LEFT (x=2..10, y=4..17)
+    axes.poly([(10.0, 7.0), (5.0, 4.0), (2.0, 6.8), (2.0, 13.5), (5.0, 16.5), (8.4, 13.8), (9.6, 10.6)], STL_2)
+    axes.poly([(8.5, 7.2), (5.0, 4.8), (2.4, 7.2), (2.4, 13.0), (5.0, 15.4), (6.8, 12.2)], STL_3)
+    for bx, by in [(5, 4), (4, 5), (3, 6), (2, 7), (2, 8), (2, 9), (2, 10), (2, 11), (2, 12), (2, 13), (3, 14), (4, 15), (5, 16)]:
+        axes.px(bx, by, STL_4)
+    axes.fill_rect(8, 8, 9, 10, GOLD_2)  # brass haft collar
+
+    # Bold bearded steel crescent battleaxe head on RIGHT (x=21..29, y=4..17)
+    axes.poly([(21.0, 7.0), (26.0, 4.0), (29.0, 6.8), (29.0, 13.5), (26.0, 16.5), (22.6, 13.8), (21.4, 10.6)], STL_2)
+    axes.poly([(22.5, 7.2), (26.0, 4.8), (28.6, 7.2), (28.6, 13.0), (26.0, 15.4), (24.2, 12.2)], STL_3)
+    for bx, by in [(26, 4), (27, 5), (28, 6), (29, 7), (29, 8), (29, 9), (29, 10), (29, 11), (29, 12), (29, 13), (28, 14), (27, 15), (26, 16)]:
+        axes.px(bx, by, STL_4)
+    axes.fill_rect(22, 8, 23, 10, GOLD_2)  # brass haft collar
+
+    axes.add_outline(OUTLINE_DARK)
+    c.blit(axes)
+
+    # 2. Vibrant emerald-green & gold heraldic swallowtail war banner (front center, x=9..22, y=2..29)
+    banner = Canvas(32, 32)
+
+    # Top spear finial & horizontal gilded crossbar
+    banner.fill_rect(15, 2, 16, 4, GOLD_3)
+    banner.px(15, 2, GOLD_4)
+    banner.fill_rect(7, 5, 24, 6, GOLD_2)
+    banner.hline(7, 23, 5, GOLD_4)
+    banner.hline(8, 24, 6, GOLD_1)
+    # Round gold bar end finials
+    banner.fill_rect(6, 4, 7, 7, GOLD_3)
+    banner.px(6, 4, GOLD_4)
+    banner.px(7, 7, GOLD_1)
+    banner.fill_rect(24, 4, 25, 7, GOLD_2)
+    banner.px(24, 4, GOLD_3)
+    banner.px(25, 7, GOLD_0)
+
+    # Emerald swallowtail cloth body (x=9..22, y=7..29) with dramatic drapery shading
+    for y in range(7, 30):
+        for x in range(9, 23):
+            if y >= 24:
+                dist_center = abs(x - 15.5)
+                needed = (y - 23) * 0.92
+                if dist_center < needed:
+                    continue
+            if x in (11, 12, 16):
+                col = emr_3
+            elif x in (9, 22):
+                col = emr_0
+            elif x in (19, 20, 21):
+                col = emr_1
+            else:
+                col = emr_2
+            if y == 7:
+                col = emr_0
+            elif y == 8 and x in (11, 12, 15, 16):
+                col = emr_4
+            banner.px(x, y, col)
+
+    # Crisp 1px gold heraldic trim down both banner edges & along swallowtail fringe
+    for y in range(7, 30):
+        banner.px(10, y, GOLD_3 if y < 24 else GOLD_4)
+        banner.px(21, y, GOLD_2 if y < 24 else GOLD_1)
+    for step in range(6):
+        banner.px(15 - step, 23 + step, GOLD_3)
+        banner.px(16 + step, 23 + step, GOLD_2)
+
+    # Crisp golden heraldic war-chevron & radiant diamond star crest on the emerald field
+    crest_pal: dict[str, Color] = {
+        ".": TRANSPARENT,
+        "s": emr_0,
+        "a": GOLD_1,
+        "g": GOLD_2,
+        "y": GOLD_3,
+        "w": GOLD_4,
+    }
+    crest_rows = [
+        "...ww...",
+        "..wyyg..",
+        ".wywwyg.",
+        "..syyg..",
+        "...ss...",
+        "..wyyg..",
+        ".wyggyga",
+        "wygaagya",
+        "sa....as",
+    ]
+    banner.stamp(crest_rows, crest_pal, ox=12, oy=11)
+
+    banner.add_outline(OUTLINE_DARK)
+    c.blit(banner)
+    return c
+
+
+def make_btn_geopolitics() -> Canvas:
+    """Geopolitics & Alliance Trade: Royal purple & gold balance scales over a marble senate arch."""
+    c = Canvas(32, 32)
+
+    # Deep vibrant royal purple ramp (dominant hue)
+    pur_0: Color = (42, 12, 82, 255)
+    pur_1: Color = (86, 26, 154, 255)
+    pur_2: Color = (142, 52, 222, 255)
+    pur_3: Color = (196, 114, 250, 255)
+    pur_4: Color = (242, 212, 255, 255)
+
+    # Ivory marble ramp for the classical senate arch
+    mrb_0: Color = (128, 126, 140, 255)
+    mrb_1: Color = (176, 174, 186, 255)
+    mrb_2: Color = (218, 214, 220, 255)
+    mrb_3: Color = (244, 240, 236, 255)
+    mrb_4: Color = (255, 254, 248, 255)
+
+    # 1. Marble Senate Arch framing a luminous royal-purple vaulted interior (x=4..27, y=3..29)
+    arch = Canvas(32, 32)
+    cx = 15.5
+
+    # Royal purple vaulted background fill inside the arch
+    for y in range(5, 27):
+        for x in range(6, 26):
+            if y < 14:
+                d = math.hypot(x - cx, y - 14.0)
+                if d > 9.8:
+                    continue
+            rd = math.hypot(x - cx, (y - 16.0) * 0.85)
+            if rd < 3.8:
+                col = pur_3
+            elif rd < 7.0:
+                col = pur_2
+            elif rd < 9.4:
+                col = pur_1
+            else:
+                col = pur_0
+            arch.px(x, y, col)
+
+    # Smooth semicircular marble arch ring spanning overhead (y=3..14)
+    for y in range(3, 15):
+        for x in range(4, 28):
+            d = math.hypot(x - cx, y - 14.2)
+            if 8.2 <= d <= 11.4:
+                if x < 14 and y < 11:
+                    col = mrb_4 if d > 10.1 else mrb_3
+                elif x > 18:
+                    col = mrb_1 if d < 9.3 else mrb_2
+                else:
+                    col = mrb_3 if d > 9.8 else mrb_2
+                arch.px(x, y, col)
+
+    # Royal purple keystone medallion crowning the marble arch
+    arch.fill_rect(14, 2, 17, 5, GOLD_2)
+    arch.hline(14, 17, 2, GOLD_4)
+    arch.fill_rect(15, 3, 16, 4, pur_3)
+    arch.px(15, 3, pur_4)
+
+    # Twin fluted marble senate columns on left (x=5..8) and right (x=23..26)
+    for col_x in (5, 23):
+        arch.fill_rect(col_x - 1, 13, col_x + 4, 14, mrb_3 if col_x < 15 else mrb_2)
+        arch.hline(col_x - 1, col_x + 4, 13, mrb_4 if col_x < 15 else mrb_3)
+        for y in range(15, 26):
+            arch.px(col_x, y, mrb_4 if col_x < 15 else mrb_3)
+            arch.px(col_x + 1, y, mrb_2)
+            arch.px(col_x + 2, y, mrb_3 if col_x < 15 else mrb_1)
+            arch.px(col_x + 3, y, mrb_0)
+        arch.fill_rect(col_x - 1, 25, col_x + 4, 26, mrb_2)
+
+    # Stepped marble senate plinth along bottom (y=26..29)
+    arch.fill_rect(4, 26, 27, 27, mrb_3)
+    arch.hline(4, 27, 26, mrb_4)
+    arch.fill_rect(3, 28, 28, 29, mrb_1)
+    arch.hline(3, 27, 28, mrb_2)
+    arch.hline(3, 28, 29, mrb_0)
+
+    arch.add_outline(OUTLINE_DARK)
+    c.blit(arch)
+
+    # 2. Gleaming gold & royal-purple balance scales prominently overlaid in foreground
+    scales = Canvas(32, 32)
+
+    # Central ornate golden pillar & wide base
+    scales.vline(15, 6, 24, GOLD_3)
+    scales.vline(16, 6, 24, GOLD_2)
+    scales.px(15, 11, GOLD_4)
+    scales.px(15, 16, GOLD_4)
+    scales.fill_rect(13, 24, 18, 25, GOLD_2)
+    scales.hline(13, 17, 24, GOLD_3)
+    scales.fill_rect(11, 26, 20, 27, GOLD_1)
+    scales.hline(11, 19, 26, GOLD_3)
+
+    # Wide horizontal golden balance beam (y=8..9, x=5..26) with ornamental curled tips
+    scales.hline(5, 26, 8, GOLD_4)
+    scales.hline(5, 26, 9, GOLD_2)
+    scales.px(4, 9, GOLD_3)
+    scales.px(27, 9, GOLD_2)
+    # Glowing royal-purple crown orb atop the scale pivot
+    scales.fill_rect(14, 5, 17, 8, pur_2)
+    scales.fill_rect(15, 6, 16, 7, pur_3)
+    scales.px(15, 6, pur_4)
+    scales.hline(14, 17, 9, GOLD_3)
+
+    # Left & right V-shaped golden suspension chains & hanging scale pans (protruding past arch!)
+    for pan_cx in (6, 25):
+        scales.line(pan_cx, 10, pan_cx - 4, 18, GOLD_3)
+        scales.line(pan_cx, 10, pan_cx + 4, 18, GOLD_2)
+        # Luminous royal-purple trade gems resting inside each golden scale pan
+        scales.fill_rect(pan_cx - 2, 16, pan_cx + 2, 18, pur_2)
+        scales.fill_rect(pan_cx - 1, 15, pan_cx + 1, 17, pur_3)
+        scales.px(pan_cx - 1, 16, pur_4)
+        # Curved golden scale pan bowl (y=18..21)
+        scales.hline(pan_cx - 4, pan_cx + 4, 18, GOLD_4)
+        scales.hline(pan_cx - 4, pan_cx + 4, 19, GOLD_3)
+        scales.hline(pan_cx - 3, pan_cx + 3, 20, GOLD_2)
+        scales.hline(pan_cx - 2, pan_cx + 2, 21, GOLD_1)
+
+    scales.add_outline(OUTLINE_DARK)
+    c.blit(scales)
+    return c
+
+
+def make_btn_highways_citadels() -> Canvas:
+    """Highways & Citadels: Warm sandstone twin-tower fortress gatehouse spanning a wide cobblestone imperial highway."""
+    c = Canvas(32, 32)
+
+    # Warm desert-sandstone / terracotta-ochre citadel ramp
+    snd_0: Color = (104, 54, 24, 255)
+    snd_1: Color = (158, 90, 40, 255)
+    snd_2: Color = (208, 134, 64, 255)
+    snd_3: Color = (240, 180, 102, 255)
+    snd_4: Color = (254, 224, 164, 255)
+
+    # 1. Warm sandstone twin-tower fortress gatehouse (x=2..29, y=3..25)
+    fort = Canvas(32, 32)
+
+    # Central connecting gatehouse wall & battlements (x=10..21, y=7..21)
+    fort.fill_rect(10, 9, 21, 21, snd_2)
+    fort.hline(10, 21, 9, snd_3)
+    # Central wall merlons
+    fort.fill_rect(12, 7, 14, 9, snd_3)
+    fort.hline(12, 14, 7, snd_4)
+    fort.fill_rect(17, 7, 19, 9, snd_3)
+    fort.hline(17, 19, 7, snd_4)
+    fort.hline(11, 20, 10, snd_1)
+
+    # Left & right tall battlemented sandstone citadel towers
+    for tx0, tx1, is_left in [(2, 10, True), (21, 29, False)]:
+        fort.fill_rect(tx0, 6, tx1, 24, snd_2)
+        fort.vline(tx0, 6, 24, snd_4 if is_left else snd_3)
+        fort.vline(tx0 + 1, 6, 24, snd_3)
+        fort.vline(tx1 - 1, 6, 24, snd_1)
+        fort.vline(tx1, 6, 24, snd_0)
+        # Bold 3-merlon crenellated battlement crown (y=3..6)
+        for mx0, mx1 in [(tx0, tx0 + 2), (tx0 + 3, tx0 + 5), (tx0 + 6, tx1)]:
+            fort.fill_rect(mx0, 3, mx1, 6, snd_2)
+            fort.hline(mx0, mx1, 3, snd_4 if is_left else snd_3)
+            fort.vline(mx0, 3, 5, snd_3)
+            fort.vline(mx1, 4, 6, snd_1)
+        fort.hline(tx0, tx1, 7, snd_0)
+        fort.hline(tx0, tx1 - 1, 6, snd_3)
+        for by in (11, 15, 19, 23):
+            fort.hline(tx0 + 1, tx1 - 1, by, snd_1)
+            fort.px(tx0 + 3 + (by % 3), by - 2, snd_1)
+        # Dark arrow-slit embrasure window centered on tower
+        wx = (tx0 + tx1) // 2
+        fort.vline(wx, 10, 14, OUTLINE_WARM)
+        fort.px(wx - 1, 12, OUTLINE_WARM)
+        fort.px(wx + 1, 12, OUTLINE_WARM)
+        fort.px(wx, 15, snd_4)
+        # Tower base plinth
+        fort.fill_rect(tx0, 23, tx1, 25, snd_1)
+        fort.hline(tx0, tx1 - 1, 23, snd_3)
+
+    # Deep grand rounded gatehouse archway opening (x=12..19, y=12..21)
+    for y in range(12, 22):
+        for x in range(12, 20):
+            dx = x - 15.5
+            dy = y - 15.8
+            if y < 16 and (dx * dx) / 14.5 + (dy * dy) / 13.5 > 1.0:
+                continue
+            fort.px(x, y, OBS_0 if y < 17 else OBS_1)
+    # Bright carved sandstone arch ring (voussoirs) framing the portal
+    for deg in range(180, 361, 10):
+        a = math.radians(deg)
+        ax = int(round(15.5 + math.cos(a) * 4.5))
+        ay = int(round(16.0 + math.sin(a) * 4.2))
+        fort.px(ax, ay, snd_4 if ax <= 16 else snd_3)
+    # Gleaming steel portcullis teeth peeking at top of the open archway
+    for px in (13, 15, 16, 18):
+        fort.vline(px, 13, 15, STL_2)
+        fort.px(px, 15, STL_4)
+
+    fort.add_outline(OUTLINE_WARM)
+    c.blit(fort)
+
+    # 2. Wide perspective cobblestone imperial highway flaring cleanly out of the archway (y=18..29)
+    road = Canvas(32, 32)
+    for y in range(18, 30):
+        t = (y - 18) / 11.0
+        half_w = 3.2 + t * 8.6
+        x_left = int(round(15.5 - half_w))
+        x_right = int(round(15.5 + half_w))
+        for x in range(x_left, x_right + 1):
+            if x == x_left or x == x_left + 1:
+                col = snd_4 if y % 2 == 0 else GOLD_3
+            elif x == x_right or x == x_right - 1:
+                col = snd_3 if y % 2 == 0 else GOLD_2
+            else:
+                row_band = (y - 18) // 2
+                tile_w = 2 if y < 22 else 3
+                tile_idx = (x + (row_band % 2) * 2) // tile_w
+                is_mortar_y = (y in (20, 23, 26))
+                is_mortar_x = ((x + (row_band % 2) * 2) % tile_w == 0) and y >= 21
+                if is_mortar_y or is_mortar_x:
+                    col = STN_1 if y < 23 else STN_0
+                elif abs(x - 15.5) < 1.2 and y >= 20:
+                    col = STN_4
+                elif (tile_idx + row_band) % 2 == 0:
+                    col = STN_3
+                else:
+                    col = STN_2
+            road.px(x, y, col)
+
+    road.add_outline(OUTLINE_WARM)
+    c.blit(road)
+    return c
+
+
+def make_btn_distinct_colors() -> Canvas:
+    """Auto Kingdom Colors & Borders: High-contrast 4-quadrant royal shield with crisp dark borders."""
+    c = Canvas(32, 32)
+    cx = 15.5
+
+    # Classic clean royal heater shield geometry (x=4..27, y=3..29)
+    def shield_half_width(y: int) -> float:
+        if y < 3 or y > 29:
+            return -1.0
+        if y <= 14:
+            return 11.5
+        if y == 29:
+            return 0.6
+        t = (y - 14) / 15.0
+        return max(1.5, 11.5 * math.pow(1.0 - t * t, 0.72))
+
+    for y in range(3, 30):
+        hw = shield_half_width(y)
+        if hw < 0:
+            continue
+        x0 = int(round(cx - hw))
+        x1 = int(round(cx + hw))
+        for x in range(x0, x1 + 1):
+            if y == 3 and abs(x - cx) > 2.5 and abs(x - cx) < 9.0:
+                continue
+
+            edge_x = min(x - x0, x1 - x)
+            top_edge = y - (4 if (abs(x - cx) > 2.5 and abs(x - cx) < 9.0) else 3)
+            bot_edge = 29 - y
+            near_rim = edge_x <= 1 or top_edge <= 1 or bot_edge <= 1
+            inner_border = edge_x == 2 or top_edge == 2 or bot_edge == 2
+
+            if near_rim:
+                if x <= 14 and y <= 15:
+                    col = STL_4 if (edge_x == 0 or top_edge == 0) else STL_3
+                elif x > 17 and y > 15:
+                    col = STL_1 if edge_x == 0 else STL_2
+                else:
+                    col = STL_3 if edge_x == 0 else STL_2
+                c.px(x, y, col)
+            elif inner_border or x in (15, 16) or y in (14, 15):
+                c.px(x, y, OUTLINE_DARK)
+            else:
+                is_left = x < 15
+                is_top = y < 14
+                if is_top and is_left:
+                    # Top-Left: Vivid Crimson Red
+                    if (x + y) <= 16:
+                        col = RED_3
+                    elif x >= 13 or y >= 12:
+                        col = RED_1
+                    else:
+                        col = RED_2
+                    if (x, y) in ((8, 7), (9, 7), (8, 8)):
+                        col = RED_4
+                elif is_top and not is_left:
+                    # Top-Right: Vivid Sapphire Blue
+                    if (x + y) <= 27:
+                        col = BLU_3
+                    elif x >= 23 or y >= 12:
+                        col = BLU_1
+                    else:
+                        col = BLU_2
+                    if (x, y) in ((19, 7), (20, 7), (19, 8)):
+                        col = BLU_4
+                elif not is_top and is_left:
+                    # Bottom-Left: Vivid Emerald Green
+                    if (x + y) <= 29:
+                        col = GRN_3
+                    elif x >= 13 or y >= 24:
+                        col = GRN_1
+                    else:
+                        col = GRN_2
+                    if (x, y) in ((9, 18), (10, 18), (9, 19)):
+                        col = GRN_4
+                else:
+                    # Bottom-Right: Vivid Bright Gold
+                    if (x + y) <= 40:
+                        col = GOLD_3
+                    elif x >= 22 or y >= 24:
+                        col = GOLD_1
+                    else:
+                        col = GOLD_2
+                    if (x, y) in ((19, 18), (20, 18), (19, 19)):
+                        col = GOLD_4
+                c.px(x, y, col)
+
+    # Crisp central silver diamond boss at the cross intersection
+    c.fill_rect(14, 13, 17, 16, OUTLINE_DARK)
+    c.px(15, 14, STL_4)
+    c.px(16, 14, STL_3)
+    c.px(15, 15, STL_3)
+    c.px(16, 15, STL_2)
+
+    c.add_outline(OUTLINE_DARK)
+    return c
+
+
+def make_btn_warfare_suite() -> Canvas:
+    """Consolidated Warfare & Intelligence toggle: Bold crimson shield with crossed broadsword & purple spy dagger."""
+    c = Canvas(32, 32)
+    cx = 15.5
+
+    # 1. Fierce bold crimson-red war shield with dark-gold riveted iron rim (x=5..26, y=5..28)
+    shield = Canvas(32, 32)
+
+    def war_shield_hw(y: int) -> float:
+        if y < 5 or y > 28:
+            return -1.0
+        if y <= 14:
+            return 10.2
+        if y == 28:
+            return 0.6
+        t = (y - 14) / 14.0
+        return max(1.5, 10.2 * math.pow(1.0 - t * t, 0.76))
+
+    for y in range(5, 29):
+        hw = war_shield_hw(y)
+        if hw < 0:
+            continue
+        x0 = int(round(cx - hw))
+        x1 = int(round(cx + hw))
+        for x in range(x0, x1 + 1):
+            edge_x = min(x - x0, x1 - x)
+            top_e = y - 5
+            bot_e = 28 - y
+            if edge_x <= 1 or top_e <= 1 or bot_e <= 1:
+                # Gleaming bronze-gold riveted war rim framing the bold crimson face
+                if x <= 14 and y <= 15:
+                    col = GOLD_3 if (edge_x == 0 or top_e == 0) else GOLD_2
+                elif x > 17 and y > 16:
+                    col = GOLD_0 if edge_x == 0 else GOLD_1
+                else:
+                    col = GOLD_2 if edge_x == 0 else GOLD_1
+            elif edge_x == 2 or top_e == 2:
+                col = RED_0
+            else:
+                # Bold saturated crimson-red war shield field with subtle specular highlight
+                if x < 15:
+                    col = RED_3 if (x + y < 23) else RED_2
+                elif x in (15, 16):
+                    col = RED_3 if y < 14 else RED_1
+                else:
+                    col = RED_2 if y < 18 else RED_1
+            shield.px(x, y, col)
+
+    # Crisp corner rivets along top rim
+    for rx, ry in [(7, 6), (24, 6), (15, 5), (16, 5)]:
+        shield.px(rx, ry, GOLD_4)
+
+    shield.add_outline(OUTLINE_DARK)
+    c.blit(shield)
+
+    # 2. Gleaming steel broadsword slashing from bottom-left (2, 29) up-right to tip (29, 2)
+    sword = Canvas(32, 32)
+
+    # Wide faceted steel broadsword blade (step 0..20 from guard (9,22) to tip (29,2))
+    for i in range(21):
+        bx = 9 + i
+        by = 22 - i
+        sword.px(bx, by, STL_4)
+        if i < 19:
+            sword.px(bx - 1, by, STL_4 if i % 3 == 0 else STL_3)
+            sword.px(bx, by + 1, STL_2)
+        if i < 17:
+            sword.px(bx - 1, by - 1, STL_3)
+            sword.px(bx + 1, by + 1, STL_1)
+
+    # Bold golden broadsword crossguard spanning (6,19) to (12,25)
+    for d in range(-3, 4):
+        gx = 9 + d
+        gy = 22 + d
+        sword.px(gx, gy, GOLD_4 if d <= -1 else (GOLD_3 if d <= 1 else GOLD_2))
+        sword.px(gx - 1, gy, GOLD_3 if d <= 0 else GOLD_1)
+    # Leather grip & heavy round golden pommel at bottom-left
+    for i in range(1, 5):
+        sword.px(9 - i, 22 + i, BRN_2 if i % 2 else BRN_1)
+        sword.px(8 - i, 22 + i, BRN_3)
+    sword.fill_rect(3, 27, 5, 29, GOLD_2)
+    sword.px(3, 27, GOLD_4)
+    sword.px(4, 27, GOLD_3)
+    sword.px(3, 28, GOLD_3)
+    sword.px(5, 29, GOLD_0)
+
+    sword.add_outline(OUTLINE_DARK)
+    c.blit(sword)
+
+    # 3. Wicked sleek purple spy dagger slashing from bottom-right (29, 29) up-left to razor tip (2, 2)
+    dagger = Canvas(32, 32)
+
+    # Sleek razor-thin amethyst-purple spy stiletto blade (distinctly narrower than the broadsword!)
+    for i in range(21):
+        bx = 22 - i
+        by = 22 - i
+        dagger.px(bx, by, VIO_4)
+        if i < 19:
+            dagger.px(bx + 1, by, VIO_3)
+            dagger.px(bx, by + 1, VIO_2)
+        if i < 10:
+            dagger.px(bx - 1, by + 1, VIO_1)
+
+    # Curved assassin S-guard in royal purple & bright violet-white glint
+    for d in range(-3, 4):
+        gx = 22 - d
+        gy = 22 + d
+        dagger.px(gx, gy, VIO_4 if d == -3 else (VIO_3 if d <= 0 else VIO_2))
+        dagger.px(gx + 1, gy, VIO_1)
+    # Hooked spy-guard tips
+    dagger.px(25, 18, VIO_4)
+    dagger.px(18, 25, VIO_2)
+    dagger.px(22, 22, GOLD_4)
+
+    # Midnight-purple wrapped spy hilt & bright amethyst crystal pommel at bottom-right
+    for i in range(1, 5):
+        dagger.px(22 + i, 22 + i, VIO_2 if i % 2 else OBS_1)
+        dagger.px(23 + i, 22 + i, VIO_1)
+    dagger.fill_rect(26, 27, 28, 29, VIO_2)
+    dagger.px(26, 27, VIO_4)
+    dagger.px(27, 27, VIO_3)
+    dagger.px(26, 28, VIO_3)
+    dagger.px(28, 29, VIO_0)
+
+    dagger.add_outline(OUTLINE_DARK)
+    c.blit(dagger)
+    return c
+
+
 # =============================================================================
 # 4. MULTI-FRAME WARDEN SENTINEL ANIMATION SUITE (34 frames, 32x32 RGBA)
 # =============================================================================
@@ -3422,6 +4213,13 @@ def main() -> None:
         ("btn_tectonic_speed", make_btn_tectonic_speed()),
         ("btn_espionage", make_btn_espionage()),
         ("btn_dispatch_spy", make_btn_dispatch_spy()),
+        ("btn_armory_blessing", make_btn_armory_blessing()),
+        ("btn_anoint_hero", make_btn_anoint_hero()),
+        ("btn_merc_drop", make_btn_merc_drop()),
+        ("btn_geopolitics", make_btn_geopolitics()),
+        ("btn_highways_citadels", make_btn_highways_citadels()),
+        ("btn_distinct_colors", make_btn_distinct_colors()),
+        ("btn_warfare_suite", make_btn_warfare_suite()),
     ]
 
     for name, img in wardens + warden_anims:
