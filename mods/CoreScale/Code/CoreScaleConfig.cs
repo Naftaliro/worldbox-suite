@@ -9,6 +9,7 @@ namespace CoreScale
     public class CoreScaleConfig
     {
         public bool EnableCustomMapSizes = true;
+        public bool UnlockHyperSpeed = true;
         public bool EnableAdaptiveLOD = true;
         public bool TurboMode = false;
         public bool EnableFpsGovernor = true;

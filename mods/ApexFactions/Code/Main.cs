@@ -49,6 +49,7 @@ namespace ApexFactions
             WardenSprites.Load(_declare.FolderPath);
             WardenSpeciesRegistry.EnsureRegistered();
             SpeciesPersonalityRegistry.EnsureOpinionsRegistered();
+            AlienThreatSystem.EnsureOpinionRegistered();
 
             try
             {
@@ -99,6 +100,8 @@ namespace ApexFactions
                     return Settings.DeceitfulSnakesMode;
                 case "domain_rings":
                     return Settings.ShowFeralDomainRings;
+                case "alien_defense":
+                    return Settings.EnableAlienCountermeasures;
                 default:
                     return false;
             }
@@ -193,6 +196,16 @@ namespace ApexFactions
             return $"Feral Domain Borders: {(Settings.ShowFeralDomainRings ? "ON" : "OFF")}";
         }
 
+        public string ToggleAlienCountermeasures()
+        {
+            if (Settings == null) return "Config not ready.";
+            Settings.EnableAlienCountermeasures = !Settings.EnableAlienCountermeasures;
+            Settings.Save(_declare.FolderPath);
+            string msg = $"Anti-Alien Coalition & Xeno Salvage: {(Settings.EnableAlienCountermeasures ? "ON" : "OFF")}";
+            _status = msg;
+            return msg;
+        }
+
         private void Update()
         {
             if (Settings == null) return;
@@ -209,10 +222,12 @@ namespace ApexFactions
                 // Ensure species & diplomacy opinions register as soon as AssetManager finishes initializing
                 WardenSpeciesRegistry.EnsureRegistered();
                 SpeciesPersonalityRegistry.EnsureOpinionsRegistered();
+                AlienThreatSystem.EnsureOpinionRegistered();
 
                 if (Config.paused) return;
 
                 float dt = Time.deltaTime;
+                AlienThreatSystem.Tick(dt);
 
                 _wardenTimer += dt;
                 if (_wardenTimer >= 2.0f)
@@ -331,6 +346,15 @@ namespace ApexFactions
                 Settings.EnableWardenDoctrine = !Settings.EnableWardenDoctrine;
                 Settings.Save(_declare.FolderPath);
                 _status = $"Warden Doctrine: {(Settings.EnableWardenDoctrine ? "ON" : "OFF")}";
+            }
+
+            string threatLabel = AlienThreatSystem.IsAlienThreatActive ? $"ACTIVE ({AlienThreatSystem.ActiveAlienUnits})" : "Clear";
+            if (GameUiStyle.ToggleButton(
+                $"Anti-Alien Coalition & Salvage: {(Settings.EnableAlienCountermeasures ? "ON" : "OFF")} [{threatLabel}]",
+                Settings.EnableAlienCountermeasures,
+                $"Anti-Alien Coalition & Xeno Reverse-Engineering|Unites non-Alien kingdoms (+85 opinion & war truce) during Alien invasions. Slaying Aliens grants fireproofing, mythril/adamantine salvage, and salvaged Alien Blasters at 3+ kills.\nAliens Slain: {AlienThreatSystem.TotalAliensSlain}  |  Blasters Salvaged: {AlienThreatSystem.TotalBlastersSalvaged}"))
+            {
+                ToggleAlienCountermeasures();
             }
 
             string mercyDesc = Settings.MercyThresholdPercent > 0f

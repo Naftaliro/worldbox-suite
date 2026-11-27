@@ -2,5 +2,10 @@
   "map_size_colossal": "Colossal (12x12)",
   "map_size_continental": "Continental (16x16)",
   "map_size_planetary": "Planetary (20x20)",
-  "map_size_leviathan": "Leviathan (24x24)"
+  "map_size_leviathan": "Leviathan (24x24)",
+  "speed_x10": "10x",
+  "speed_x15": "15x",
+  "speed_x20": "20x",
+  "speed_x40": "40x (Sonic)",
+  "speed_x60": "60x (Hyper)"
 }

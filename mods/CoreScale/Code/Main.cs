@@ -29,7 +29,7 @@ namespace CoreScale
         private float _statsTimer = 0f;
         private float _battalionTimer = 0f;
         private float _lastUpdateWarnTime = -99f;
-        private Rect _windowRect = new Rect(18, 86, 305, 315);
+        private Rect _windowRect = new Rect(18, 86, 315, 390);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -57,6 +57,7 @@ namespace CoreScale
                 }
 
                 LoadLocales(_declare.FolderPath);
+                HyperSpeedSystem.EnsureRegistered();
                 SimulationLodPatches.ApplyParallelSettings();
                 Debug.Log($"[CoreScale] Loaded v{_declare.Version} (threads={Environment.ProcessorCount})");
             }
@@ -105,6 +106,7 @@ namespace CoreScale
                 case "anim_cull": return Settings.SkipAnimationsInStrategicZoom;
                 case "no_shadows": return Settings.ForceDisableShadows;
                 case "battalions": return Settings.EnableBattalionCompression;
+                case "hyper_speed": return Settings.UnlockHyperSpeed;
                 default: return false;
             }
         }
@@ -162,6 +164,19 @@ namespace CoreScale
             return delta > 0 ? $"Compressed {delta} soldiers into veteran champions!" : "No oversized armies needed compression.";
         }
 
+        public string CycleHyperSpeed()
+        {
+            return HyperSpeedSystem.CycleHyperSpeed();
+        }
+
+        public string ToggleHyperSpeed()
+        {
+            if (Settings == null) return "";
+            Settings.UnlockHyperSpeed = !Settings.UnlockHyperSpeed;
+            Settings.Save(_declare.FolderPath);
+            return $"Hourglass Hyper Speed (10x–60x): {(Settings.UnlockHyperSpeed ? "ON" : "OFF")}";
+        }
+
         private void Update()
         {
             CurrentFrameCount = Time.frameCount;
@@ -174,6 +189,8 @@ namespace CoreScale
 
             try
             {
+                HyperSpeedSystem.EnsureRegistered();
+
                 float dt = Time.unscaledDeltaTime;
                 if (dt > 0.0001f)
                 {
@@ -263,7 +280,31 @@ namespace CoreScale
             GameUiStyle.Label($"FPS: {_fpsSmoothed:0.0}   |   Pop: {LivePopulation:N0}", "Live Telemetry|Smoothed frame rate and total living units currently simulated in this world.", isHeader: true);
             GameUiStyle.Label($"Map: {mapDims}", "Map Dimensions|Current world size in tiles. CoreScale unlocks giant presets up to 24x24 chunks (1536x1536 tiles).");
             GameUiStyle.Label($"LOD Tier: {CurrentLodTier}  (Parallel: {Config.parallel_jobs_updater})", "Simulation LOD Tier|Tier 0 (<3k pop): full speed. Tier 1 (3k+): lighter cosmetics. Tier 2 (8k+): time-sliced AI. Tier 3 (15k+): max throttling.");
-            GUILayout.Space(6);
+            GUILayout.Space(4);
+
+            string curSpeed = HyperSpeedSystem.GetCurrentSpeedId();
+            GameUiStyle.Label($"Speed: {HyperSpeedSystem.FormatSpeedLabel(curSpeed)}", "Hyper Speed Controls|Jump directly to 1x, 5x, 10x, 20x, 40x (Sonic), or 60x (Hyper) simulation speed.", isHeader: true);
+            GUILayout.BeginHorizontal();
+            string[] speeds = { "x1", "x5", "x10", "x20", "x40", "x60" };
+            string[] labels = { "1x", "5x", "10x", "20x", "40x", "60x" };
+            for (int i = 0; i < speeds.Length; i++)
+            {
+                if (GameUiStyle.ToggleButton(labels[i], curSpeed == speeds[i], $"Set World Speed {labels[i]}|Switches simulation time scale to {HyperSpeedSystem.FormatSpeedLabel(speeds[i])}."))
+                {
+                    HyperSpeedSystem.SetSpeed(speeds[i]);
+                }
+            }
+            GUILayout.EndHorizontal();
+
+            if (GameUiStyle.ToggleButton(
+                $"Hourglass 10x–60x Cycle: {(Settings.UnlockHyperSpeed ? "ON" : "OFF")}",
+                Settings.UnlockHyperSpeed,
+                "Extend Native Hourglass|Adds 10x, 20x, 40x, and 60x directly into WorldBox's bottom-bar hourglass click cycle.|Saved automatically"))
+            {
+                ToggleHyperSpeed();
+            }
+
+            GUILayout.Space(4);
 
             if (GameUiStyle.ToggleButton(
                 $"Adaptive LOD: {(Settings.EnableAdaptiveLOD ? "ON" : "OFF")}",

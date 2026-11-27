@@ -21,7 +21,7 @@ namespace VisualPolish
         private float _cycleTime = 0f;
         private float _ageCheckTimer = 0f;
         private float _lastUpdateWarnTime = -99f;
-        private Rect _windowRect = new Rect(305, 86, 315, 470);
+        private Rect _windowRect = new Rect(305, 86, 320, 540);
 
         private Texture2D _vignetteTex;
         private Texture2D _pixelTex;
@@ -89,6 +89,7 @@ namespace VisualPolish
                 case "colors_borders": return Settings.AutoDistinctKingdomColors || Settings.EnhancedBorders;
                 case "distinct_colors": return Settings.AutoDistinctKingdomColors;
                 case "enhanced_borders": return Settings.EnhancedBorders;
+                case "hd_zoom": return Settings.ExtendedHdZoom;
                 default: return false;
             }
         }
@@ -175,6 +176,15 @@ namespace VisualPolish
             Settings.Save(_declare.FolderPath);
             KingdomColorAndBorderSystem.ApplyNow(runColorPass: false);
             return $"Enhanced Borders: {(Settings.EnhancedBorders ? "ON" : "OFF")}";
+        }
+
+        public string ToggleExtendedHdZoom()
+        {
+            if (Settings == null) return "";
+            Settings.ExtendedHdZoom = !Settings.ExtendedHdZoom;
+            Settings.Save(_declare.FolderPath);
+            string detailLabel = Settings.HdZoomMultiplier >= 25f ? "Always HD" : $"{Settings.HdZoomMultiplier:0.0}x";
+            return $"Extended HD Zoom ({detailLabel}): {(Settings.ExtendedHdZoom ? "ON" : "OFF")}";
         }
 
         private void BuildTextures()
@@ -365,6 +375,43 @@ namespace VisualPolish
             {
                 ToggleEnhancedBorders();
             }
+
+            string zoomLabel = Settings.HdZoomMultiplier >= 25f ? "Always HD" : $"{Settings.HdZoomMultiplier:0.1}x";
+            if (GameUiStyle.ToggleButton(
+                $"Extended HD Zoom ({zoomLabel}): {(Settings.ExtendedHdZoom ? "ON" : "OFF")}",
+                Settings.ExtendedHdZoom,
+                "Extended HD Zoom-Out Detail|Keeps buildings, city walls, citadels, highways, and units rendered in crisp sprite detail much further out before switching to pixelated minimap mode."))
+            {
+                ToggleExtendedHdZoom();
+            }
+
+            float sliderVal = Mathf.Clamp(Settings.HdZoomMultiplier, 1.0f, 6.0f);
+            float nextZoomMult = GameUiStyle.SliderRow(
+                Settings.HdZoomMultiplier >= 25f ? "HD Detail Range: Always HD" : $"HD Detail Range: {Settings.HdZoomMultiplier:0.0}x",
+                sliderVal,
+                1.0f,
+                6.0f,
+                "HD Zoom Multiplier|Controls how far you can zoom out while keeping full building and sprite detail (2.5x default).");
+            if (Mathf.Abs(nextZoomMult - sliderVal) > 0.05f)
+            {
+                Settings.HdZoomMultiplier = Mathf.Round(nextZoomMult * 10f) / 10f;
+                Settings.ExtendedHdZoom = true;
+            }
+
+            GUILayout.BeginHorizontal();
+            if (GameUiStyle.Button("2.5x Default", "Standard Extended HD|Balanced 2.5x zoom-out detail cutoff for smooth panning and crisp cities."))
+            {
+                Settings.ExtendedHdZoom = true;
+                Settings.HdZoomMultiplier = 2.5f;
+                Settings.Save(_declare.FolderPath);
+            }
+            if (GameUiStyle.ToggleButton("Always HD", Settings.ExtendedHdZoom && Settings.HdZoomMultiplier >= 25f, "Always Render HD Detail|Never flip to pixelated minimap tiles at any zoom distance (heavier GPU load on huge maps)."))
+            {
+                Settings.ExtendedHdZoom = true;
+                Settings.HdZoomMultiplier = Settings.HdZoomMultiplier >= 25f ? 2.5f : 50f;
+                Settings.Save(_declare.FolderPath);
+            }
+            GUILayout.EndHorizontal();
 
             GUILayout.Space(6);
             float newVig = GameUiStyle.SliderRow(

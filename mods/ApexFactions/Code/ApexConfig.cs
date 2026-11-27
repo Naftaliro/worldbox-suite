@@ -9,8 +9,9 @@ namespace ApexFactions
     [Serializable]
     public class ApexFactionsConfig
     {
-        // Warden "Sleeping Giant" Doctrine
+        // Warden "Sleeping Giant" Doctrine & Anti-Alien Countermeasures
         public bool EnableWardenDoctrine = true;
+        public bool EnableAlienCountermeasures = true;
         public float MercyThresholdPercent = 15f; // Stop retaliation once aggressor drops to 15% of pre-war pop
         public int MinSurvivorsFloor = 4;
 

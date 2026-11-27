@@ -9,10 +9,11 @@ namespace GrandWarfare
 {
     public enum SpyStage
     {
-        Infiltrating = 0,
-        CourtInsider = 1,
-        CityLeader = 2,
-        UsurpedThrone = 3
+        Traveling = 0,
+        Infiltrating = 1,
+        CourtInsider = 2,
+        CityLeader = 3,
+        UsurpedThrone = 4
     }
 
     public class SpyMission
@@ -27,6 +28,9 @@ namespace GrandWarfare
         public float Influence;
         public float Cover;
         public float ConsolidationTimer;
+        public int TravelDistanceLeft;
+        public float LastTravelDist;
+        public int StalledTravelTicks;
     }
 
     public static class EspionageSystem
@@ -35,7 +39,11 @@ namespace GrandWarfare
         public const string TraitCounterIntelId = "suite_counter_intel";
         public const string OpinionScandalId = "suite_espionage_scandal";
 
+        private const float TravelTickInterval = 2.0f;
         private const float MissionTickInterval = 5.0f;
+        private const float AutoDispatchCooldownSeconds = 300.0f;
+        private const int MaxGlobalAutoMissions = 2;
+        private const float PendingOriginTimeoutSeconds = 45.0f;
         private const float ScandalDurationSeconds = 600.0f;
         private const int MaxRecentEvents = 24;
 
@@ -69,6 +77,9 @@ namespace GrandWarfare
         private static readonly FieldInfo StatsField =
             AccessTools.Field(typeof(BaseSimObject), "stats");
 
+        private static readonly FieldInfo CityKingdomField =
+            AccessTools.Field(typeof(City), "kingdom");
+
         private static readonly AccessTools.FieldRef<BaseSimObject, BaseStats> StatsRef;
 
         static EspionageSystem()
@@ -89,7 +100,11 @@ namespace GrandWarfare
         private static bool _traitsSanitized;
         private static bool _opinionRegistered;
 
+        private static long _pendingOriginKingdomId = -1;
+        private static float _pendingOriginTimestamp = -999f;
+
         private static float _simTime;
+        private static float _travelTimer;
         private static float _dispatchTimer;
         private static float _missionTimer;
         private static float _cleanupTimer;
@@ -263,6 +278,13 @@ namespace GrandWarfare
 
             if (!settings.EnableEspionage) return;
 
+            _travelTimer += dt;
+            if (_travelTimer >= TravelTickInterval)
+            {
+                _travelTimer = 0f;
+                TickTravelingMissions(world);
+            }
+
             _missionTimer += dt;
             if (_missionTimer >= MissionTickInterval)
             {
@@ -270,12 +292,15 @@ namespace GrandWarfare
                 TickActiveMissions(world);
             }
 
-            float dispatchInterval = settings.ChaoticEspionageMode ? 10f : 22f;
-            _dispatchTimer += dt;
-            if (_dispatchTimer >= dispatchInterval)
+            if (settings.EnableAutoEspionage)
             {
-                _dispatchTimer = 0f;
-                TryAutoDispatchSpy(world);
+                float dispatchInterval = settings.ChaoticEspionageMode ? 20f : 35f;
+                _dispatchTimer += dt;
+                if (_dispatchTimer >= dispatchInterval)
+                {
+                    _dispatchTimer = 0f;
+                    TryAutoDispatchSpy(world);
+                }
             }
         }
 
@@ -288,12 +313,23 @@ namespace GrandWarfare
         {
             switch (stage)
             {
+                case SpyStage.Traveling: return "Traveling";
                 case SpyStage.Infiltrating: return "Infiltrating";
                 case SpyStage.CourtInsider: return "Court Insider";
                 case SpyStage.CityLeader: return "City Leader";
                 case SpyStage.UsurpedThrone: return "Usurped Throne";
                 default: return stage.ToString();
             }
+        }
+
+        public static string FormatMissionStage(SpyMission m)
+        {
+            if (m == null) return "";
+            if (m.Stage == SpyStage.Traveling)
+            {
+                return $"Traveling ({Math.Max(1, m.TravelDistanceLeft)} tiles)";
+            }
+            return FormatStage(m.Stage);
         }
 
         public static float ComputeSpySkill(Actor spy, Kingdom origin)
@@ -372,10 +408,10 @@ namespace GrandWarfare
         {
             if (world?.kingdoms == null || world.units == null || world.wars == null) return;
             var settings = Main.Settings;
-            if (settings == null || !settings.EnableEspionage) return;
+            if (settings == null || !settings.EnableEspionage || !settings.EnableAutoEspionage) return;
 
-            int maxGlobal = settings.ChaoticEspionageMode ? 8 : 4;
-            int maxPerOrigin = settings.ChaoticEspionageMode ? 2 : 1;
+            int maxGlobal = MaxGlobalAutoMissions;
+            int maxPerOrigin = 1;
             if (ActiveMissions.Count >= maxGlobal) return;
 
             var kingdoms = new List<Kingdom>(world.kingdoms);
@@ -451,7 +487,82 @@ namespace GrandWarfare
             Actor candidate = FindCandidateSpy(world, chosenOrigin);
             if (candidate == null) return;
 
-            LaunchSpyMission(chosenOrigin, chosenTarget, candidate, showToast: false);
+            LaunchSpyMission(chosenOrigin, chosenTarget, candidate, showToast: false, isAutoDispatch: true);
+        }
+
+        public static string SelectSpyKingdomAtTile(WorldTile tile)
+        {
+            EnsureAssetsRegistered();
+            var world = MapBox.instance;
+            if (world?.kingdoms == null || world.units == null || tile == null)
+            {
+                return "Click inside a civilized kingdom to select Spy Origin / Target.";
+            }
+
+            Kingdom clickedKingdom = FindKingdomAtOrNearTile(world, tile, 20f);
+            if (clickedKingdom == null || !clickedKingdom.isAlive() || !clickedKingdom.isCiv())
+            {
+                return "Click inside a civilized kingdom to select Spy Origin / Target.";
+            }
+
+            // Expire stale pending selection after 45s
+            if (_pendingOriginKingdomId > 0 && (Time.unscaledTime - _pendingOriginTimestamp > PendingOriginTimeoutSeconds))
+            {
+                _pendingOriginKingdomId = -1;
+            }
+
+            Kingdom pendingOrigin = _pendingOriginKingdomId > 0 ? world.kingdoms.get(_pendingOriginKingdomId) : null;
+            if (pendingOrigin == null || !pendingOrigin.isAlive() || !pendingOrigin.isCiv())
+            {
+                _pendingOriginKingdomId = -1;
+                pendingOrigin = null;
+            }
+
+            // 1st Click: Lock in Spy Origin Kingdom
+            if (pendingOrigin == null)
+            {
+                _pendingOriginKingdomId = clickedKingdom.id;
+                _pendingOriginTimestamp = Time.unscaledTime;
+                return $"Spy Origin: {clickedKingdom.name} — now click a rival Target Kingdom to infiltrate!";
+            }
+
+            // 2nd Click on same kingdom: Cancel selection
+            if (clickedKingdom.id == _pendingOriginKingdomId)
+            {
+                _pendingOriginKingdomId = -1;
+                return $"Cancelled spy dispatch from {clickedKingdom.name}.";
+            }
+
+            // 2nd Click on rival Target Kingdom: Dispatch covert agent physically toward target capital
+            _pendingOriginKingdomId = -1;
+
+            if (GetTargetCapitalTile(clickedKingdom) == null)
+            {
+                return $"Target kingdom {clickedKingdom.name} has no active capital to infiltrate.";
+            }
+
+            if (Main.Settings != null && !Main.Settings.EnableEspionage)
+            {
+                Main.Settings.EnableEspionage = true;
+            }
+
+            Actor spy = FindCandidateSpy(world, pendingOrigin, allowExtendedFallback: true);
+            if (spy == null)
+            {
+                if (GetKingdomSpecies(pendingOrigin) == "warden")
+                {
+                    return "Sentinel Wardens follow the Sleeping Giant code and refuse covert infiltration.";
+                }
+                return $"No eligible citizen available in {pendingOrigin.name} for covert ops.";
+            }
+
+            SpyMission m = LaunchSpyMission(pendingOrigin, clickedKingdom, spy, showToast: false, isAutoDispatch: false);
+            if (m == null)
+            {
+                return $"Failed to dispatch covert agent from {pendingOrigin.name} toward {clickedKingdom.name}.";
+            }
+
+            return $"Spy Dispatched: {m.SpyName} ({m.OriginName}) is traveling to infiltrate {m.TargetName} ({m.TravelDistanceLeft} tiles)!";
         }
 
         public static string DispatchSpyNow()
@@ -551,27 +662,28 @@ namespace GrandWarfare
                 return $"No eligible adult citizen available in {bestOrigin.name} for covert ops.";
             }
 
-            SpyMission m = LaunchSpyMission(bestOrigin, bestTarget, spy, showToast: false);
+            SpyMission m = LaunchSpyMission(bestOrigin, bestTarget, spy, showToast: false, isAutoDispatch: false);
             if (m == null)
             {
-                return "Failed to infiltrate target capital.";
+                return "Failed to dispatch covert spy.";
             }
 
-            return $"Spy Dispatched: {m.SpyName} ({m.OriginName}) infiltrated {m.TargetName}!";
+            return $"Spy Dispatched: {m.SpyName} ({m.OriginName}) is traveling toward {m.TargetName} ({m.TravelDistanceLeft} tiles)!";
         }
 
-        private static SpyMission LaunchSpyMission(Kingdom origin, Kingdom target, Actor spy, bool showToast)
+        private static SpyMission LaunchSpyMission(Kingdom origin, Kingdom target, Actor spy, bool showToast, bool isAutoDispatch = false)
         {
             if (origin == null || !origin.isAlive() || target == null || !target.isAlive() || spy == null || !spy.isAlive())
                 return null;
 
             City targetCapital = (target.capital != null && target.capital.isAlive()) ? target.capital : FirstAliveCity(target);
             WorldTile capTile = targetCapital?.getTile();
-            if (targetCapital == null || !targetCapital.isAlive() || capTile == null)
+            if (targetCapital == null || !targetCapital.isAlive() || capTile == null || spy.current_tile == null)
                 return null;
 
             EnsureAssetsRegistered();
 
+            float dist;
             try
             {
                 if (!spy.isAlive() || !targetCapital.isAlive() || !target.isAlive())
@@ -579,21 +691,27 @@ namespace GrandWarfare
 
                 if (AssetManager.traits != null)
                 {
-                    if (AssetManager.traits.has(TraitSpyId)) spy.addTrait(TraitSpyId, false);
-                    if (AssetManager.traits.has("deceitful")) spy.addTrait("deceitful", false);
+                    if (AssetManager.traits.has(TraitSpyId) && !spy.hasTrait(TraitSpyId)) spy.addTrait(TraitSpyId, false);
+                    if (AssetManager.traits.has("deceitful") && !spy.hasTrait("deceitful")) spy.addTrait("deceitful", false);
+                    if (AssetManager.traits.has("agile") && !spy.hasTrait("agile")) spy.addTrait("agile", false);
+                    if (AssetManager.traits.has("fast") && !spy.hasTrait("fast")) spy.addTrait("fast", false);
                 }
                 spy.setStatsDirty();
+                spy.restoreHealthPercent(1f);
+                spy.setMaxHealth();
+                spy.setMaxStamina();
 
-                // Cancel existing AI behavior before relocating the agent onto the target capital tile
+                float dx = capTile.x - spy.current_tile.x;
+                float dy = capTile.y - spy.current_tile.y;
+                dist = Mathf.Sqrt(dx * dx + dy * dy);
+
+                // Leave the spy at their actual origin tile and command physical travel to the target capital
                 CancelAllBehMethod?.Invoke(spy, null);
-                SetCurrentTilePositionMethod?.Invoke(spy, new object[] { capTile });
-                if (!spy.isAlive() || !targetCapital.isAlive()) return null;
-                spy.joinCity(targetCapital);
-                spy.setMetasFromCity(targetCapital);
+                spy.goTo(capTile, pPathOnWater: true, pWalkOnBlocks: true);
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[GrandWarfare] Spy infiltration failed: {e.Message}");
+                Debug.LogWarning($"[GrandWarfare] Spy dispatch failed: {e.Message}");
                 return null;
             }
 
@@ -606,21 +724,247 @@ namespace GrandWarfare
                 OriginName = origin.name ?? "Unknown",
                 TargetKingdomId = target.id,
                 TargetName = target.name ?? "Unknown",
-                Stage = SpyStage.Infiltrating,
+                Stage = SpyStage.Traveling,
                 Influence = 10f,
                 Cover = 100f,
-                ConsolidationTimer = 0f
+                ConsolidationTimer = 0f,
+                TravelDistanceLeft = Mathf.RoundToInt(dist),
+                LastTravelDist = dist,
+                StalledTravelTicks = 0
             };
 
             ActiveMissions.Add(mission);
             SpiesDispatched++;
 
-            float cd = (Main.Settings != null && Main.Settings.ChaoticEspionageMode) ? 60f : 180f;
-            _originCooldowns[origin.id] = _simTime + cd;
+            if (isAutoDispatch)
+            {
+                _originCooldowns[origin.id] = _simTime + AutoDispatchCooldownSeconds;
+            }
 
-            string msg = $"{mission.OriginName} dispatched covert agent {mission.SpyName} into {mission.TargetName}.";
+            string msg = $"{mission.OriginName} dispatched covert agent {mission.SpyName} toward {mission.TargetName} ({mission.TravelDistanceLeft} tiles).";
             RecordEvent(msg, showToast);
             return mission;
+        }
+
+        private static void TickTravelingMissions(MapBox world)
+        {
+            if (ActiveMissions.Count == 0 || world?.units == null || world.kingdoms == null) return;
+
+            var snapshot = new List<SpyMission>(ActiveMissions);
+            var toRemove = new List<SpyMission>();
+
+            for (int i = 0; i < snapshot.Count; i++)
+            {
+                SpyMission m = snapshot[i];
+                if (m.Stage != SpyStage.Traveling) continue;
+
+                Actor spy = world.units.get(m.SpyActorId);
+                Kingdom origin = world.kingdoms.get(m.OriginKingdomId);
+                Kingdom target = world.kingdoms.get(m.TargetKingdomId);
+
+                if (spy == null || !spy.isAlive() || spy.current_tile == null)
+                {
+                    RecordEvent($"Agent {m.SpyName} ({m.OriginName}) perished en route to {m.TargetName}.", showToast: false);
+                    toRemove.Add(m);
+                    continue;
+                }
+
+                if (origin == null || !origin.isAlive() || !origin.isCiv() ||
+                    target == null || !target.isAlive() || !target.isCiv())
+                {
+                    toRemove.Add(m);
+                    continue;
+                }
+
+                City targetCap = (target.capital != null && target.capital.isAlive()) ? target.capital : FirstAliveCity(target);
+                WorldTile dest = targetCap?.getTile();
+                if (targetCap == null || !targetCap.isAlive() || dest == null)
+                {
+                    toRemove.Add(m);
+                    continue;
+                }
+
+                m.SpyName = SafeActorName(spy);
+                m.OriginName = origin.name ?? m.OriginName;
+                m.TargetName = target.name ?? m.TargetName;
+
+                float dx = dest.x - spy.current_tile.x;
+                float dy = dest.y - spy.current_tile.y;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                m.TravelDistanceLeft = Mathf.RoundToInt(dist);
+
+                if (dist <= 10f)
+                {
+                    try
+                    {
+                        CancelAllBehMethod?.Invoke(spy, null);
+                        if (spy.city != null && spy.city.leader == spy)
+                        {
+                            spy.city.removeLeader();
+                        }
+                        spy.joinCity(targetCap);
+                        spy.setMetasFromCity(targetCap);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"[GrandWarfare] Spy arrival infiltration failed: {e.Message}");
+                    }
+
+                    if (!spy.isAlive() || spy.kingdom != target)
+                    {
+                        toRemove.Add(m);
+                        continue;
+                    }
+
+                    m.Stage = SpyStage.Infiltrating;
+                    m.TravelDistanceLeft = 0;
+                    RecordEvent($"{origin.name}'s spy {m.SpyName} arrived in {target.name} and infiltrated {targetCap.name}!", showToast: true);
+                    continue;
+                }
+
+                // Still en route: keep issuing goTo and step smoothly across oceans/obstacles if pathfinding stalls
+                bool progressed = (m.LastTravelDist - dist) >= 1.5f;
+                if (progressed)
+                {
+                    m.StalledTravelTicks = 0;
+                }
+                else
+                {
+                    m.StalledTravelTicks++;
+                }
+                m.LastTravelDist = dist;
+
+                bool separatedByOcean = spy.current_tile.region?.island != dest.region?.island;
+                if ((separatedByOcean && m.StalledTravelTicks > 2) || m.StalledTravelTicks > 3)
+                {
+                    float stepLen = Mathf.Min(UnityEngine.Random.Range(4, 7), Mathf.Max(1f, dist - 4f));
+                    WorldTile stepTile = FindSafeTravelStepTile(world, spy.current_tile, dx / dist, dy / dist, stepLen);
+                    if (stepTile != null && stepTile != spy.current_tile)
+                    {
+                        try
+                        {
+                            CancelAllBehMethod?.Invoke(spy, null);
+                            SetCurrentTilePositionMethod?.Invoke(spy, new object[] { stepTile });
+                        }
+                        catch { }
+
+                        if (spy.current_tile != null)
+                        {
+                            float ndx = dest.x - spy.current_tile.x;
+                            float ndy = dest.y - spy.current_tile.y;
+                            float newDist = Mathf.Sqrt(ndx * ndx + ndy * ndy);
+                            m.TravelDistanceLeft = Mathf.RoundToInt(newDist);
+                            m.LastTravelDist = newDist;
+                        }
+                    }
+                }
+
+                try
+                {
+                    spy.goTo(dest, pPathOnWater: true, pWalkOnBlocks: true);
+                }
+                catch { }
+            }
+
+            if (toRemove.Count > 0)
+            {
+                for (int i = 0; i < toRemove.Count; i++)
+                {
+                    ActiveMissions.Remove(toRemove[i]);
+                }
+            }
+        }
+
+        private static WorldTile FindSafeTravelStepTile(MapBox world, WorldTile current, float dirX, float dirY, float stepLen)
+        {
+            if (world == null || current == null) return null;
+            int tx = Mathf.Clamp(Mathf.RoundToInt(current.x + dirX * stepLen), 1, MapBox.width - 2);
+            int ty = Mathf.Clamp(Mathf.RoundToInt(current.y + dirY * stepLen), 1, MapBox.height - 2);
+            WorldTile direct = world.GetTile(tx, ty);
+            if (direct != null && (direct.Type == null || !direct.Type.lava))
+            {
+                return direct;
+            }
+
+            for (int oy = -1; oy <= 1; oy++)
+            {
+                for (int ox = -1; ox <= 1; ox++)
+                {
+                    WorldTile cand = world.GetTile(tx + ox, ty + oy);
+                    if (cand != null && (cand.Type == null || !cand.Type.lava))
+                    {
+                        return cand;
+                    }
+                }
+            }
+            return direct;
+        }
+
+        private static Kingdom FindKingdomAtOrNearTile(MapBox world, WorldTile tile, float maxDistTiles)
+        {
+            if (tile?.zone?.city != null && tile.zone.city.isAlive())
+            {
+                Kingdom directKingdom = GetCityKingdom(tile.zone.city);
+                if (directKingdom != null && directKingdom.isAlive() && directKingdom.isCiv())
+                {
+                    return directKingdom;
+                }
+            }
+
+            float bestDistSq = maxDistTiles * maxDistTiles;
+            Kingdom bestKingdom = null;
+
+            if (world?.cities != null)
+            {
+                var cities = new List<City>(world.cities);
+                for (int i = 0; i < cities.Count; i++)
+                {
+                    City c = cities[i];
+                    if (c == null || !c.isAlive()) continue;
+                    Kingdom k = GetCityKingdom(c);
+                    if (k == null || !k.isAlive() || !k.isCiv()) continue;
+                    WorldTile cTile = c.getTile();
+                    if (cTile == null) continue;
+
+                    float dx = cTile.x - tile.x;
+                    float dy = cTile.y - tile.y;
+                    float dSq = dx * dx + dy * dy;
+                    if (dSq <= bestDistSq)
+                    {
+                        bestDistSq = dSq;
+                        bestKingdom = k;
+                    }
+                }
+            }
+
+            if (world?.units?.units_only_alive != null)
+            {
+                var alive = new List<Actor>(world.units.units_only_alive);
+                for (int i = 0; i < alive.Count; i++)
+                {
+                    Actor u = alive[i];
+                    if (u == null || !u.isAlive() || u.current_tile == null) continue;
+                    if (u.kingdom == null || !u.kingdom.isAlive() || !u.kingdom.isCiv()) continue;
+
+                    float dx = u.current_tile.x - tile.x;
+                    float dy = u.current_tile.y - tile.y;
+                    float dSq = dx * dx + dy * dy;
+                    if (dSq <= bestDistSq)
+                    {
+                        bestDistSq = dSq;
+                        bestKingdom = u.kingdom;
+                    }
+                }
+            }
+
+            return bestKingdom;
+        }
+
+        private static Kingdom GetCityKingdom(City c)
+        {
+            if (c == null || CityKingdomField == null) return null;
+            try { return CityKingdomField.GetValue(c) as Kingdom; }
+            catch { return null; }
         }
 
         private static void TickActiveMissions(MapBox world)
@@ -633,6 +977,8 @@ namespace GrandWarfare
             for (int i = 0; i < snapshot.Count; i++)
             {
                 SpyMission m = snapshot[i];
+                if (m.Stage == SpyStage.Traveling) continue;
+
                 Actor spy = world.units.get(m.SpyActorId);
                 Kingdom origin = world.kingdoms.get(m.OriginKingdomId);
                 Kingdom target = world.kingdoms.get(m.TargetKingdomId);
@@ -1013,7 +1359,7 @@ namespace GrandWarfare
             }
         }
 
-        private static Actor FindCandidateSpy(MapBox world, Kingdom origin)
+        private static Actor FindCandidateSpy(MapBox world, Kingdom origin, bool allowExtendedFallback = false)
         {
             var aliveRaw = world.units?.units_only_alive;
             if (aliveRaw == null || aliveRaw.Count == 0 || origin == null) return null;
@@ -1023,18 +1369,29 @@ namespace GrandWarfare
             float bestCivScore = float.MinValue;
             Actor bestFallback = null;
             float bestFallbackScore = float.MinValue;
+            Actor bestExtended = null;
+            float bestExtendedScore = float.MinValue;
 
             for (int i = 0; i < alive.Count; i++)
             {
                 Actor u = alive[i];
-                if (u == null || !u.isAlive() || u.kingdom != origin) continue;
-                if (u.asset == null || u.asset.is_boat || NavalCombatSystem.IsInsideBoat(u)) continue;
-                if (!u.isAdult()) continue;
+                if (u == null || !u.isAlive() || u.kingdom != origin || u.current_tile == null) continue;
+                if (u.asset == null || u.asset.is_boat || u.asset.id == "warden" || NavalCombatSystem.IsInsideBoat(u)) continue;
                 if (u == origin.king) continue;
-                if (u.city != null && u.city.leader == u) continue;
                 if (IsActiveSpy(u.id)) continue;
 
                 float score = ComputeSpySkill(u, origin) + UnityEngine.Random.Range(0f, 12f);
+
+                if (!u.isAdult() || (u.city != null && u.city.leader == u))
+                {
+                    if (allowExtendedFallback && score > bestExtendedScore)
+                    {
+                        bestExtendedScore = score;
+                        bestExtended = u;
+                    }
+                    continue;
+                }
+
                 if (u.army == null)
                 {
                     if (score > bestCivScore)
@@ -1053,7 +1410,7 @@ namespace GrandWarfare
                 }
             }
 
-            return bestCivilian ?? bestFallback;
+            return bestCivilian ?? bestFallback ?? (allowExtendedFallback ? bestExtended : null);
         }
 
         private static void CleanupStaleState(MapBox world)

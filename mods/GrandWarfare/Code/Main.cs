@@ -32,7 +32,7 @@ namespace GrandWarfare
         private float _supplyTimer = 0f;
         private float _navalTimer = 0f;
         private float _lastUpdateWarnTime = -99f;
-        private Rect _windowRect = new Rect(590, 86, 405, 445);
+        private Rect _windowRect = new Rect(590, 86, 405, 475);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -82,6 +82,7 @@ namespace GrandWarfare
                 case "supply": return Settings.EnableSupplyAttrition;
                 case "pacts": return Settings.EnableDefensePacts;
                 case "espionage": return Settings.EnableEspionage;
+                case "auto_espionage": return Settings.EnableAutoEspionage;
                 case "espionage_chaotic": return Settings.ChaoticEspionageMode;
                 case "geopolitics": return Settings.EnableGeopoliticsAndTrade;
                 case "warfare_suite": return Settings.EnableEspionage && Settings.EnableGeopoliticsAndTrade;
@@ -145,6 +146,19 @@ namespace GrandWarfare
             return $"Espionage Intensity: {(Settings.ChaoticEspionageMode ? "Active / Chaotic" : "Rare / Balanced")}";
         }
 
+        public string ToggleAutoEspionage()
+        {
+            if (Settings == null) return "";
+            Settings.EnableAutoEspionage = !Settings.EnableAutoEspionage;
+            Settings.Save(_declare.FolderPath);
+            return $"AI Auto-Spies: {(Settings.EnableAutoEspionage ? "ON" : "OFF (Manual 2-Click Only)")}";
+        }
+
+        public string SelectSpyKingdomAtTile(WorldTile tile)
+        {
+            return EspionageSystem.SelectSpyKingdomAtTile(tile);
+        }
+
         public string DispatchSpyNow()
         {
             return EspionageSystem.DispatchSpyNow();
@@ -186,6 +200,11 @@ namespace GrandWarfare
         public string DeployMercenariesAtTile(WorldTile tile)
         {
             return DivineInterventionSystem.DeployMercenariesAtTile(tile);
+        }
+
+        public string BlessKingAndDynastyAtTile(WorldTile tile)
+        {
+            return DivineInterventionSystem.BlessKingAndDynastyAtTile(tile);
         }
 
         public string GetWarCause(long warId)
@@ -388,27 +407,35 @@ namespace GrandWarfare
                 ToggleEspionage();
             }
 
+            if (GameUiStyle.ToggleButton(
+                $"AI Auto-Spies: {(Settings.EnableAutoEspionage ? "ON" : "OFF (Manual Only)")}",
+                Settings.EnableAutoEspionage,
+                "AI Autonomous Spy Dispatch|OFF by default so spies only launch when you pick Origin → Target kingdoms with the Suite: Powers Spy brush. Turn ON to let rival AI kingdoms also dispatch spies periodically.|Saved automatically"))
+            {
+                ToggleAutoEspionage();
+            }
+
             string intensityLabel = Settings.ChaoticEspionageMode ? "Active / Chaotic" : "Rare / Balanced";
             if (GameUiStyle.ToggleButton(
                 $"Intensity: {intensityLabel}",
                 Settings.ChaoticEspionageMode,
-                "Espionage Intensity|Rare/Balanced: up to 4 global spies, 180s cooldown, slower consolidation.\nActive/Chaotic: up to 8 global spies, 60s cooldown, faster coups and unions.|Saved automatically"))
+                "Espionage Intensity|Controls infiltration speed, palace coup pacing, and AI auto-spy frequency when AI Auto-Spies is enabled.|Saved automatically"))
             {
                 ToggleEspionageIntensity();
             }
 
             if (GameUiStyle.Button(
-                "Dispatch Spy Now",
-                "Manual Covert Operation|Immediately infiltrate a covert agent from a rival kingdom into a stronger target capital."))
+                "Dispatch Random Rival Spy Now",
+                "Instant Covert Operation|Dispatches a spy from a weaker rival kingdom toward a stronger target capital on foot or by sea."))
             {
                 string msg = DispatchSpyNow();
                 try { WorldTip.showNowTop(msg, false); } catch { }
             }
 
             GUILayout.Space(5);
-            _intelScroll = GUILayout.BeginScrollView(_intelScroll, GUILayout.Height(210));
+            _intelScroll = GUILayout.BeginScrollView(_intelScroll, GUILayout.Height(195));
 
-            GameUiStyle.Label($"Active Operations ({EspionageSystem.ActiveMissions.Count})", "Active Spy Cells|Live missions with current infiltration stage, influence progress, and cover integrity.", isHeader: true);
+            GameUiStyle.Label($"Active Operations ({EspionageSystem.ActiveMissions.Count})", "Active Spy Cells|Live missions with physical travel distance, infiltration stage, influence progress, and cover integrity.", isHeader: true);
             if (EspionageSystem.ActiveMissions.Count == 0)
             {
                 GameUiStyle.Subtle("No active covert agents in the field.");
@@ -419,7 +446,7 @@ namespace GrandWarfare
                 for (int i = 0; i < missionsSnapshot.Count; i++)
                 {
                     SpyMission m = missionsSnapshot[i];
-                    string stage = EspionageSystem.FormatStage(m.Stage);
+                    string stage = EspionageSystem.FormatMissionStage(m);
                     string line = $"{m.SpyName} ({m.OriginName} → {m.TargetName})";
                     string detail = $"   {stage}  |  Inf: {m.Influence:0}%  |  Cover: {m.Cover:0}%";
                     string tip = $"{m.SpyName}|Origin: {m.OriginName}\nTarget: {m.TargetName}\nStage: {stage}\nInfluence: {m.Influence:0}%  |  Cover: {m.Cover:0}%";

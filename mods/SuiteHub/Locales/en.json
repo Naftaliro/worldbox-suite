@@ -2,7 +2,7 @@
   "tab_suite_powers": "Suite: Powers",
   "tab_suite_powers_desc": "Direct drop brushes and 1-click god actions for Wardens, Wolfkin, war heroes, mercenaries, imperial highways, citadels, tectonics, and multi-continent worlds.",
   "tab_suite_rules": "Suite: Rules",
-  "tab_suite_rules_desc": "8 streamlined master toggles for CoreScale performance, Always Day, distinct kingdom borders, Live War Ticker, Warfare & Intel, Animal Kingdoms, Dense Cities & Infrastructure, and Co-Op Host.",
+  "tab_suite_rules_desc": "9 streamlined master toggles for CoreScale performance, Always Day, distinct kingdom borders, Extended HD Zoom, Live War Ticker, Warfare & Intel, Animal Kingdoms, Dense Cities & Infrastructure, and Co-Op Host.",
 
   "suite_drop_wardens": "Drop Sentinel Wardens",
   "suite_drop_wardens_description": "Click anywhere on land to drop Sentinel Warden settlers who follow the peaceful Sleeping Giant doctrine (never start wars, 3-strikes grudge retaliation).",
@@ -32,13 +32,17 @@
   "suite_anoint_hero_description": "Click near a unit or city to elevate a warrior into a legendary War Hero with boosted stats and elite gear.",
   "suite_anoint_hero_tip": "Click on map · GrandWarfare",
 
+  "suite_bless_king": "Royal Dynasty Blessing",
+  "suite_bless_king_description": "Click inside any kingdom to crown or empower its King in full mithril/adamantine royal regalia, boost royal traits, heal the royal guard, and add +50 gold to the capital.",
+  "suite_bless_king_tip": "Click on map · GrandWarfare",
+
   "suite_merc_drop": "Deploy Mercenary Company",
   "suite_merc_drop_description": "Click on land to drop a seasoned band of hired mercenaries fighting for the nearest kingdom.",
   "suite_merc_drop_tip": "Click on map · GrandWarfare",
 
-  "suite_dispatch_spy": "Dispatch Covert Spy",
-  "suite_dispatch_spy_description": "Infiltrate a covert agent from a rival kingdom into a stronger target capital to climb the court, stage a palace coup, and unite the realm peacefully.",
-  "suite_dispatch_spy_tip": "GrandWarfare · War Room: F10",
+  "suite_dispatch_spy": "Dispatch Covert Spy (2-Click)",
+  "suite_dispatch_spy_description": "1st click selects the Origin Kingdom; 2nd click selects the Target Kingdom. Dispatches a physical agent who travels on foot or by boat to infiltrate the court, stage a coup, and unite the realms.",
+  "suite_dispatch_spy_tip": "1st click Origin · 2nd click Target",
 
   "suite_jump_battle": "Jump to Active Battle",
   "suite_jump_battle_description": "Pan the camera straight to the hottest ongoing combat clash or active war capital.",
@@ -80,6 +84,10 @@
   "suite_record_chronicle_description": "Save a JSON history snapshot of all kingdoms, eras, and wars readable in WorldBox Studio.",
   "suite_record_chronicle_tip": "EraChronicle · F7",
 
+  "suite_cycle_speed": "Cycle Hyper Speed (1x–60x)",
+  "suite_cycle_speed_description": "Step through 1x, 5x, 10x, 20x, 40x (Sonic), and 60x (Hyper) simulation speeds. Also unlocks 10x–60x on WorldBox's native hourglass.",
+  "suite_cycle_speed_tip": "Click to cycle · CoreScale: F8",
+
   "suite_modern_advance": "Advance #1 Kingdom +1 Tech Tier",
   "suite_modern_advance_description": "Promote the largest kingdom from Tier 1 blackpowder to Tier 2 armor/props or Tier 3 MBTs, jets, and SAMs.",
   "suite_modern_advance_tip": "ModernAge Expansion",
@@ -103,6 +111,10 @@
   "suite_tog_borders": "Distinct Kingdom Colors & Sharp Borders",
   "suite_tog_borders_description": "Automatically separate neighboring kingdom colors for instant map readability and sharpen territory borders. Fine visual controls in F9.",
   "suite_tog_borders_tip": "Click to toggle · VisualPolish: F9",
+
+  "suite_tog_hd_zoom": "Extended HD Zoom Detail",
+  "suite_tog_hd_zoom_description": "Keep buildings, walls, citadels, highways, and units rendered in crisp detail when zooming out instead of flipping to pixelated map blocks. Adjust multiplier or Always HD in F9.",
+  "suite_tog_hd_zoom_tip": "Click to toggle · VisualPolish: F9",
 
   "suite_tog_war_ticker": "Live War Ticker",
   "suite_tog_war_ticker_description": "Show a compact, collapsible top-right war feed with causes, casualties, and 1-click Go jump buttons whenever wars are active.",

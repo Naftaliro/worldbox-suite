@@ -3090,6 +3090,385 @@ def make_btn_warfare_suite() -> Canvas:
     return c
 
 
+def make_btn_hyper_speed() -> Canvas:
+    """Hyper Speed (10x-60x): Blazing neon-cyan & bright gold >> chevrons surging from a chrono pocket watch."""
+    c = Canvas(32, 32)
+
+    # Blazing electric neon-cyan color ramp
+    ncya_0: Color = (6, 84, 138, 255)
+    ncya_1: Color = (10, 162, 224, 255)
+    ncya_2: Color = (18, 228, 255, 255)
+    ncya_3: Color = (124, 248, 255, 255)
+    ncya_4: Color = (238, 255, 255, 255)
+
+    # 1. Sleek gilded pocket watch / chrono dial on the left (cx=10.5, cy=17.0)
+    watch = Canvas(32, 32)
+    wcx, wcy = 10.5, 17.0
+
+    # Top bow ring & knurled winding crown stem (x=8..13, y=2..7)
+    watch.hline(9, 12, 2, GOLD_3)
+    watch.px(9, 2, GOLD_4)
+    watch.px(10, 2, GOLD_4)
+    watch.px(8, 3, GOLD_3)
+    watch.px(13, 3, GOLD_2)
+    watch.px(8, 4, GOLD_2)
+    watch.px(13, 4, GOLD_1)
+    watch.fill_rect(8, 5, 13, 6, GOLD_2)
+    watch.hline(8, 11, 5, GOLD_4)
+    watch.px(12, 5, GOLD_3)
+    watch.px(13, 6, GOLD_1)
+    watch.fill_rect(9, 7, 12, 7, GOLD_1)
+
+    # Angled upper-left chrono side-pusher button (x=3..5, y=8..10)
+    watch.px(3, 8, GOLD_4)
+    watch.px(4, 8, GOLD_3)
+    watch.px(3, 9, GOLD_3)
+    watch.px(4, 9, GOLD_2)
+    watch.px(5, 9, GOLD_1)
+    watch.px(4, 10, GOLD_1)
+
+    # Circular gilded bezel & dark midnight chrono face (r=9.2)
+    for y in range(8, 27):
+        for x in range(1, 20):
+            dx = x - wcx
+            dy = y - wcy
+            d = math.hypot(dx, dy)
+            if d <= 9.2:
+                if d > 6.9:
+                    if dx + dy < -5.5:
+                        col = GOLD_4 if d < 8.4 else GOLD_3
+                    elif dx + dy < 0.0:
+                        col = GOLD_3
+                    elif dx + dy < 5.5:
+                        col = GOLD_2
+                    else:
+                        col = GOLD_0 if d > 8.3 else GOLD_1
+                    watch.px(x, y, col)
+                else:
+                    # Deep midnight dial with subtle cyan speed-glow on right half
+                    if dx >= 0.5 and d >= 2.0:
+                        col = ncya_1 if abs(dy) <= 3.0 else ncya_0
+                    else:
+                        col = OBS_0 if d > 5.6 else OBS_1
+                    watch.px(x, y, col)
+
+    # Unmistakable two-hand chrono dial (12 o'clock vertical hand + 9:30 hand + cardinal ticks)
+    watch.px(4, 17, GOLD_3)
+    watch.px(10, 23, GOLD_3)
+    watch.px(6, 21, GOLD_2)
+    watch.vline(10, 11, 17, GOLD_4)     # crisp vertical minute hand to 12 o'clock
+    watch.line(10, 17, 6, 14, GOLD_3)   # angled hour hand to 10 o'clock
+    watch.px(10, 17, ncya_4)            # glowing center chrono jewel pivot
+
+    watch.add_outline(OUTLINE_DARK)
+    c.blit(watch)
+
+    # Helper to draw one precision-machined fast-forward chevron '>' (y=9..25, center y=17)
+    def draw_speed_chevron(tip_x: int) -> Canvas:
+        layer = Canvas(32, 32)
+        for y in range(9, 26):
+            dy = abs(y - 17)
+            xr = tip_x - dy
+            xl = (tip_x - 5) - dy + (1 if dy == 8 else 0)
+            for x in range(xl, xr + 1):
+                # Crisp 1px bright gold trailing spine + blazing 4-5px neon-cyan plasma body + white-hot edge
+                if x == xl:
+                    col = GOLD_4 if y <= 16 else (GOLD_3 if y <= 21 else GOLD_2)
+                elif x == xl + 1 and dy >= 6:
+                    col = GOLD_3 if y <= 17 else GOLD_2
+                elif x == xr:
+                    col = ncya_4 if y <= 20 else ncya_3
+                elif x == xr - 1:
+                    col = ncya_4 if dy <= 1 else (ncya_3 if y <= 18 else ncya_2)
+                elif x == xr - 2:
+                    col = ncya_2 if y <= 19 else ncya_1
+                else:
+                    col = ncya_1 if y > 18 else ncya_2
+                layer.px(x, y, col)
+        layer.px(tip_x, 17, ncya_4)
+        layer.px(tip_x - 1, 17, ncya_4)
+        layer.add_outline(OUTLINE_DARK)
+        return layer
+
+    # 2. Twin surging fast-forward chevrons '>>' (aligned y=9..25, cleanly separated by 1px dark channel)
+    c.blit(draw_speed_chevron(21))
+    c.blit(draw_speed_chevron(30))
+    return c
+
+
+def make_btn_hd_zoom() -> Canvas:
+    """Extended HD Zoom: Brass-rimmed sapphire magnifying glass revealing crisp miniature red-roofed castle towers."""
+    c = Canvas(32, 32)
+    lcx, lcy = 12.5, 12.5
+    r_glass = 8.4
+    r_bezel = 10.7
+
+    # 1. Diagonal chestnut-wood & gleaming brass handle at bottom-right (x=17..29, y=17..29)
+    handle = Canvas(32, 32)
+    for t in range(18, 29):
+        pts = [
+            (t + 1, t - 1, "hi2"),
+            (t, t - 1, "hi1"),
+            (t + 1, t, "mid"),
+            (t, t, "mid"),
+            (t - 1, t, "lo1"),
+            (t, t + 1, "lo1"),
+            (t - 1, t + 1, "lo2"),
+        ]
+        is_ferrule = t <= 21
+        is_pommel = t >= 27
+        for px_x, px_y, shade in pts:
+            if px_x > 29 or px_y > 29:
+                continue
+            if is_ferrule or is_pommel:
+                col_map = {
+                    "hi2": GOLD_4,
+                    "hi1": GOLD_3,
+                    "mid": GOLD_2,
+                    "lo1": GOLD_1,
+                    "lo2": GOLD_0,
+                }
+            else:
+                col_map = {
+                    "hi2": BRN_4,
+                    "hi1": BRN_3,
+                    "mid": BRN_2,
+                    "lo1": BRN_1,
+                    "lo2": BRN_0,
+                }
+            handle.px(px_x, px_y, col_map[shade])
+    # Extra ferrule collar bridge pixels so handle joins circular brass bezel with zero pinch
+    handle.px(20, 18, GOLD_3)
+    handle.px(18, 20, GOLD_1)
+    # Smooth rounded brass pommel cap
+    handle.px(29, 27, TRANSPARENT)
+    handle.px(27, 29, TRANSPARENT)
+    handle.px(28, 27, GOLD_4)
+    handle.px(29, 28, GOLD_2)
+    handle.px(28, 29, GOLD_1)
+    handle.add_outline(OUTLINE_DARK)
+    c.blit(handle)
+
+    # 2. Sapphire magnifying glass lens + miniature HD red-roofed castle + gleaming brass rim
+    lens = Canvas(32, 32)
+
+    # 2a. Deep-to-vivid sapphire sky & lush emerald hill inside circular glass viewport
+    for y in range(4, 22):
+        for x in range(4, 22):
+            d = math.hypot(x - lcx, y - lcy)
+            if d <= r_glass:
+                if y >= 19:
+                    col = GRN_1 if y >= 20 else GRN_2
+                elif y == 18:
+                    col = GRN_3 if x <= 14 else GRN_2
+                elif y <= 8:
+                    col = BLU_1
+                elif y <= 13:
+                    col = BLU_2
+                else:
+                    col = BLU_3
+                lens.px(x, y, col)
+
+    def lens_px(x: int, y: int, col: Color) -> None:
+        if math.hypot(x - lcx, y - lcy) <= r_glass - 0.15:
+            lens.px(x, y, col)
+
+    # 2b. Crisp miniature castle inside lens: tall red-roofed keep (left) + wall/gate + red-roofed turret (right)
+    for y in range(14, 18):
+        for x in range(11, 16):
+            lens_px(x, y, STN_3 if y == 14 else STN_2)
+    lens_px(12, 13, STN_4)
+    lens_px(14, 13, STN_3)
+    for y in range(16, 18):
+        lens_px(12, y, OBS_0)
+        lens_px(13, y, OBS_0)
+    lens_px(12, 15, STN_1)
+    lens_px(13, 15, STN_1)
+
+    # Left Tall Keep Tower masonry body (x=7..11, y=11..18)
+    for y in range(11, 18):
+        lens_px(7, y, STN_4)
+        lens_px(8, y, STN_3)
+        lens_px(9, y, STN_3)
+        lens_px(10, y, STN_2)
+        lens_px(11, y, STN_1)
+    for x in range(7, 12):
+        lens_px(x, 11, STN_1 if x >= 10 else STN_2)
+    lens_px(9, 13, OUTLINE_DARK)
+    lens_px(9, 14, OUTLINE_DARK)
+    lens_px(9, 15, STN_4)
+
+    # Left Keep pointed crimson-red conical roof (x=6..12, y=6..10) + gold spire finial
+    lens_px(9, 5, GOLD_4)
+    keep_roof = {
+        6: [(9, RED_3)],
+        7: [(8, RED_4), (9, RED_2), (10, RED_1)],
+        8: [(8, RED_3), (9, RED_2), (10, RED_1)],
+        9: [(7, RED_4), (8, RED_3), (9, RED_2), (10, RED_1), (11, RED_0)],
+        10: [(6, RED_3), (7, RED_3), (8, RED_2), (9, RED_2), (10, RED_1), (11, RED_1), (12, RED_0)],
+    }
+    for ry, spans in keep_roof.items():
+        for rx, rcol in spans:
+            lens_px(rx, ry, rcol)
+
+    # Right Castle Turret masonry body (x=15..19, y=12..18)
+    for y in range(12, 18):
+        lens_px(15, y, STN_4)
+        lens_px(16, y, STN_3)
+        lens_px(17, y, STN_2)
+        lens_px(18, y, STN_2)
+        lens_px(19, y, STN_1)
+    for x in range(15, 20):
+        lens_px(x, 12, STN_1 if x >= 18 else STN_2)
+    lens_px(17, 14, OUTLINE_DARK)
+    lens_px(17, 15, OUTLINE_DARK)
+    lens_px(17, 16, STN_4)
+
+    # Right Turret pointed crimson-red conical roof (x=14..20, y=8..11) + gold finial
+    lens_px(17, 7, GOLD_3)
+    turret_roof = {
+        8: [(17, RED_3)],
+        9: [(16, RED_4), (17, RED_2), (18, RED_1)],
+        10: [(15, RED_3), (16, RED_3), (17, RED_2), (18, RED_1), (19, RED_0)],
+        11: [(14, RED_3), (15, RED_2), (16, RED_2), (17, RED_2), (18, RED_1), (19, RED_1), (20, RED_0)],
+    }
+    for ry, spans in turret_roof.items():
+        for rx, rcol in spans:
+            lens_px(rx, ry, rcol)
+
+    # Crisp sapphire inner rim shadow + clean glass specular glint in open sapphire sky
+    for y in range(4, 22):
+        for x in range(4, 22):
+            d = math.hypot(x - lcx, y - lcy)
+            if r_glass - 0.85 < d <= r_glass:
+                lens.px(x, y, BLU_0 if (x + y) > 25 else BLU_1)
+    for gx, gy, gcol in [
+        (5, 11, BLU_4),
+        (5, 10, (255, 255, 255, 255)),
+        (6, 9, (255, 255, 255, 255)),
+        (6, 8, BLU_4),
+    ]:
+        lens_px(gx, gy, gcol)
+
+    # 2c. Gleaming brass outer bezel ring (r_glass < d <= r_bezel)
+    for y in range(1, 25):
+        for x in range(1, 25):
+            dx = x - lcx
+            dy = y - lcy
+            d = math.hypot(dx, dy)
+            if r_glass < d <= r_bezel:
+                diag = dx + dy
+                if diag < -7.5:
+                    col = GOLD_4 if (r_glass + 0.5 <= d <= r_bezel - 0.6) else GOLD_3
+                elif diag < -1.5:
+                    col = GOLD_3 if d < r_bezel - 0.6 else GOLD_2
+                elif diag < 5.5:
+                    col = GOLD_3 if d < r_glass + 0.8 else GOLD_2
+                elif diag < 10.5:
+                    col = GOLD_2 if d < r_glass + 0.9 else GOLD_1
+                else:
+                    col = GOLD_0 if d > r_bezel - 0.7 else GOLD_1
+                lens.px(x, y, col)
+
+    lens.add_outline(OUTLINE_DARK)
+    c.blit(lens)
+    return c
+
+
+def make_btn_bless_king() -> Canvas:
+    """Royal Dynasty Blessing: Ornate jewelled royal gold crown (ruby & emerald) with warm sun-rays beaming upward."""
+    c = Canvas(32, 32)
+    sun_hot: Color = (255, 253, 224, 255)
+
+    # 1. Hand-pixelled symmetric warm sun-rays beaming upward behind the crown (y=2..18, zero jaggy artifacts)
+    rays = Canvas(32, 32)
+    ray_pal: dict[str, Color] = {
+        ".": TRANSPARENT,
+        "o": ORG_2,
+        "u": ORG_3,
+        "y": GOLD_3,
+        "w": GOLD_4,
+        "x": sun_hot,
+    }
+    # 28px wide (ox=2, oy=2 -> x=2..29, y=2..18): 5 crisp upward sunbeams fanning radially
+    ray_rows = [
+        ".............xx.............",  # y=2: central zenith beam tip
+        "....uo.......wx.......ou....",  # y=3: inner diagonal beam tips
+        "....uwx.....uwxu.....xwu....",  # y=4
+        ".....uwx....uwxu....xwu.....",  # y=5
+        "......uwx...uwxu...xwu......",  # y=6
+        ".uo....uwx..uwxx..xwu....ou.",  # y=7: outer diagonal beam tips
+        ".uwx....uwx.uwxx.xwu....xwu.",  # y=8
+        "..uwxu...uwxuwxxwxu...uxwu..",  # y=9
+        "...uwxxu..uwxxxxwu..uxxwu...",  # y=10
+        ".....uwxxuuwxxxxwuuxxwu.....",  # y=11
+        "......uuwxxxxxxxxxxwuu......",  # y=12
+        "........uwxxxxxxxxwu........",  # y=13
+        "........uwwxxxxxxwwu........",  # y=14
+        ".........uwwwwwwwwu.........",  # y=15
+        "..........uuuuuuuu..........",  # y=16
+    ]
+    rays.stamp(ray_rows, ray_pal, ox=2, oy=2)
+    rays.add_outline(OUTLINE_WARM)
+    c.blit(rays)
+
+    # 2. Ornate 5-pointed royal gold crown set with faceted Ruby & Emerald jewels (x=3..28, y=12..29)
+    crown = Canvas(32, 32)
+    crown_pal: dict[str, Color] = {
+        ".": TRANSPARENT,
+        "b": GOLD_0,
+        "a": GOLD_1,
+        "g": GOLD_2,
+        "y": GOLD_3,
+        "w": GOLD_4,
+        "x": (255, 255, 255, 255),
+        "R": RED_0,
+        "r": RED_1,
+        "c": RED_2,
+        "p": RED_3,
+        "q": RED_4,
+        "E": GRN_0,
+        "e": GRN_1,
+        "m": GRN_2,
+        "n": GRN_3,
+        "f": GRN_4,
+    }
+    # Strictly symmetric 26px silhouette (ox=3, oy=12 -> x=3..28, y=12..29)
+    crown_rows = [
+        "............xw............",  # y=12: center sovereign spire pearl/gold finial
+        "...........wygg...........",  # y=13
+        "......wy...wygg...yg......",  # y=14: flanking inner spire finials
+        ".wy...wyg..wygg..yga...yg.",  # y=15: outer flared spire tips
+        ".wyg..wygg.wpcg.ygga..yga.",  # y=16: ruby stud in sovereign spire
+        "..wyggwygggwcrggyggggyga..",  # y=17
+        "..wyyyyyggggggggggyyygaa..",  # y=18
+        "...wyyyyyyyyyyyyyyyygaa...",  # y=19
+        "...wwwwyyyyyyyyyyggggab...",  # y=20: upper beaded golden circlet ridge
+        "...gyyyyyyyyyyyyyggggab...",  # y=21
+        "...wyEEEyyyRRRRgyEEEgab...",  # y=22: chamfered octagonal gem bezels (Emeralds + Center Ruby)
+        "...yEfnmEyRqpccRgEfnmab...",  # y=23: bright top-left gem facets
+        "...yEnmmEyRpccrRgEnmeab...",  # y=24: rich saturated emerald & ruby cores
+        "...gEmmeEyRccrrRgEmmeab...",  # y=25: deep lower-right gem facets
+        "...gyEEEyyyRRRRgyEEEgab...",  # y=26: lower chamfered gem bezels
+        "..wwyyyyyyyyyyyyyyggggab..",  # y=27: stepped heavy gilded base torus
+        "..gywyyyygwyyyygwyygggab..",  # y=28: gilded base studs
+        "..bbbbbbbbbbbbbbbbbbbbbb..",  # y=29: symmetric burnished bronze underside
+    ]
+    crown.stamp(crown_rows, crown_pal, ox=3, oy=12)
+
+    # Extra crisp specular glints on center ruby & flanking emeralds (symmetric octagonal settings)
+    crown.px(24, 23, GRN_0)
+    crown.px(24, 24, GRN_0)
+    crown.px(24, 25, GRN_0)
+    crown.px(14, 23, (255, 235, 240, 255))
+    crown.px(8, 23, GRN_4)
+    crown.px(21, 23, GRN_4)
+
+    crown.add_outline(OUTLINE_DARK)
+    c.blit(crown)
+    return c
+
+
 # =============================================================================
 # 4. MULTI-FRAME WARDEN SENTINEL ANIMATION SUITE (34 frames, 32x32 RGBA)
 # =============================================================================
@@ -4220,6 +4599,9 @@ def main() -> None:
         ("btn_highways_citadels", make_btn_highways_citadels()),
         ("btn_distinct_colors", make_btn_distinct_colors()),
         ("btn_warfare_suite", make_btn_warfare_suite()),
+        ("btn_hyper_speed", make_btn_hyper_speed()),
+        ("btn_hd_zoom", make_btn_hd_zoom()),
+        ("btn_bless_king", make_btn_bless_king()),
     ]
 
     for name, img in wardens + warden_anims:

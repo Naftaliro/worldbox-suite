@@ -3,6 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using HarmonyLib;
 using NeoModLoader.api;
 using Newtonsoft.Json;
@@ -30,6 +32,8 @@ namespace CoopHost
 
         private volatile string _cachedStateJson = "{}";
         private volatile string _cachedTerrainJson = "{}";
+        private int _stateEncodeBusy = 0;
+        private int _terrainEncodeBusy = 0;
         private int _terrainRevision = 1;
         private int _lastBuiltTerrainRev = -1;
         private int _lastTerrainW = -1;
@@ -412,12 +416,15 @@ namespace CoopHost
             int w = MapBox.width;
             int h = MapBox.height;
             if (world == null || w <= 0 || h <= 0) return;
+            if (Interlocked.CompareExchange(ref _terrainEncodeBusy, 1, 0) != 0) return;
 
-            // Compact 1-byte-per-tile color palette index buffer encoded as Base64
-            var palette = new List<string>();
-            var palIdx = new Dictionary<string, byte>();
-            byte[] grid = new byte[w * h];
+            int rev = _terrainRevision;
+            _lastBuiltTerrainRev = rev;
+            _lastTerrainW = w;
+            _lastTerrainH = h;
 
+            // Copy immutable tile type ID references on the main thread, then build palette + Base64 + JSON on a worker thread
+            string[] tileIds = new string[w * h];
             for (int y = 0; y < h; y++)
             {
                 int rowOff = y * w;
@@ -430,39 +437,58 @@ namespace CoopHost
                         if (t.top_type != null) key = t.top_type.id;
                         else if (t.main_type != null) key = t.main_type.id;
                     }
-                    if (!palIdx.TryGetValue(key, out byte idx))
-                    {
-                        if (palette.Count < 255)
-                        {
-                            idx = (byte)palette.Count;
-                            palette.Add(key);
-                            palIdx[key] = idx;
-                        }
-                        else idx = 0;
-                    }
-                    grid[rowOff + x] = idx;
+                    tileIds[rowOff + x] = key;
                 }
             }
 
-            var payload = new
+            Task.Run(() =>
             {
-                width = w,
-                height = h,
-                revision = _terrainRevision,
-                palette,
-                gridBase64 = Convert.ToBase64String(grid)
-            };
+                try
+                {
+                    var palette = new List<string>(32);
+                    var palIdx = new Dictionary<string, byte>(32);
+                    byte[] grid = new byte[tileIds.Length];
 
-            _cachedTerrainJson = JsonConvert.SerializeObject(payload);
-            _lastBuiltTerrainRev = _terrainRevision;
-            _lastTerrainW = w;
-            _lastTerrainH = h;
+                    for (int i = 0; i < tileIds.Length; i++)
+                    {
+                        string key = tileIds[i] ?? "deep_ocean";
+                        if (!palIdx.TryGetValue(key, out byte idx))
+                        {
+                            if (palette.Count < 255)
+                            {
+                                idx = (byte)palette.Count;
+                                palette.Add(key);
+                                palIdx[key] = idx;
+                            }
+                            else idx = 0;
+                        }
+                        grid[i] = idx;
+                    }
+
+                    var payload = new
+                    {
+                        width = w,
+                        height = h,
+                        revision = rev,
+                        palette,
+                        gridBase64 = Convert.ToBase64String(grid)
+                    };
+
+                    _cachedTerrainJson = JsonConvert.SerializeObject(payload);
+                }
+                catch { }
+                finally
+                {
+                    Interlocked.Exchange(ref _terrainEncodeBusy, 0);
+                }
+            });
         }
 
         private void RefreshStateSnapshot()
         {
             var world = MapBox.instance;
             if (world == null) return;
+            if (Interlocked.CompareExchange(ref _stateEncodeBusy, 1, 0) != 0) return;
 
             var stats = MapStatsField?.GetValue(world) as MapStats;
             var kingdomsOut = new List<object>();
@@ -572,10 +598,21 @@ namespace CoopHost
                 cities = citiesOut,
                 wars = warsOut,
                 units = unitsOut,
-                log = _activityLog
+                log = new List<string>(_activityLog)
             };
 
-            _cachedStateJson = JsonConvert.SerializeObject(payload);
+            Task.Run(() =>
+            {
+                try
+                {
+                    _cachedStateJson = JsonConvert.SerializeObject(payload);
+                }
+                catch { }
+                finally
+                {
+                    Interlocked.Exchange(ref _stateEncodeBusy, 0);
+                }
+            });
         }
 
         private void EnsureCursorStyles()

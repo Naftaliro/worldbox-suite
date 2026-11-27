@@ -51,6 +51,150 @@ namespace GrandWarfare
         private static List<EquipmentAsset> _cachedSteelMithrilArmors;
         private static List<EquipmentAsset> _cachedSteelMithrilHelmets;
 
+        private static List<EquipmentAsset> _cachedRoyalWeapons;
+        private static List<EquipmentAsset> _cachedRoyalArmors;
+        private static List<EquipmentAsset> _cachedRoyalHelmets;
+        private static List<EquipmentAsset> _cachedRoyalBoots;
+        private static List<EquipmentAsset> _cachedRoyalRings;
+        private static List<EquipmentAsset> _cachedRoyalAmulets;
+
+        public static string BlessKingAndDynastyAtTile(WorldTile tile)
+        {
+            var world = MapBox.instance;
+            if (world == null || world.units == null || tile == null)
+            {
+                return "Click inside or near a kingdom to bestow a Royal Dynasty Blessing.";
+            }
+
+            try
+            {
+                Kingdom kingdom = FindKingdomNearTile(world, tile, 35f);
+                if (kingdom == null || !kingdom.isAlive() || !kingdom.isCiv())
+                {
+                    return "No kingdom found within 35 tiles for Royal Dynasty Blessing.";
+                }
+
+                Actor king = (kingdom.king != null && kingdom.king.isAlive()) ? kingdom.king : null;
+                if (king == null)
+                {
+                    Actor candidate = FindStrongestRoyalCandidate(world, kingdom);
+                    if (candidate == null)
+                    {
+                        return $"No eligible leader or warrior found in {kingdom.name} to crown.";
+                    }
+
+                    try
+                    {
+                        if (candidate.city != null && candidate.city.leader == candidate)
+                        {
+                            candidate.city.removeLeader();
+                        }
+                        kingdom.setKing(candidate, false);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"[GrandWarfare] BlessKingAndDynastyAtTile setKing failed: {e.Message}");
+                    }
+
+                    king = (kingdom.king != null && kingdom.king.isAlive()) ? kingdom.king : candidate;
+                }
+
+                if (king == null || !king.isAlive())
+                {
+                    return $"Could not crown a ruler for {kingdom.name}.";
+                }
+
+                AddTraitSafe(king, "wise");
+                AddTraitSafe(king, "genius");
+                AddTraitSafe(king, "veteran");
+                AddTraitSafe(king, "tough");
+                AddTraitSafe(king, "fire_proof");
+
+                if (LevelUpMethod != null)
+                {
+                    for (int lvl = 0; lvl < 2 && king.level < 12; lvl++)
+                    {
+                        try { LevelUpMethod.Invoke(king, null); } catch { break; }
+                    }
+                }
+
+                EquipRoyalRegalia(world, king);
+
+                king.setStatsDirty();
+                king.restoreHealthPercent(1f);
+                king.setMaxHealth();
+                king.setMaxStamina();
+
+                City capital = (kingdom.capital != null && kingdom.capital.isAlive())
+                    ? kingdom.capital
+                    : FindCityNearTile(world, king.current_tile ?? tile, 60f);
+                if (capital != null && capital.isAlive())
+                {
+                    capital.addResourcesToRandomStockpile("gold", 50);
+                }
+
+                // Bless up to 6 royal clan members / guards near the king
+                if (world.units.units_only_alive != null)
+                {
+                    WorldTile anchor = king.current_tile ?? tile;
+                    Clan royalClan = king.clan;
+                    var alive = new List<Actor>(world.units.units_only_alive);
+                    var retinue = new List<(Actor unit, int priority, float distSq)>();
+
+                    for (int i = 0; i < alive.Count; i++)
+                    {
+                        Actor u = alive[i];
+                        if (u == null || !u.isAlive() || u == king || u.kingdom != kingdom || u.current_tile == null) continue;
+                        if (u.asset == null || u.asset.is_boat || IsModernVehicle(u)) continue;
+
+                        bool inRoyalClan = royalClan != null && u.clan == royalClan;
+                        bool isGuard = u.army != null || u.isWarrior() || (u.city != null && u.city.leader == u);
+                        if (!inRoyalClan && !isGuard) continue;
+
+                        float dx = u.current_tile.x - anchor.x;
+                        float dy = u.current_tile.y - anchor.y;
+                        float dSq = dx * dx + dy * dy;
+                        int priority = (inRoyalClan && isGuard) ? 0 : (inRoyalClan ? 1 : 2);
+                        retinue.Add((u, priority, dSq));
+                    }
+
+                    retinue.Sort((a, b) =>
+                    {
+                        int p = a.priority.CompareTo(b.priority);
+                        return p != 0 ? p : a.distSq.CompareTo(b.distSq);
+                    });
+
+                    int blessed = 0;
+                    for (int i = 0; i < retinue.Count && blessed < 6; i++)
+                    {
+                        Actor guard = retinue[i].unit;
+                        if (guard == null || !guard.isAlive()) continue;
+                        AddTraitSafe(guard, "veteran");
+                        guard.setStatsDirty();
+                        guard.restoreHealthPercent(1f);
+                        guard.setMaxHealth();
+                        guard.setMaxStamina();
+                        blessed++;
+                    }
+                }
+
+                string kingName = "Monarch";
+                try
+                {
+                    string n = king.getName();
+                    if (!string.IsNullOrEmpty(n)) kingName = n;
+                }
+                catch { }
+
+                return $"Royal Blessing: Crowned & empowered King {kingName} of {kingdom.name}!";
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[GrandWarfare] BlessKingAndDynastyAtTile failed: {e.Message}");
+                return $"Royal Blessing failed: {e.Message}";
+            }
+        }
+
         public static string ArmoryBlessingAtTile(WorldTile tile)
         {
             var world = MapBox.instance;
@@ -429,8 +573,8 @@ namespace GrandWarfare
                 if (eq.id.StartsWith("modern_")) continue;
 
                 string mat = (eq.material ?? "").ToLowerInvariant();
-                bool goodMaterial = mat == "steel" || mat == "mithril" ||
-                                    eq.id.Contains("steel") || eq.id.Contains("mithril");
+                bool goodMaterial = mat == "steel" || mat == "mythril" || mat == "mithril" ||
+                                    eq.id.Contains("steel") || eq.id.Contains("mythril") || eq.id.Contains("mithril");
                 if (!goodMaterial) continue;
 
                 if (eq.equipment_type == EquipmentType.Weapon)
@@ -478,6 +622,7 @@ namespace GrandWarfare
             if (world?.items == null || u?.equipment == null || eq == null) return;
             try
             {
+                if (u.asset != null && !u.asset.canEditItem(eq)) return;
                 Item item = world.items.newItem(eq);
                 if (item != null)
                 {
@@ -485,6 +630,149 @@ namespace GrandWarfare
                 }
             }
             catch { }
+        }
+
+        private static Actor FindStrongestRoyalCandidate(MapBox world, Kingdom kingdom)
+        {
+            if (world?.units?.units_only_alive == null || kingdom == null) return null;
+
+            Actor best = null;
+            int bestRoleRank = -1;
+            int bestLevel = -1;
+            int bestHp = -1;
+
+            var alive = new List<Actor>(world.units.units_only_alive);
+            for (int i = 0; i < alive.Count; i++)
+            {
+                Actor u = alive[i];
+                if (u == null || !u.isAlive() || u.kingdom != kingdom) continue;
+                if (u.asset == null || u.asset.is_boat || IsModernVehicle(u)) continue;
+
+                int roleRank = 0;
+                if (u.isAdult()) roleRank += 2;
+                if (u.city != null && u.city.leader == u) roleRank += 4;
+                else if (u.army != null || u.isWarrior()) roleRank += 3;
+
+                int lvl = u.level;
+                int hp = u.getMaxHealth();
+
+                if (best == null ||
+                    roleRank > bestRoleRank ||
+                    (roleRank == bestRoleRank && lvl > bestLevel) ||
+                    (roleRank == bestRoleRank && lvl == bestLevel && hp > bestHp))
+                {
+                    best = u;
+                    bestRoleRank = roleRank;
+                    bestLevel = lvl;
+                    bestHp = hp;
+                }
+            }
+
+            return best;
+        }
+
+        private static void EquipRoyalRegalia(MapBox world, Actor king)
+        {
+            if (world?.items == null || king?.equipment == null || king.asset == null) return;
+            if (!king.asset.is_humanoid && !king.canEditEquipment()) return;
+
+            EnsureRoyalRegaliaPools();
+            int seed = Math.Abs((int)(king.id % 997));
+
+            EquipFirstCompatible(world, king, _cachedRoyalWeapons, seed);
+            EquipFirstCompatible(world, king, _cachedRoyalArmors, seed);
+            EquipFirstCompatible(world, king, _cachedRoyalHelmets, seed);
+            EquipFirstCompatible(world, king, _cachedRoyalBoots, seed);
+            EquipFirstCompatible(world, king, _cachedRoyalRings, seed);
+            EquipFirstCompatible(world, king, _cachedRoyalAmulets, seed);
+        }
+
+        private static void EquipFirstCompatible(MapBox world, Actor actor, List<EquipmentAsset> pool, int seed)
+        {
+            if (pool == null || pool.Count == 0 || actor?.equipment == null) return;
+            for (int i = 0; i < pool.Count; i++)
+            {
+                EquipmentAsset eq = pool[(seed + i) % pool.Count];
+                if (eq == null) continue;
+                if (actor.asset != null && !actor.asset.canEditItem(eq)) continue;
+                TryGiveEquipmentAsset(world, actor, eq);
+                return;
+            }
+        }
+
+        private static void EnsureRoyalRegaliaPools()
+        {
+            if (_cachedRoyalWeapons != null && _cachedRoyalWeapons.Count > 0) return;
+            if (AssetManager.items?.list == null) return;
+
+            var weapons = new List<EquipmentAsset>();
+            var armors = new List<EquipmentAsset>();
+            var helmets = new List<EquipmentAsset>();
+            var boots = new List<EquipmentAsset>();
+            var rings = new List<EquipmentAsset>();
+            var amulets = new List<EquipmentAsset>();
+
+            var fallbackRings = new List<EquipmentAsset>();
+            var fallbackAmulets = new List<EquipmentAsset>();
+
+            var items = AssetManager.items.list;
+            for (int i = 0; i < items.Count; i++)
+            {
+                EquipmentAsset eq = items[i];
+                if (eq == null || string.IsNullOrEmpty(eq.id) || eq.id.StartsWith("modern_")) continue;
+
+                string mat = (eq.material ?? "").ToLowerInvariant();
+                bool isRoyalMetal = mat == "adamantine" || mat == "mythril" || mat == "mithril" ||
+                                    eq.id.Contains("adamantine") || eq.id.Contains("mythril");
+
+                if (isRoyalMetal)
+                {
+                    switch (eq.equipment_type)
+                    {
+                        case EquipmentType.Weapon:
+                            // Exclude alien blaster / shotgun / flame weapons from medieval royal regalia
+                            if (eq.id != "alien_blaster" && eq.id != "shotgun" && !eq.id.Contains("blaster"))
+                                weapons.Add(eq);
+                            break;
+                        case EquipmentType.Armor:
+                            armors.Add(eq);
+                            break;
+                        case EquipmentType.Helmet:
+                            helmets.Add(eq);
+                            break;
+                        case EquipmentType.Boots:
+                            boots.Add(eq);
+                            break;
+                        case EquipmentType.Ring:
+                            rings.Add(eq);
+                            break;
+                        case EquipmentType.Amulet:
+                            amulets.Add(eq);
+                            break;
+                    }
+                }
+                else if (mat == "gold" || mat == "silver")
+                {
+                    if (eq.equipment_type == EquipmentType.Ring) fallbackRings.Add(eq);
+                    else if (eq.equipment_type == EquipmentType.Amulet) fallbackAmulets.Add(eq);
+                }
+            }
+
+            if (rings.Count == 0) rings = fallbackRings;
+            if (amulets.Count == 0) amulets = fallbackAmulets;
+
+            if (weapons.Count == 0)
+            {
+                EnsureVanillaForgedPools();
+                if (_cachedSteelMithrilWeapons != null) weapons.AddRange(_cachedSteelMithrilWeapons);
+            }
+
+            _cachedRoyalWeapons = weapons;
+            _cachedRoyalArmors = armors;
+            _cachedRoyalHelmets = helmets;
+            _cachedRoyalBoots = boots;
+            _cachedRoyalRings = rings;
+            _cachedRoyalAmulets = amulets;
         }
 
         private static string ApplyHeroEpithet(Actor hero)

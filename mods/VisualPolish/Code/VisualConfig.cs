@@ -28,6 +28,8 @@ namespace VisualPolish
         public float StrategicBorderBoost = 1.25f;
         public bool AutoDistinctKingdomColors = true;
         public bool EnhancedBorders = true;
+        public bool ExtendedHdZoom = true;
+        public float HdZoomMultiplier = 2.5f;
         public bool AlwaysDayClientSide = false;
         public bool LockAgeOfHope = false;
 

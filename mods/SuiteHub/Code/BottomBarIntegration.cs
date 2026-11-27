@@ -27,10 +27,12 @@ namespace SuiteHub
                 Sprite tabIcon            = LoadButtonSprite(Path.Combine(modFolder, "icon.png"));
                 Sprite iconHub            = LoadButtonSprite(Path.Combine(resDir, "btn_hub.png")) ?? tabIcon;
                 Sprite iconScale          = LoadButtonSprite(Path.Combine(resDir, "btn_scale.png")) ?? tabIcon;
+                Sprite iconHyperSpeed     = LoadButtonSprite(Path.Combine(resDir, "btn_hyper_speed.png")) ?? iconScale;
                 Sprite iconWar            = LoadButtonSprite(Path.Combine(resDir, "btn_war_matrix.png")) ?? tabIcon;
                 Sprite iconWarfareSuite   = LoadButtonSprite(Path.Combine(resDir, "btn_warfare_suite.png")) ?? iconWar;
                 Sprite iconArmoryBlessing = LoadButtonSprite(Path.Combine(resDir, "btn_armory_blessing.png")) ?? iconWar;
                 Sprite iconAnointHero     = LoadButtonSprite(Path.Combine(resDir, "btn_anoint_hero.png")) ?? iconWar;
+                Sprite iconBlessKing      = LoadButtonSprite(Path.Combine(resDir, "btn_bless_king.png")) ?? iconAnointHero;
                 Sprite iconMercDrop       = LoadButtonSprite(Path.Combine(resDir, "btn_merc_drop.png")) ?? iconWar;
                 Sprite iconRadar          = LoadButtonSprite(Path.Combine(resDir, "btn_battle_radar.png")) ?? tabIcon;
                 Sprite iconWorld          = LoadButtonSprite(Path.Combine(resDir, "btn_world_builder.png")) ?? tabIcon;
@@ -40,6 +42,7 @@ namespace SuiteHub
                 Sprite iconAnimalKingdoms = LoadButtonSprite(Path.Combine(resDir, "btn_animal_kingdoms.png")) ?? iconApex;
                 Sprite iconAlwaysDay      = LoadButtonSprite(Path.Combine(resDir, "btn_always_day.png")) ?? tabIcon;
                 Sprite iconDistinctColors = LoadButtonSprite(Path.Combine(resDir, "btn_distinct_colors.png")) ?? iconAlwaysDay;
+                Sprite iconHdZoom         = LoadButtonSprite(Path.Combine(resDir, "btn_hd_zoom.png")) ?? iconAlwaysDay;
                 Sprite iconWarTicker      = LoadButtonSprite(Path.Combine(resDir, "btn_war_ticker.png")) ?? iconWar;
                 Sprite iconDispatchSpy    = LoadButtonSprite(Path.Combine(resDir, "btn_dispatch_spy.png")) ?? iconWar;
                 Sprite iconSpeciesPanel   = LoadButtonSprite(Path.Combine(resDir, "btn_species_panel.png")) ?? iconApex;
@@ -125,6 +128,17 @@ namespace SuiteHub
                         return true;
                     });
 
+                    AddDropPower(powersTab, "p_war", "suite_bless_king", iconBlessKing, (tile, _) =>
+                    {
+                        if (tile == null)
+                        {
+                            Main.ShowToast("Click inside a kingdom to bestow a Royal Dynasty Blessing.");
+                            return false;
+                        }
+                        Main.ShowToast(Main.InvokeCompanionAction("GrandWarfare.Main", "BlessKingAndDynastyAtTile", tile));
+                        return true;
+                    });
+
                     AddDropPower(powersTab, "p_war", "suite_merc_drop", iconMercDrop, (tile, _) =>
                     {
                         if (tile == null || tile.Type == null || tile.Type.liquid)
@@ -136,8 +150,16 @@ namespace SuiteHub
                         return true;
                     });
 
-                    AddAction(powersTab, "p_war", "suite_dispatch_spy", iconDispatchSpy,
-                        () => Main.ShowToast(Main.InvokeCompanionAction("GrandWarfare.Main", "DispatchSpyNow")));
+                    AddDropPower(powersTab, "p_war", "suite_dispatch_spy", iconDispatchSpy, (tile, _) =>
+                    {
+                        if (tile == null)
+                        {
+                            Main.ShowToast("1st click: Spy Origin Kingdom · 2nd click: Target Kingdom to infiltrate.");
+                            return false;
+                        }
+                        Main.ShowToast(Main.InvokeCompanionAction("GrandWarfare.Main", "SelectSpyKingdomAtTile", tile));
+                        return true;
+                    });
 
                     AddAction(powersTab, "p_war", "suite_jump_battle", iconRadar,
                         () => Main.ShowToast(Main.JumpToActiveBattle()));
@@ -173,6 +195,9 @@ namespace SuiteHub
 
                     AddAction(powersTab, "p_worlds", "suite_record_chronicle", iconChron,
                         () => Main.ShowToast(Main.InvokeCompanionAction("EraChronicle.Main", "RecordSnapshotNow")));
+
+                    AddAction(powersTab, "p_worlds", "suite_cycle_speed", iconHyperSpeed,
+                        () => Main.ShowToast(Main.InvokeCompanionAction("CoreScale.Main", "CycleHyperSpeed")));
 
                     // Group 5: ModernAge (only when installed)
                     if (hasModern)
@@ -224,6 +249,10 @@ namespace SuiteHub
                     AddToggle(rulesTab, "r_core", "suite_tog_borders", iconDistinctColors,
                         () => Main.GetCompanionState("VisualPolish.Main", "colors_borders"),
                         () => Main.InvokeCompanionAction("VisualPolish.Main", "ToggleColorsAndBorders"));
+
+                    AddToggle(rulesTab, "r_core", "suite_tog_hd_zoom", iconHdZoom,
+                        () => Main.GetCompanionState("VisualPolish.Main", "hd_zoom"),
+                        () => Main.InvokeCompanionAction("VisualPolish.Main", "ToggleExtendedHdZoom"));
 
                     AddToggle(rulesTab, "r_core", "suite_tog_war_ticker", iconWarTicker,
                         () => WarTickerOverlay.Visible,

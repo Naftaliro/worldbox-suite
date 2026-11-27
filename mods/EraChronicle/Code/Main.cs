@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 using HarmonyLib;
 using NeoModLoader.api;
 using Newtonsoft.Json;
@@ -97,6 +98,7 @@ namespace EraChronicle
         public static EraChronicleConfig Settings { get; private set; }
 
         private static readonly FieldInfo MapStatsField = AccessTools.Field(typeof(MapBox), "map_stats");
+        private static readonly object ChronicleWriteLock = new object();
         private static readonly string[] EraNames =
         {
             "Dawn Age",
@@ -305,22 +307,10 @@ namespace EraChronicle
 
             string worldName = string.IsNullOrEmpty(stats.name) ? "Untitled_World" : stats.name;
             string safeName = SanitizeFileName(worldName);
-            string filePath = Path.Combine(_chroniclesDir, $"{safeName}_chronicle.json");
+            string chroniclesDir = _chroniclesDir;
+            string filePath = Path.Combine(chroniclesDir, $"{safeName}_chronicle.json");
 
-            WorldChronicleFile doc;
-            try
-            {
-                doc = File.Exists(filePath)
-                    ? JsonConvert.DeserializeObject<WorldChronicleFile>(File.ReadAllText(filePath)) ?? new WorldChronicleFile()
-                    : new WorldChronicleFile();
-            }
-            catch
-            {
-                doc = new WorldChronicleFile();
-            }
-
-            doc.WorldName = worldName;
-
+            // Gather plain C# snapshot DTOs on the main thread, then offload JSON merge & disk I/O to a worker core
             var entry = new ChronicleEntry
             {
                 Year = stats.history_current_year,
@@ -370,15 +360,36 @@ namespace EraChronicle
                 }
             }
 
-            doc.Entries.Add(entry);
-            try
+            Task.Run(() => WriteChronicleEntryBackground(chroniclesDir, filePath, worldName, entry));
+        }
+
+        private static void WriteChronicleEntryBackground(string chroniclesDir, string filePath, string worldName, ChronicleEntry entry)
+        {
+            lock (ChronicleWriteLock)
             {
-                Directory.CreateDirectory(_chroniclesDir);
-                File.WriteAllText(filePath, JsonConvert.SerializeObject(doc, Formatting.Indented));
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[EraChronicle] Failed to write chronicle: {e.Message}");
+                try
+                {
+                    Directory.CreateDirectory(chroniclesDir);
+                    WorldChronicleFile doc;
+                    try
+                    {
+                        doc = File.Exists(filePath)
+                            ? JsonConvert.DeserializeObject<WorldChronicleFile>(File.ReadAllText(filePath)) ?? new WorldChronicleFile()
+                            : new WorldChronicleFile();
+                    }
+                    catch
+                    {
+                        doc = new WorldChronicleFile();
+                    }
+
+                    doc.WorldName = worldName;
+                    doc.Entries.Add(entry);
+                    File.WriteAllText(filePath, JsonConvert.SerializeObject(doc, Formatting.Indented));
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[EraChronicle] Failed to write chronicle: {e.Message}");
+                }
             }
         }
 

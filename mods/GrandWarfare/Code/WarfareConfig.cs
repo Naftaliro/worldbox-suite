@@ -23,6 +23,7 @@ namespace GrandWarfare
 
         public bool EnableDefensePacts = true;
         public bool EnableEspionage = true;
+        public bool EnableAutoEspionage = false;
         public bool ChaoticEspionageMode = false;
         public bool EnableGeopoliticsAndTrade = true;
         public KeyCode WarRoomKey = KeyCode.F10;
