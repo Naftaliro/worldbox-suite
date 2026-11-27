@@ -66,18 +66,6 @@ namespace GrandWarfare
         private static readonly MethodInfo SpeciesIdGetter =
             AccessTools.PropertyGetter(typeof(Subspecies), "species_id");
 
-        private static readonly FieldInfo TraitOppositeListField =
-            AccessTools.Field(typeof(ActorTrait), "opposite_list");
-
-        private static readonly FieldInfo TraitOppositeTraitsField =
-            AccessTools.Field(typeof(ActorTrait), "opposite_traits");
-
-        private static readonly FieldInfo TraitOppositeTagsField =
-            AccessTools.Field(typeof(ActorTrait), "opposite_tags");
-
-        private static readonly FieldInfo TraitTranslationKeyField =
-            AccessTools.Field(typeof(ActorTrait), "translation_key");
-
         private static readonly FieldInfo StatsField =
             AccessTools.Field(typeof(BaseSimObject), "stats");
 
@@ -98,6 +86,7 @@ namespace GrandWarfare
 
         private static bool _localesRegistered;
         private static bool _traitsRegistered;
+        private static bool _traitsSanitized;
         private static bool _opinionRegistered;
 
         private static float _simTime;
@@ -138,6 +127,12 @@ namespace GrandWarfare
                 }
             }
 
+            if (!_traitsSanitized && AssetManager.traits?.list != null && AssetManager.traits.list.Count > 0)
+            {
+                SanitizeTraitOpposites();
+                _traitsSanitized = true;
+            }
+
             if (!_opinionRegistered && AssetManager.opinion_library != null && AssetManager.opinion_library.list != null && AssetManager.opinion_library.list.Count > 0)
             {
                 try
@@ -173,79 +168,79 @@ namespace GrandWarfare
         {
             var lib = AssetManager.traits;
 
-            if (!lib.has(TraitSpyId))
+            ActorTrait spy = lib.has(TraitSpyId) ? lib.get(TraitSpyId) : lib.clone(TraitSpyId, "deceitful");
+            if (spy != null)
             {
-                ActorTrait spy = lib.clone(TraitSpyId, "deceitful");
-                if (spy != null)
-                {
-                    spy.id = TraitSpyId;
-                    spy.can_be_given = true;
-                    spy.only_active_on_era_flag = false;
-                    spy.rate_birth = 0;
-                    spy.rate_inherit = 0;
-                    spy.base_stats = new BaseStats();
-                    spy.base_stats["intelligence"] = 4f;
-                    spy.base_stats["diplomacy"] = 4f;
-                    spy.base_stats["speed"] = 2f;
-                    spy.base_stats["critical_chance"] = 0.20f;
-                    IsolateTraitMetadata(spy, "trait_suite_spy");
-                }
+                spy.id = TraitSpyId;
+                spy.can_be_given = true;
+                spy.only_active_on_era_flag = false;
+                spy.base_stats = new BaseStats();
+                spy.base_stats["intelligence"] = 4f;
+                spy.base_stats["diplomacy"] = 4f;
+                spy.base_stats["speed"] = 2f;
+                spy.base_stats["critical_chance"] = 0.20f;
+                IsolateTraitMetadata(spy, "trait_suite_spy", "trait_suite_spy_info");
             }
 
-            if (!lib.has(TraitCounterIntelId))
+            ActorTrait ci = lib.has(TraitCounterIntelId) ? lib.get(TraitCounterIntelId) : lib.clone(TraitCounterIntelId, "wise");
+            if (ci != null)
             {
-                ActorTrait ci = lib.clone(TraitCounterIntelId, "wise");
-                if (ci != null)
-                {
-                    ci.id = TraitCounterIntelId;
-                    ci.can_be_given = true;
-                    ci.only_active_on_era_flag = false;
-                    ci.rate_birth = 0;
-                    ci.rate_inherit = 0;
-                    ci.base_stats = new BaseStats();
-                    ci.base_stats["intelligence"] = 5f;
-                    ci.base_stats["diplomacy"] = 3f;
-                    ci.base_stats["stewardship"] = 2f;
-                    IsolateTraitMetadata(ci, "trait_suite_counter_intel");
-                }
+                ci.id = TraitCounterIntelId;
+                ci.can_be_given = true;
+                ci.only_active_on_era_flag = false;
+                ci.base_stats = new BaseStats();
+                ci.base_stats["intelligence"] = 5f;
+                ci.base_stats["diplomacy"] = 3f;
+                ci.base_stats["stewardship"] = 2f;
+                IsolateTraitMetadata(ci, "trait_suite_counter_intel", "trait_suite_counter_intel_info");
             }
+
+            SanitizeTraitOpposites();
         }
 
-        private static void IsolateTraitMetadata(ActorTrait trait, string localeKey)
+        private static void IsolateTraitMetadata(ActorTrait trait, string localeId, string localeDesc)
         {
             if (trait == null) return;
-            ResetFieldToEmptyInstance(trait, TraitOppositeListField);
-            ResetFieldToEmptyInstance(trait, TraitOppositeTraitsField);
-            ResetFieldToEmptyInstance(trait, TraitOppositeTagsField);
-            try
-            {
-                if (TraitTranslationKeyField != null && TraitTranslationKeyField.FieldType == typeof(string))
-                {
-                    TraitTranslationKeyField.SetValue(trait, localeKey);
-                }
-            }
-            catch { }
+
+            trait.same_trait_mod = 0;
+            trait.opposite_trait_mod = 0;
+            trait.likeability = 0f;
+            trait.rate_birth = 0;
+            trait.rate_inherit = 0;
+            trait.rate_acquire_grow_up = 0;
+            trait.spawn_random_trait_allowed = false;
+            trait.spawn_random_rate = 0;
+            trait.is_mutation_box_allowed = false;
+            trait.in_training_dummy_combat_pot = false;
+
+            trait.opposite_traits = new HashSet<ActorTrait>();
+            trait.opposite_list = new List<string>();
+            trait.traits_to_remove = Array.Empty<ActorTrait>();
+            trait.traits_to_remove_ids = Array.Empty<string>();
+            trait.default_for_actor_assets = new List<ActorAsset>();
+            trait.base_stats_meta = new BaseStats();
+
+            trait.special_locale_id = localeId;
+            trait.special_locale_description = localeDesc;
+            trait.special_locale_description_2 = null;
+            trait.has_localized_id = true;
+            trait.has_description_1 = true;
+            trait.has_description_2 = false;
         }
 
-        private static void ResetFieldToEmptyInstance(object target, FieldInfo field)
+        private static void SanitizeTraitOpposites()
         {
-            if (target == null || field == null) return;
-            try
+            var list = AssetManager.traits?.list;
+            if (list == null) return;
+
+            for (int i = 0; i < list.Count; i++)
             {
-                object current = field.GetValue(target);
-                if (current == null) return;
-                if (field.FieldType.IsArray)
+                ActorTrait trait = list[i];
+                if (trait == null) continue;
+                if (trait.opposite_trait_mod != 0 && trait.opposite_traits == null)
                 {
-                    field.SetValue(target, Array.CreateInstance(field.FieldType.GetElementType(), 0));
+                    trait.opposite_traits = new HashSet<ActorTrait>();
                 }
-                else
-                {
-                    field.SetValue(target, Activator.CreateInstance(field.FieldType));
-                }
-            }
-            catch
-            {
-                try { field.SetValue(target, null); } catch { }
             }
         }
 
@@ -567,15 +562,21 @@ namespace GrandWarfare
 
         private static SpyMission LaunchSpyMission(Kingdom origin, Kingdom target, Actor spy, bool showToast)
         {
-            City targetCapital = target.capital ?? FirstAliveCity(target);
+            if (origin == null || !origin.isAlive() || target == null || !target.isAlive() || spy == null || !spy.isAlive())
+                return null;
+
+            City targetCapital = (target.capital != null && target.capital.isAlive()) ? target.capital : FirstAliveCity(target);
             WorldTile capTile = targetCapital?.getTile();
-            if (targetCapital == null || capTile == null || spy == null || !spy.isAlive())
+            if (targetCapital == null || !targetCapital.isAlive() || capTile == null)
                 return null;
 
             EnsureAssetsRegistered();
 
             try
             {
+                if (!spy.isAlive() || !targetCapital.isAlive() || !target.isAlive())
+                    return null;
+
                 if (AssetManager.traits != null)
                 {
                     if (AssetManager.traits.has(TraitSpyId)) spy.addTrait(TraitSpyId, false);
@@ -586,6 +587,7 @@ namespace GrandWarfare
                 // Cancel existing AI behavior before relocating the agent onto the target capital tile
                 CancelAllBehMethod?.Invoke(spy, null);
                 SetCurrentTilePositionMethod?.Invoke(spy, new object[] { capTile });
+                if (!spy.isAlive() || !targetCapital.isAlive()) return null;
                 spy.joinCity(targetCapital);
                 spy.setMetasFromCity(targetCapital);
             }
@@ -706,8 +708,8 @@ namespace GrandWarfare
                         m.Influence = Mathf.Min(100f, m.Influence + gain);
                         if (m.Influence >= 80f)
                         {
-                            City targetCapital = target.capital ?? FirstAliveCity(target);
-                            if (targetCapital != null && targetCapital.isAlive() && spy.isAlive())
+                            City targetCapital = (target.capital != null && target.capital.isAlive()) ? target.capital : FirstAliveCity(target);
+                            if (targetCapital != null && targetCapital.isAlive() && target.isAlive() && spy.isAlive())
                             {
                                 try
                                 {
@@ -716,9 +718,12 @@ namespace GrandWarfare
                                         spy.joinCity(targetCapital);
                                         spy.setMetasFromCity(targetCapital);
                                     }
-                                    targetCapital.setLeader(spy, true);
-                                    m.Stage = SpyStage.CityLeader;
-                                    RecordEvent($"Mole {m.SpyName} ({m.OriginName}) rose to leader of {targetCapital.name} in {m.TargetName}!", showToast: true);
+                                    if (spy.isAlive() && targetCapital.isAlive())
+                                    {
+                                        targetCapital.setLeader(spy, true);
+                                        m.Stage = SpyStage.CityLeader;
+                                        RecordEvent($"Mole {m.SpyName} ({m.OriginName}) rose to leader of {targetCapital.name} in {m.TargetName}!", showToast: true);
+                                    }
                                 }
                                 catch (Exception e)
                                 {
@@ -735,11 +740,14 @@ namespace GrandWarfare
                         {
                             try
                             {
-                                target.setKing(spy, false);
-                                m.Stage = SpyStage.UsurpedThrone;
-                                m.ConsolidationTimer = 0f;
-                                CoupsSucceeded++;
-                                RecordEvent($"Throne Seized! {m.OriginName}'s mole {m.SpyName} claimed the vacant throne of {m.TargetName}!", showToast: true);
+                                if (target.isAlive() && spy.isAlive())
+                                {
+                                    target.setKing(spy, false);
+                                    m.Stage = SpyStage.UsurpedThrone;
+                                    m.ConsolidationTimer = 0f;
+                                    CoupsSucceeded++;
+                                    RecordEvent($"Throne Seized! {m.OriginName}'s mole {m.SpyName} claimed the vacant throne of {m.TargetName}!", showToast: true);
+                                }
                             }
                             catch (Exception e)
                             {
@@ -765,11 +773,14 @@ namespace GrandWarfare
                                     {
                                         oldKing.dieSimpleNone();
                                     }
-                                    target.setKing(spy, false);
-                                    m.Stage = SpyStage.UsurpedThrone;
-                                    m.ConsolidationTimer = 0f;
-                                    CoupsSucceeded++;
-                                    RecordEvent($"Palace Coup! {m.OriginName}'s mole {m.SpyName} seized the throne of {m.TargetName}!", showToast: true);
+                                    if (target.isAlive() && spy.isAlive())
+                                    {
+                                        target.setKing(spy, false);
+                                        m.Stage = SpyStage.UsurpedThrone;
+                                        m.ConsolidationTimer = 0f;
+                                        CoupsSucceeded++;
+                                        RecordEvent($"Palace Coup! {m.OriginName}'s mole {m.SpyName} seized the throne of {m.TargetName}!", showToast: true);
+                                    }
                                 }
                                 catch (Exception e)
                                 {
@@ -798,7 +809,7 @@ namespace GrandWarfare
                     case SpyStage.UsurpedThrone:
                         if (target.king != spy)
                         {
-                            if (target.king == null || !target.king.isAlive())
+                            if ((target.king == null || !target.king.isAlive()) && target.isAlive() && spy.isAlive())
                             {
                                 try { target.setKing(spy, false); } catch { }
                             }
@@ -904,13 +915,14 @@ namespace GrandWarfare
 
         private static void ExecutePeacefulUnion(SpyMission m, Actor spy, Kingdom origin, Kingdom target)
         {
+            if (origin == null || !origin.isAlive() || target == null || !target.isAlive()) return;
             var citiesSnapshot = target.cities != null ? new List<City>(target.cities) : new List<City>();
             int transferred = 0;
 
             for (int i = 0; i < citiesSnapshot.Count; i++)
             {
                 City city = citiesSnapshot[i];
-                if (city == null || !city.isAlive()) continue;
+                if (city == null || !city.isAlive() || !origin.isAlive()) continue;
                 try
                 {
                     city.joinAnotherKingdom(origin, false, false);
@@ -926,7 +938,7 @@ namespace GrandWarfare
             {
                 try
                 {
-                    if (spy != null && spy.isAlive() && spy.city != null && spy.kingdom != origin)
+                    if (spy != null && spy.isAlive() && spy.city != null && spy.city.isAlive() && spy.kingdom != origin)
                     {
                         spy.setMetasFromCity(spy.city);
                     }
@@ -1152,9 +1164,10 @@ namespace GrandWarfare
         private static City FirstAliveCity(Kingdom k)
         {
             if (k?.cities == null) return null;
-            for (int i = 0; i < k.cities.Count; i++)
+            var cities = new List<City>(k.cities);
+            for (int i = 0; i < cities.Count; i++)
             {
-                City c = k.cities[i];
+                City c = cities[i];
                 if (c != null && c.isAlive() && c.getTile() != null) return c;
             }
             return null;
@@ -1162,7 +1175,8 @@ namespace GrandWarfare
 
         private static WorldTile GetTargetCapitalTile(Kingdom target)
         {
-            City cap = target?.capital ?? FirstAliveCity(target);
+            if (target == null || !target.isAlive()) return null;
+            City cap = (target.capital != null && target.capital.isAlive()) ? target.capital : FirstAliveCity(target);
             if (cap == null || !cap.isAlive()) return null;
             return cap.getTile();
         }

@@ -359,11 +359,15 @@ namespace ApexFactions
         [HarmonyPatch(typeof(DiplomacyManager), "startWar")]
         private static bool StartWarPrefix(Kingdom pAttacker)
         {
-            if (Main.Settings == null || !Main.Settings.EnableWardenDoctrine) return true;
-            if (IsWardenKingdom(pAttacker))
+            try
             {
-                return false; // Peace doctrine: never initiate aggression
+                if (Main.Settings == null || !Main.Settings.EnableWardenDoctrine || pAttacker == null) return true;
+                if (IsWardenKingdom(pAttacker))
+                {
+                    return false; // Peace doctrine: never initiate aggression
+                }
             }
+            catch { }
             return true;
         }
 
@@ -372,41 +376,48 @@ namespace ApexFactions
         [HarmonyPatch(typeof(DiplomacyManager), "startWar")]
         private static void StartWarPostfix(Kingdom pAttacker, Kingdom pDefender, War __result)
         {
-            if (Main.Settings == null || !Main.Settings.EnableWardenDoctrine) return;
-            if (__result == null || pAttacker == null || pDefender == null) return;
-            if (!IsWardenKingdom(pDefender)) return;
-
-            var strikeKey = (pDefender.id, pAttacker.id);
-            AggressorStrikes.TryGetValue(strikeKey, out int prevStrikes);
-            int strikeNum = prevStrikes + 1;
-            AggressorStrikes[strikeKey] = strikeNum;
-
-            // Three-strikes grudge escalation: Strike 1 = 15% mercy, Strike 2 = 5%, Strike 3+ = 0% (no mercy)
-            float basePct = Main.Settings.MercyThresholdPercent;
-            float effectivePct = strikeNum == 1 ? basePct : (strikeNum == 2 ? Mathf.Min(5f, basePct * 0.35f) : 0f);
-
-            int baseline = Math.Max(1, pAttacker.getPopulationPeople());
-            int mercyPop = effectivePct <= 0f
-                ? 0
-                : Math.Max(Main.Settings.MinSurvivorsFloor, Mathf.RoundToInt(baseline * (effectivePct / 100f)));
-
-            ActiveRetaliations[__result.id] = new RetaliationTracker
+            try
             {
-                WarId = __result.id,
-                WardenKingdomId = pDefender.id,
-                AggressorKingdomId = pAttacker.id,
-                WardenName = pDefender.name,
-                AggressorName = pAttacker.name,
-                StrikeNumber = strikeNum,
-                EffectiveMercyPercent = effectivePct,
-                BaselinePop = baseline,
-                MercyTargetPop = mercyPop,
-                CurrentAggressorPop = baseline
-            };
-            RebuildActiveRetaliationWardenCache();
+                if (Main.Settings == null || !Main.Settings.EnableWardenDoctrine) return;
+                if (__result == null || pAttacker == null || pDefender == null) return;
+                if (!IsWardenKingdom(pDefender)) return;
 
-            Debug.Log($"[ApexFactions] {pAttacker.name} provoked {pDefender.name} (Strike #{strikeNum}, mercy={effectivePct:0}%)!");
-            RallyWardenWarriors(pDefender);
+                var strikeKey = (pDefender.id, pAttacker.id);
+                AggressorStrikes.TryGetValue(strikeKey, out int prevStrikes);
+                int strikeNum = prevStrikes + 1;
+                AggressorStrikes[strikeKey] = strikeNum;
+
+                // Three-strikes grudge escalation: Strike 1 = 15% mercy, Strike 2 = 5%, Strike 3+ = 0% (no mercy)
+                float basePct = Main.Settings.MercyThresholdPercent;
+                float effectivePct = strikeNum == 1 ? basePct : (strikeNum == 2 ? Mathf.Min(5f, basePct * 0.35f) : 0f);
+
+                int baseline = Math.Max(1, pAttacker.getPopulationPeople());
+                int mercyPop = effectivePct <= 0f
+                    ? 0
+                    : Math.Max(Main.Settings.MinSurvivorsFloor, Mathf.RoundToInt(baseline * (effectivePct / 100f)));
+
+                ActiveRetaliations[__result.id] = new RetaliationTracker
+                {
+                    WarId = __result.id,
+                    WardenKingdomId = pDefender.id,
+                    AggressorKingdomId = pAttacker.id,
+                    WardenName = pDefender.name,
+                    AggressorName = pAttacker.name,
+                    StrikeNumber = strikeNum,
+                    EffectiveMercyPercent = effectivePct,
+                    BaselinePop = baseline,
+                    MercyTargetPop = mercyPop,
+                    CurrentAggressorPop = baseline
+                };
+                RebuildActiveRetaliationWardenCache();
+
+                Debug.Log($"[ApexFactions] {pAttacker.name} provoked {pDefender.name} (Strike #{strikeNum}, mercy={effectivePct:0}%)!");
+                RallyWardenWarriors(pDefender);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[ApexFactions] StartWarPostfix skipped: {e.Message}");
+            }
         }
 
         // 3. Refuse premature peace treaties while aggressor is still above the mercy threshold
@@ -414,17 +425,21 @@ namespace ApexFactions
         [HarmonyPatch(typeof(WarManager), nameof(WarManager.endWar))]
         private static bool EndWarPrefix(War pWar)
         {
-            if (_allowingMercifulCeasefire || pWar == null || Main.Settings == null || !Main.Settings.EnableWardenDoctrine)
-                return true;
-
-            if (ActiveRetaliations.TryGetValue(pWar.id, out RetaliationTracker tr))
+            try
             {
-                Kingdom aggressor = MapBox.instance?.kingdoms?.get(tr.AggressorKingdomId);
-                if (aggressor != null && aggressor.isAlive() && aggressor.getPopulationPeople() > tr.MercyTargetPop)
+                if (_allowingMercifulCeasefire || pWar == null || Main.Settings == null || !Main.Settings.EnableWardenDoctrine)
+                    return true;
+
+                if (ActiveRetaliations.TryGetValue(pWar.id, out RetaliationTracker tr))
                 {
-                    return false; // Relentless retaliation until mercy target is reached
+                    Kingdom aggressor = MapBox.instance?.kingdoms?.get(tr.AggressorKingdomId);
+                    if (aggressor != null && aggressor.isAlive() && aggressor.getPopulationPeople() > tr.MercyTargetPop)
+                    {
+                        return false; // Relentless retaliation until mercy target is reached
+                    }
                 }
             }
+            catch { }
             return true;
         }
 

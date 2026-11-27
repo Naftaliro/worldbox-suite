@@ -314,87 +314,91 @@ namespace ApexFactions
             if (__instance.asset.id != WardenSpeciesRegistry.WardenAssetId) return;
             if (!_hasAnyTexture) return;
 
-            if (!_calibrated)
+            try
             {
-                if (__result == null) return;
-                float vanillaPpu = __result.pixelsPerUnit;
-                float vanillaH = __result.rect.height;
-                float targetPpu = Mathf.Max(0.1f, vanillaPpu * (25f / Mathf.Max(8f, vanillaH)));
-                BuildAllSprites(targetPpu);
-                _calibrated = true;
-                Debug.Log($"[ApexFactions] Calibrated Warden sprite PPU={targetPpu:0.00} (vanilla PPU={vanillaPpu:0.00}, vanillaH={vanillaH:0.0}).");
-            }
-
-            RoleSprites role = null;
-            if ((__instance.isKing() || __instance.isCityLeader()) && _leader != null && _leader.HasAny)
-            {
-                role = _leader;
-            }
-            else
-            {
-                bool inRetaliation = __instance.kingdom != null && WardenSystem.HasActiveRetaliation(__instance.kingdom.id);
-                if ((__instance.isWarrior() || inRetaliation) && _warrior != null && _warrior.HasAny)
+                if (!_calibrated)
                 {
-                    role = _warrior;
+                    if (__result == null) return;
+                    float vanillaPpu = __result.pixelsPerUnit;
+                    float vanillaH = __result.rect.height;
+                    float targetPpu = Mathf.Max(0.1f, vanillaPpu * (25f / Mathf.Max(8f, vanillaH)));
+                    BuildAllSprites(targetPpu);
+                    _calibrated = true;
+                    Debug.Log($"[ApexFactions] Calibrated Warden sprite PPU={targetPpu:0.00} (vanilla PPU={vanillaPpu:0.00}, vanillaH={vanillaH:0.0}).");
                 }
-                else if (_citizen != null && _citizen.HasAny)
+
+                RoleSprites role = null;
+                if ((__instance.isKing() || __instance.isCityLeader()) && _leader != null && _leader.HasAny)
                 {
-                    role = _citizen;
+                    role = _leader;
+                }
+                else
+                {
+                    bool inRetaliation = __instance.kingdom != null && WardenSystem.HasActiveRetaliation(__instance.kingdom.id);
+                    if ((__instance.isWarrior() || inRetaliation) && _warrior != null && _warrior.HasAny)
+                    {
+                        role = _warrior;
+                    }
+                    else if (_citizen != null && _citizen.HasAny)
+                    {
+                        role = _citizen;
+                    }
+                }
+
+                if (role == null)
+                {
+                    role = (_citizen != null && _citizen.HasAny) ? _citizen
+                         : (_warrior != null && _warrior.HasAny) ? _warrior
+                         : _leader;
+                    if (role == null || !role.HasAny) return;
+                }
+
+                Sprite baseFallback = role.Fallback
+                    ?? (role.Idle != null && role.Idle.Length > 0 ? role.Idle[0] : null)
+                    ?? (_citizen != null ? _citizen.Fallback : null);
+
+                if (!__instance.isAlive())
+                {
+                    Sprite staticSprite = (role.Idle != null && role.Idle.Length > 0 ? role.Idle[0] : null) ?? baseFallback;
+                    if (staticSprite != null) __result = staticSprite;
+                    return;
+                }
+
+                float phase = (__instance.GetHashCode() & 0xFF) * 0.037f;
+                float t = AnimationHelper.getTime() + phase;
+
+                Sprite chosen;
+                if (IsSwimming(__instance))
+                {
+                    chosen = PickFrame(role.Swim, t, 3.5f, PickFrame(role.Idle, t, 1.8f, baseFallback));
+                }
+                else if (IsAttacking(__instance))
+                {
+                    Sprite[] attackFrames = (role.Attack != null && role.Attack.Length > 0) ? role.Attack : role.Walk;
+                    chosen = PickFrame(attackFrames, t, 6.0f, baseFallback);
+                }
+                else if (IsSocializing(__instance))
+                {
+                    chosen = PickFrame(role.Happy, t, 4.5f, PickFrame(role.Idle, t, 1.8f, baseFallback));
+                }
+                else if (__instance.is_moving)
+                {
+                    BaseStats st = StatsRef != null ? StatsRef(__instance) : null;
+                    float speed = st != null ? st["speed"] : 20f;
+                    float walkFps = Mathf.Clamp(7.5f + (speed - 15f) * 0.14f, 8.0f, 11.0f);
+                    chosen = PickFrame(role.Walk, t, walkFps, baseFallback);
+                }
+                else
+                {
+                    chosen = PickFrame(role.Idle, t, 1.8f, baseFallback);
+                }
+
+                if (chosen != null)
+                {
+                    __result = chosen;
                 }
             }
-
-            if (role == null)
-            {
-                role = (_citizen != null && _citizen.HasAny) ? _citizen
-                     : (_warrior != null && _warrior.HasAny) ? _warrior
-                     : _leader;
-                if (role == null || !role.HasAny) return;
-            }
-
-            Sprite baseFallback = role.Fallback
-                ?? (role.Idle != null && role.Idle.Length > 0 ? role.Idle[0] : null)
-                ?? (_citizen != null ? _citizen.Fallback : null);
-
-            if (!__instance.isAlive())
-            {
-                Sprite staticSprite = (role.Idle != null && role.Idle.Length > 0 ? role.Idle[0] : null) ?? baseFallback;
-                if (staticSprite != null) __result = staticSprite;
-                return;
-            }
-
-            float phase = (__instance.GetHashCode() & 0xFF) * 0.037f;
-            float t = AnimationHelper.getTime() + phase;
-
-            Sprite chosen;
-            if (IsSwimming(__instance))
-            {
-                chosen = PickFrame(role.Swim, t, 3.5f, PickFrame(role.Idle, t, 1.8f, baseFallback));
-            }
-            else if (IsAttacking(__instance))
-            {
-                Sprite[] attackFrames = (role.Attack != null && role.Attack.Length > 0) ? role.Attack : role.Walk;
-                chosen = PickFrame(attackFrames, t, 6.0f, baseFallback);
-            }
-            else if (IsSocializing(__instance))
-            {
-                chosen = PickFrame(role.Happy, t, 4.5f, PickFrame(role.Idle, t, 1.8f, baseFallback));
-            }
-            else if (__instance.is_moving)
-            {
-                BaseStats st = StatsRef != null ? StatsRef(__instance) : null;
-                float speed = st != null ? st["speed"] : 20f;
-                float walkFps = Mathf.Clamp(7.5f + (speed - 15f) * 0.14f, 8.0f, 11.0f);
-                chosen = PickFrame(role.Walk, t, walkFps, baseFallback);
-            }
-            else
-            {
-                chosen = PickFrame(role.Idle, t, 1.8f, baseFallback);
-            }
-
-            if (chosen != null)
-            {
-                __result = chosen;
-            }
+            catch { }
         }
     }
 }

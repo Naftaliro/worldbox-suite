@@ -30,6 +30,7 @@ namespace GrandWarfare
         private Vector2 _intelScroll;
         private float _supplyTimer = 0f;
         private float _navalTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
         private Rect _windowRect = new Rect(610, 86, 365, 420);
 
         public ModDeclare GetDeclaration() => _declare;
@@ -155,39 +156,51 @@ namespace GrandWarfare
         {
             if (Settings == null) return;
 
-            EspionageSystem.EnsureAssetsRegistered();
-
             if (Input.GetKeyDown(Settings.WarRoomKey))
             {
                 ToggleHud();
             }
 
-            if (Config.paused || MapBox.instance == null) return;
-
-            float dt = Time.deltaTime;
-            EspionageSystem.Tick(dt);
-
-            if (Settings.EnableNavalCombat)
+            try
             {
-                _navalTimer += dt;
-                if (_navalTimer >= Settings.NavalVolleyCooldown)
+                EspionageSystem.EnsureAssetsRegistered();
+
+                if (Config.paused || MapBox.instance == null) return;
+
+                float dt = Time.deltaTime;
+                EspionageSystem.Tick(dt);
+
+                if (Settings.EnableNavalCombat)
                 {
-                    _navalTimer = 0f;
-                    NavalCombatSystem.TickNavalCombat();
+                    _navalTimer += dt;
+                    if (_navalTimer >= Settings.NavalVolleyCooldown)
+                    {
+                        _navalTimer = 0f;
+                        NavalCombatSystem.TickNavalCombat();
+                    }
+                }
+
+                if (Settings.EnableSupplyAttrition)
+                {
+                    _supplyTimer += dt;
+                    if (_supplyTimer >= Settings.SupplyCheckInterval)
+                    {
+                        _supplyTimer = 0f;
+                        SupplyLineSystem.TickSupplyAttrition();
+                        if (Settings.EnableNavalBlockades)
+                        {
+                            NavalCombatSystem.TickNavalBlockades();
+                        }
+                    }
                 }
             }
-
-            if (Settings.EnableSupplyAttrition)
+            catch (Exception e)
             {
-                _supplyTimer += dt;
-                if (_supplyTimer >= Settings.SupplyCheckInterval)
+                float now = Time.unscaledTime;
+                if (now - _lastUpdateWarnTime >= 30f)
                 {
-                    _supplyTimer = 0f;
-                    SupplyLineSystem.TickSupplyAttrition();
-                    if (Settings.EnableNavalBlockades)
-                    {
-                        NavalCombatSystem.TickNavalBlockades();
-                    }
+                    _lastUpdateWarnTime = now;
+                    Debug.LogWarning($"[GrandWarfare] Update tick exception: {e.Message}");
                 }
             }
         }
@@ -385,7 +398,7 @@ namespace GrandWarfare
 
             // Gather active naval vessels belonging to civilized kingdoms
             var ships = new List<Actor>(64);
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
             for (int i = 0; i < alive.Count; i++)
             {
                 Actor u = alive[i];
@@ -535,7 +548,7 @@ namespace GrandWarfare
             var settings = Main.Settings;
             if (world?.cities == null || world.units?.units_only_alive == null || settings == null) return;
 
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
             var ships = new List<Actor>(32);
             for (int i = 0; i < alive.Count; i++)
             {
@@ -548,8 +561,10 @@ namespace GrandWarfare
             if (ships.Count == 0) return;
 
             float rSq = settings.BlockadeRangeTiles * settings.BlockadeRangeTiles;
-            foreach (City city in world.cities)
+            var citiesSnapshot = new List<City>(world.cities);
+            for (int cIdx = 0; cIdx < citiesSnapshot.Count; cIdx++)
             {
+                City city = citiesSnapshot[cIdx];
                 if (city == null || !city.isAlive()) continue;
                 WorldTile cTile = city.getTile();
                 Kingdom cKing = CityKingdomField?.GetValue(city) as Kingdom;
@@ -601,7 +616,7 @@ namespace GrandWarfare
 
             var settings = Main.Settings;
             float maxDistSq = settings.MaxSupplyDistanceTiles * settings.MaxSupplyDistanceTiles;
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
 
             for (int i = 0; i < alive.Count; i++)
             {
@@ -625,16 +640,19 @@ namespace GrandWarfare
 
         private static bool IsWithinFriendlySupply(Actor unit, float maxDistSq)
         {
-            var cities = unit.kingdom.cities;
-            if (cities == null || cities.Count == 0) return true;
+            if (unit?.kingdom == null || !unit.kingdom.isAlive()) return true;
+            var citiesRaw = unit.kingdom.cities;
+            if (citiesRaw == null || citiesRaw.Count == 0) return true;
 
             int ux = unit.current_tile.x;
             int uy = unit.current_tile.y;
 
+            var cities = new List<City>(citiesRaw);
             for (int i = 0; i < cities.Count; i++)
             {
                 City city = cities[i];
-                WorldTile cTile = city?.getTile();
+                if (city == null || !city.isAlive()) continue;
+                WorldTile cTile = city.getTile();
                 if (cTile == null) continue;
                 float dx = ux - cTile.x;
                 float dy = uy - cTile.y;
@@ -674,8 +692,10 @@ namespace GrandWarfare
             if (world?.kingdoms == null) return;
 
             var civs = new List<Kingdom>();
-            foreach (var k in world.kingdoms)
+            var kingdomsSnapshot = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdomsSnapshot.Count; i++)
             {
+                Kingdom k = kingdomsSnapshot[i];
                 if (k != null && k.isCiv() && k.isAlive())
                 {
                     civs.Add(k);
@@ -701,22 +721,31 @@ namespace GrandWarfare
         [HarmonyPatch("startWar")]
         private static void StartWarPostfix(Kingdom pAttacker, Kingdom pDefender, War __result)
         {
-            if (Main.Settings == null || !Main.Settings.EnableDefensePacts) return;
-            if (__result == null || pAttacker == null || pDefender == null) return;
-            if (!Main.DefensePacts.TryGetValue(pDefender.id, out var allies)) return;
-
-            var world = MapBox.instance;
-            if (world?.kingdoms == null) return;
-
-            foreach (long allyId in allies)
+            try
             {
-                if (allyId == pAttacker.id) continue;
-                Kingdom ally = world.kingdoms.get(allyId);
-                if (ally != null && ally.isCiv() && ally.isAlive() && !__result.hasKingdom(ally))
+                if (Main.Settings == null || !Main.Settings.EnableDefensePacts) return;
+                if (__result == null || pAttacker == null || pDefender == null) return;
+                if (!Main.DefensePacts.TryGetValue(pDefender.id, out var allies) || allies == null || allies.Count == 0) return;
+
+                var world = MapBox.instance;
+                if (world?.kingdoms == null) return;
+
+                var allySnapshot = new List<long>(allies);
+                for (int i = 0; i < allySnapshot.Count; i++)
                 {
-                    __result.joinDefenders(ally);
-                    Debug.Log($"[GrandWarfare] {ally.name} honored its defense pact and joined {pDefender.name}!");
+                    long allyId = allySnapshot[i];
+                    if (allyId == pAttacker.id) continue;
+                    Kingdom ally = world.kingdoms.get(allyId);
+                    if (ally != null && ally.isCiv() && ally.isAlive() && !__result.hasKingdom(ally))
+                    {
+                        __result.joinDefenders(ally);
+                        Debug.Log($"[GrandWarfare] {ally.name} honored its defense pact and joined {pDefender.name}!");
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[GrandWarfare] Defense pact hook skipped: {e.Message}");
             }
         }
     }

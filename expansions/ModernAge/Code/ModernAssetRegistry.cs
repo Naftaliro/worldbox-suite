@@ -57,7 +57,14 @@ namespace ModernAge
         [HarmonyPatch(nameof(ItemLibrary.init))]
         private static void ItemInitPostfix()
         {
-            RegisterAll();
+            try
+            {
+                RegisterAll();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[ModernAge] Deferred asset registration error: {e.Message}");
+            }
         }
 
         public static void RegisterAll()
@@ -123,6 +130,7 @@ namespace ModernAge
             if (lib.has(id)) return;
             EquipmentAsset eq = lib.has(tpl) ? lib.clone(id, tpl) : null;
             if (eq == null) return;
+            eq.base_stats = eq.base_stats != null ? (BaseStats)eq.base_stats.Clone() : new BaseStats();
             eq.translation_key = "item_" + id;
             eq.material = "steel";
             cfg?.Invoke(eq);
@@ -221,8 +229,18 @@ namespace ModernAge
         private static void CloneUnit(ActorAssetLibrary lib, string id, string tpl, Action<ActorAsset> cfg)
         {
             if (lib.has(id)) return;
-            ActorAsset a = lib.has(tpl) ? lib.clone(id, tpl) : null;
+            ActorAsset template = lib.has(tpl) ? lib.get(tpl) : null;
+            ActorAsset a = template != null ? lib.clone(id, tpl) : null;
             if (a == null) return;
+
+            a.units = new HashSet<Actor>();
+            a.base_stats = a.base_stats != null ? (BaseStats)a.base_stats.Clone() : new BaseStats();
+            a.traits = a.traits != null ? new List<string>(a.traits) : new List<string>();
+            if (a.texture_asset == null && template.texture_asset != null)
+            {
+                a.texture_asset = template.texture_asset;
+            }
+
             a.ignore_tile_speed_multiplier = true;
             a.shadow = false;
             cfg?.Invoke(a);

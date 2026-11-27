@@ -13,14 +13,14 @@ namespace CoreScale
         [HarmonyPatch("Awake")]
         private static void AwakePostfix()
         {
-            SimulationLodPatches.ApplyParallelSettings();
+            try { SimulationLodPatches.ApplyParallelSettings(); } catch { }
         }
 
         [HarmonyPostfix]
         [HarmonyPatch(nameof(MapBox.finishingUpLoading))]
         private static void FinishLoadingPostfix()
         {
-            SimulationLodPatches.ApplyParallelSettings();
+            try { SimulationLodPatches.ApplyParallelSettings(); } catch { }
         }
     }
 
@@ -30,8 +30,17 @@ namespace CoreScale
         private static readonly FieldInfo ParallelOptionsField =
             AccessTools.Field(typeof(MapBox), "parallel_options");
 
+        private static readonly FieldInfo QualityChangerField =
+            AccessTools.Field(typeof(MapBox), "quality_changer");
+
         private static QualityChanger _cachedQualityChanger;
         private static MapBox _cachedWorld;
+
+        private static QualityChanger GetQualityChanger(MapBox world)
+        {
+            if (world == null || QualityChangerField == null) return null;
+            return QualityChangerField.GetValue(world) as QualityChanger;
+        }
 
         public static bool IsStrategicZoom()
         {
@@ -40,7 +49,7 @@ namespace CoreScale
             if (!ReferenceEquals(world, _cachedWorld) || _cachedQualityChanger == null)
             {
                 _cachedWorld = world;
-                _cachedQualityChanger = world.quality_changer;
+                _cachedQualityChanger = GetQualityChanger(world);
             }
             return _cachedQualityChanger != null && _cachedQualityChanger.isLowRes();
         }
@@ -69,7 +78,7 @@ namespace CoreScale
             if (world != null)
             {
                 _cachedWorld = world;
-                _cachedQualityChanger = world.quality_changer;
+                _cachedQualityChanger = GetQualityChanger(world);
                 if (ParallelOptionsField?.GetValue(world) is ParallelOptions opts)
                 {
                     opts.MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount - 1);
@@ -82,14 +91,14 @@ namespace CoreScale
         [HarmonyPatch("u3_spriteAnimation")]
         private static bool SpriteAnimationPrefix(BatchActors __instance)
         {
-            if (Main.Settings == null) return true;
+            if (__instance == null || Main.Settings == null) return true;
             if (Main.Settings.SkipAnimationsInStrategicZoom && IsStrategicZoom())
             {
                 return false;
             }
             if (Main.Settings.TurboMode || Main.EffectiveLodTier >= 2)
             {
-                return ((Time.frameCount + __instance.batch_id) & 1) == 0;
+                return ((Main.CurrentFrameCount + __instance.batch_id) & 1) == 0;
             }
             return true;
         }
@@ -110,20 +119,22 @@ namespace CoreScale
         [HarmonyPatch("updateHovering")]
         private static bool HoveringPrefix(BatchActors __instance)
         {
+            if (__instance == null) return true;
             int tier = Main.EffectiveLodTier;
             if (tier < 1) return true;
             int stride = tier >= 2 ? 4 : 2;
-            return ((Time.frameCount + __instance.batch_id) % stride) == 0;
+            return ((Main.CurrentFrameCount + __instance.batch_id) % stride) == 0;
         }
 
         [HarmonyPrefix]
         [HarmonyPatch("updatePollinating")]
         private static bool PollinatingPrefix(BatchActors __instance)
         {
+            if (__instance == null) return true;
             int tier = Main.EffectiveLodTier;
             if (tier < 1) return true;
             int stride = tier >= 2 ? 4 : 2;
-            return ((Time.frameCount + __instance.batch_id) % stride) == 0;
+            return ((Main.CurrentFrameCount + __instance.batch_id) % stride) == 0;
         }
 
         // Stagger expensive target-search scans in mega-wars
@@ -131,9 +142,10 @@ namespace CoreScale
         [HarmonyPatch("b3_findEnemyTarget")]
         private static bool FindEnemyTargetPrefix(BatchActors __instance)
         {
+            if (__instance == null) return true;
             int tier = Main.EffectiveLodTier;
             if (tier < 2 && (Main.Settings == null || !Main.Settings.TurboMode)) return true;
-            return ((Time.frameCount + __instance.batch_id) & 1) == 0;
+            return ((Main.CurrentFrameCount + __instance.batch_id) & 1) == 0;
         }
 
         // Time-slice heavy AI decisions across batches at LOD Tier 2+ (smoothly staggered by batch_id)
@@ -141,18 +153,19 @@ namespace CoreScale
         [HarmonyPatch("b6_0_updateDecision")]
         private static bool UpdateDecisionPrefix(BatchActors __instance)
         {
+            if (__instance == null) return true;
             int tier = Main.EffectiveLodTier;
             if (tier < 2) return true;
             int stride = tier >= 3 ? 4 : 2;
-            return ((Time.frameCount + __instance.batch_id) % stride) == 0;
+            return ((Main.CurrentFrameCount + __instance.batch_id) % stride) == 0;
         }
 
         [HarmonyPrefix]
         [HarmonyPatch("b6_updateAI")]
         private static bool UpdateAiPrefix(BatchActors __instance)
         {
-            if (Main.EffectiveLodTier < 3) return true;
-            return ((Time.frameCount + __instance.batch_id) & 1) == 0;
+            if (__instance == null || Main.EffectiveLodTier < 3) return true;
+            return ((Main.CurrentFrameCount + __instance.batch_id) & 1) == 0;
         }
     }
 
@@ -180,30 +193,33 @@ namespace CoreScale
         [HarmonyPatch("updateSpreadTrees")]
         private static bool SpreadTreesPrefix(BatchBuildings __instance)
         {
+            if (__instance == null) return true;
             int tier = Main.EffectiveLodTier;
             if (tier < 1 && (Main.Settings == null || !Main.Settings.TurboMode)) return true;
             int stride = tier >= 2 || (Main.Settings != null && Main.Settings.TurboMode) ? 4 : 2;
-            return ((Time.frameCount + __instance.batch_id) % stride) == 0;
+            return ((Main.CurrentFrameCount + __instance.batch_id) % stride) == 0;
         }
 
         [HarmonyPrefix]
         [HarmonyPatch("updateSpreadPlants")]
         private static bool SpreadPlantsPrefix(BatchBuildings __instance)
         {
+            if (__instance == null) return true;
             int tier = Main.EffectiveLodTier;
             if (tier < 1 && (Main.Settings == null || !Main.Settings.TurboMode)) return true;
             int stride = tier >= 2 || (Main.Settings != null && Main.Settings.TurboMode) ? 4 : 2;
-            return ((Time.frameCount + __instance.batch_id) % stride) == 0;
+            return ((Main.CurrentFrameCount + __instance.batch_id) % stride) == 0;
         }
 
         [HarmonyPrefix]
         [HarmonyPatch("updateSpreadFungi")]
         private static bool SpreadFungiPrefix(BatchBuildings __instance)
         {
+            if (__instance == null) return true;
             int tier = Main.EffectiveLodTier;
             if (tier < 1 && (Main.Settings == null || !Main.Settings.TurboMode)) return true;
             int stride = tier >= 2 || (Main.Settings != null && Main.Settings.TurboMode) ? 4 : 2;
-            return ((Time.frameCount + __instance.batch_id) % stride) == 0;
+            return ((Main.CurrentFrameCount + __instance.batch_id) % stride) == 0;
         }
     }
 

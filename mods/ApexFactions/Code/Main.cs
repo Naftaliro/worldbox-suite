@@ -25,6 +25,7 @@ namespace ApexFactions
         private float _wildTimer = 0f;
         private float _thiefRaidTimer = 0f;
         private float _snakeBetrayalTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
 
         private Rect _windowRect = new Rect(640, 200, 420, 500);
         private Vector2 _rulesScroll;
@@ -203,49 +204,61 @@ namespace ApexFactions
 
             if (MapBox.instance == null) return;
 
-            // Ensure species & diplomacy opinions register as soon as AssetManager finishes initializing
-            WardenSpeciesRegistry.EnsureRegistered();
-            SpeciesPersonalityRegistry.EnsureOpinionsRegistered();
-
-            if (Config.paused) return;
-
-            float dt = Time.deltaTime;
-
-            _wardenTimer += dt;
-            if (_wardenTimer >= 2.0f)
+            try
             {
-                WardenSystem.Tick(_wardenTimer);
-                _wardenTimer = 0f;
+                // Ensure species & diplomacy opinions register as soon as AssetManager finishes initializing
+                WardenSpeciesRegistry.EnsureRegistered();
+                SpeciesPersonalityRegistry.EnsureOpinionsRegistered();
+
+                if (Config.paused) return;
+
+                float dt = Time.deltaTime;
+
+                _wardenTimer += dt;
+                if (_wardenTimer >= 2.0f)
+                {
+                    WardenSystem.Tick(_wardenTimer);
+                    _wardenTimer = 0f;
+                }
+
+                _autoFoundTimer += dt;
+                if (_autoFoundTimer >= 4.0f)
+                {
+                    _autoFoundTimer = 0f;
+                    WildSovereigntySystem.ScanAndAutoFoundAnimalKingdoms();
+                }
+
+                _wildTimer += dt;
+                if (_wildTimer >= 10.0f)
+                {
+                    _wildTimer = 0f;
+                    WildSovereigntySystem.ScanFeralDomains();
+                    SpeciesPersonalityRegistry.CleanupFinishedWars();
+                    SyncRunners();
+                }
+
+                _thiefRaidTimer += dt;
+                if (_thiefRaidTimer >= 27.0f)
+                {
+                    _thiefRaidTimer = 0f;
+                    SpeciesPersonalityRegistry.TickThiefRaids();
+                }
+
+                _snakeBetrayalTimer += dt;
+                if (_snakeBetrayalTimer >= 45.0f)
+                {
+                    _snakeBetrayalTimer = 0f;
+                    SpeciesPersonalityRegistry.TickSnakeBetrayals();
+                }
             }
-
-            _autoFoundTimer += dt;
-            if (_autoFoundTimer >= 4.0f)
+            catch (Exception e)
             {
-                _autoFoundTimer = 0f;
-                WildSovereigntySystem.ScanAndAutoFoundAnimalKingdoms();
-            }
-
-            _wildTimer += dt;
-            if (_wildTimer >= 10.0f)
-            {
-                _wildTimer = 0f;
-                WildSovereigntySystem.ScanFeralDomains();
-                SpeciesPersonalityRegistry.CleanupFinishedWars();
-                SyncRunners();
-            }
-
-            _thiefRaidTimer += dt;
-            if (_thiefRaidTimer >= 27.0f)
-            {
-                _thiefRaidTimer = 0f;
-                SpeciesPersonalityRegistry.TickThiefRaids();
-            }
-
-            _snakeBetrayalTimer += dt;
-            if (_snakeBetrayalTimer >= 45.0f)
-            {
-                _snakeBetrayalTimer = 0f;
-                SpeciesPersonalityRegistry.TickSnakeBetrayals();
+                float now = Time.unscaledTime;
+                if (now - _lastUpdateWarnTime >= 30f)
+                {
+                    _lastUpdateWarnTime = now;
+                    Debug.LogWarning($"[ApexFactions] Update tick exception: {e.Message}");
+                }
             }
         }
 

@@ -23,6 +23,7 @@ namespace SuiteHub
         private bool _bottomBarTried = false;
         private float _initDelay = 0f;
         private float _pruneTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
 
         private Rect _hubRect = new Rect(20, 76, 325, 465);
 
@@ -260,12 +261,16 @@ namespace SuiteHub
             var world = MapBox.instance;
             if (world?.wars != null)
             {
-                var warsSnapshot = new List<War>(world.wars.getActiveWars());
-                foreach (var w in warsSnapshot)
+                var activeWars = world.wars.getActiveWars();
+                if (activeWars != null)
                 {
-                    if (w != null && DiplomacyWarOverlay.JumpToWar(w))
+                    var warsSnapshot = new List<War>(activeWars);
+                    foreach (var w in warsSnapshot)
                     {
-                        return $"Jumped to active war: {w.name}";
+                        if (w != null && DiplomacyWarOverlay.JumpToWar(w))
+                        {
+                            return $"Jumped to active war: {w.name}";
+                        }
                     }
                 }
             }
@@ -274,28 +279,40 @@ namespace SuiteHub
 
         private void Update()
         {
-            // Defer bottom-bar tab registration slightly so WorldBox's Canvas & PowerTabs are fully ready
-            if (!_bottomBarTried)
-            {
-                _initDelay += Time.unscaledDeltaTime;
-                if (_initDelay >= 1.5f && MapBox.instance != null)
-                {
-                    _bottomBarTried = true;
-                    BottomBarIntegration.RegisterBottomTabs(_declare.FolderPath);
-                }
-            }
-
             if (Input.GetKeyDown(KeyCode.F5)) ToggleHub();
             if (Input.GetKeyDown(KeyCode.F4)) ToggleWarMatrix();
             if (Input.GetKeyDown(KeyCode.F3)) ShowToast(ToggleWarTicker());
             if (Input.GetKeyDown(KeyCode.F2)) ToggleWorldBuilder();
 
-            _pruneTimer += Time.unscaledDeltaTime;
-            if (_pruneTimer >= 1.0f)
+            try
             {
-                _pruneTimer = 0f;
-                BattleRadarSystem.PruneExpired();
-                SyncRunners();
+                // Defer bottom-bar tab registration slightly so WorldBox's Canvas & PowerTabs are fully ready
+                if (!_bottomBarTried)
+                {
+                    _initDelay += Time.unscaledDeltaTime;
+                    if (_initDelay >= 1.5f && MapBox.instance != null)
+                    {
+                        _bottomBarTried = true;
+                        BottomBarIntegration.RegisterBottomTabs(_declare.FolderPath);
+                    }
+                }
+
+                _pruneTimer += Time.unscaledDeltaTime;
+                if (_pruneTimer >= 1.0f)
+                {
+                    _pruneTimer = 0f;
+                    BattleRadarSystem.PruneExpired();
+                    SyncRunners();
+                }
+            }
+            catch (Exception e)
+            {
+                float now = Time.unscaledTime;
+                if (now - _lastUpdateWarnTime >= 30f)
+                {
+                    _lastUpdateWarnTime = now;
+                    Debug.LogWarning($"[SuiteHub] Update tick exception: {e.Message}");
+                }
             }
         }
 

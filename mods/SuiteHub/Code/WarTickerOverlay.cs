@@ -28,10 +28,14 @@ namespace SuiteHub
             catch
             {
                 int count = 0;
-                var activeSnapshot = new List<War>(world.wars.getActiveWars());
-                foreach (var w in activeSnapshot)
+                var activeWars = world.wars.getActiveWars();
+                if (activeWars != null)
                 {
-                    if (w != null) count++;
+                    var activeSnapshot = new List<War>(activeWars);
+                    foreach (var w in activeSnapshot)
+                    {
+                        if (w != null) count++;
+                    }
                 }
                 return count;
             }
@@ -44,10 +48,14 @@ namespace SuiteHub
             if (world?.wars == null) return;
 
             _warsBuf.Clear();
-            var activeSnapshot = new List<War>(world.wars.getActiveWars());
-            foreach (var w in activeSnapshot)
+            var activeWars = world.wars.getActiveWars();
+            if (activeWars != null)
             {
-                if (w != null) _warsBuf.Add(w);
+                var activeSnapshot = new List<War>(activeWars);
+                foreach (var w in activeSnapshot)
+                {
+                    if (w != null) _warsBuf.Add(w);
+                }
             }
             if (_warsBuf.Count == 0) return;
 

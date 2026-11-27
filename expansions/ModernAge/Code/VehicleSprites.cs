@@ -52,7 +52,7 @@ namespace ModernAge
         [HarmonyPatch("calculateMainSprite")]
         private static void CalculateMainSpritePostfix(Actor __instance, ref Sprite __result)
         {
-            if (__instance?.asset == null || LoadedSprites.Count == 0) return;
+            if (__instance?.asset == null || string.IsNullOrEmpty(__instance.asset.id) || LoadedSprites.Count == 0) return;
             if (LoadedSprites.TryGetValue(__instance.asset.id, out Sprite custom) && custom != null)
             {
                 __result = custom;

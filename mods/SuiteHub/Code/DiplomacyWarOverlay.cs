@@ -69,10 +69,14 @@ namespace SuiteHub
             var wars = new List<War>();
             if (world.wars != null)
             {
-                var activeSnapshot = new List<War>(world.wars.getActiveWars());
-                foreach (var w in activeSnapshot)
+                var activeWars = world.wars.getActiveWars();
+                if (activeWars != null)
                 {
-                    if (w != null) wars.Add(w);
+                    var activeSnapshot = new List<War>(activeWars);
+                    foreach (var w in activeSnapshot)
+                    {
+                        if (w != null) wars.Add(w);
+                    }
                 }
             }
 
@@ -386,22 +390,30 @@ namespace SuiteHub
                 Kingdom mainDef = w.getMainDefender();
                 if (mainDef != null && pacts.TryGetValue(mainDef.id, out var defAllies) && defAllies != null)
                 {
-                    var defSnapshot = new List<Kingdom>(w.getDefenders());
-                    foreach (Kingdom k in defSnapshot)
+                    var rawDef = w.getDefenders();
+                    if (rawDef != null)
                     {
-                        if (k != null && k.id != mainDef.id && defAllies.Contains(k.id))
-                            return true;
+                        var defSnapshot = new List<Kingdom>(rawDef);
+                        foreach (Kingdom k in defSnapshot)
+                        {
+                            if (k != null && k.id != mainDef.id && defAllies.Contains(k.id))
+                                return true;
+                        }
                     }
                 }
 
                 Kingdom mainAtk = w.getMainAttacker();
                 if (mainAtk != null && pacts.TryGetValue(mainAtk.id, out var atkAllies) && atkAllies != null)
                 {
-                    var atkSnapshot = new List<Kingdom>(w.getAttackers());
-                    foreach (Kingdom k in atkSnapshot)
+                    var rawAtk = w.getAttackers();
+                    if (rawAtk != null)
                     {
-                        if (k != null && k.id != mainAtk.id && atkAllies.Contains(k.id))
-                            return true;
+                        var atkSnapshot = new List<Kingdom>(rawAtk);
+                        foreach (Kingdom k in atkSnapshot)
+                        {
+                            if (k != null && k.id != mainAtk.id && atkAllies.Contains(k.id))
+                                return true;
+                        }
                     }
                 }
             }

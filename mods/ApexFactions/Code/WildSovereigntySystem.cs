@@ -58,11 +58,15 @@ namespace ApexFactions
         [HarmonyPatch(typeof(BuildOrder), nameof(BuildOrder.getBuildingAsset))]
         private static void BuildOrderEnsureArchPrefix(City pCity)
         {
-            ActorAsset asset = pCity?.getActorAsset();
-            if (asset != null && asset.architecture_asset == null)
+            try
             {
-                EnsureValidArchitecture(asset);
+                ActorAsset asset = pCity?.getActorAsset();
+                if (asset != null && asset.architecture_asset == null)
+                {
+                    EnsureValidArchitecture(asset);
+                }
             }
+            catch { }
         }
 
         private static bool IsEligibleWildAnimal(ActorAsset asset)

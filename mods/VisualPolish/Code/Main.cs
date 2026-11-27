@@ -20,6 +20,7 @@ namespace VisualPolish
         private GuiOverlayRunner _panelRunner;
         private float _cycleTime = 0f;
         private float _ageCheckTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
         private Rect _windowRect = new Rect(305, 86, 315, 395);
 
         private Texture2D _vignetteTex;
@@ -181,18 +182,30 @@ namespace VisualPolish
                 Config.ui_main_hidden = !Config.ui_main_hidden;
             }
 
-            if (Settings.DynamicDayNightCycle && Settings.CycleDurationSeconds > 5f)
+            try
             {
-                _cycleTime = (_cycleTime + Time.unscaledDeltaTime) % Settings.CycleDurationSeconds;
-            }
-
-            if (Settings.LockAgeOfHope && MapBox.instance != null)
-            {
-                _ageCheckTimer += Time.unscaledDeltaTime;
-                if (_ageCheckTimer >= 2.0f)
+                if (Settings.DynamicDayNightCycle && Settings.CycleDurationSeconds > 5f)
                 {
-                    _ageCheckTimer = 0f;
-                    DaylightAndAgePatches.EnforceAgeOfHopeIfLocked();
+                    _cycleTime = (_cycleTime + Time.unscaledDeltaTime) % Settings.CycleDurationSeconds;
+                }
+
+                if (Settings.LockAgeOfHope && MapBox.instance != null)
+                {
+                    _ageCheckTimer += Time.unscaledDeltaTime;
+                    if (_ageCheckTimer >= 2.0f)
+                    {
+                        _ageCheckTimer = 0f;
+                        DaylightAndAgePatches.EnforceAgeOfHopeIfLocked();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                float now = Time.unscaledTime;
+                if (now - _lastUpdateWarnTime >= 30f)
+                {
+                    _lastUpdateWarnTime = now;
+                    Debug.LogWarning($"[VisualPolish] Update tick exception: {e.Message}");
                 }
             }
         }
@@ -356,10 +369,14 @@ namespace VisualPolish
         private static void AwakePostfix(MoveCamera __instance)
         {
             if (__instance == null || Main.Settings == null || !Main.Settings.UnlockCloseZoom) return;
-            if (OrthoMinField != null && !OrthoMinField.IsLiteral && !OrthoMinField.IsInitOnly)
+            try
             {
-                OrthoMinField.SetValue(__instance, Main.Settings.CloseZoomMin);
+                if (OrthoMinField != null && !OrthoMinField.IsLiteral && !OrthoMinField.IsInitOnly)
+                {
+                    OrthoMinField.SetValue(__instance, Main.Settings.CloseZoomMin);
+                }
             }
+            catch { }
         }
     }
 
@@ -374,10 +391,14 @@ namespace VisualPolish
         private static void CreatePostfix(ZoneCalculator __instance)
         {
             if (__instance == null || Main.Settings == null || BorderBrightnessField == null) return;
-            if (BorderBrightnessField.GetValue(__instance) is float cur)
+            try
             {
-                BorderBrightnessField.SetValue(__instance, Mathf.Clamp(cur * Main.Settings.StrategicBorderBoost, 0.5f, 2.0f));
+                if (BorderBrightnessField.GetValue(__instance) is float cur)
+                {
+                    BorderBrightnessField.SetValue(__instance, Mathf.Clamp(cur * Main.Settings.StrategicBorderBoost, 0.5f, 2.0f));
+                }
             }
+            catch { }
         }
     }
 }

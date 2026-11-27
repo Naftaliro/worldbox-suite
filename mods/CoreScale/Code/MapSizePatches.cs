@@ -24,8 +24,15 @@ namespace CoreScale
         [HarmonyPatch(nameof(MapSizeLibrary.init))]
         private static void InitPostfix(MapSizeLibrary __instance)
         {
-            if (Main.Settings == null || !Main.Settings.EnableCustomMapSizes) return;
-            RegisterCustomSizes(__instance);
+            try
+            {
+                if (Main.Settings == null || !Main.Settings.EnableCustomMapSizes) return;
+                RegisterCustomSizes(__instance);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CoreScale] Custom map size registration skipped: {e.Message}");
+            }
         }
 
         [HarmonyPostfix]

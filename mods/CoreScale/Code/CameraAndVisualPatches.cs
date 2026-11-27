@@ -27,14 +27,17 @@ namespace CoreScale
         private static void ApplyZoomLimits(MoveCamera cam)
         {
             if (cam == null || Main.Settings == null || OrthoSizeMaxField == null) return;
-
-            if (MapBox.width > 0 && MapBox.height > 0)
+            try
             {
-                float maxDim = Mathf.Max(MapBox.width, MapBox.height);
-                float currentMax = OrthoSizeMaxField.GetValue(cam) is float f ? f : 150f;
-                float desiredMax = Mathf.Max(currentMax, maxDim * 0.5f * Main.Settings.ZoomOutMultiplier);
-                OrthoSizeMaxField.SetValue(cam, desiredMax);
+                if (MapBox.width > 0 && MapBox.height > 0)
+                {
+                    float maxDim = Mathf.Max(MapBox.width, MapBox.height);
+                    float currentMax = OrthoSizeMaxField.GetValue(cam) is float f ? f : 150f;
+                    float desiredMax = Mathf.Max(currentMax, maxDim * 0.5f * Main.Settings.ZoomOutMultiplier);
+                    OrthoSizeMaxField.SetValue(cam, desiredMax);
+                }
             }
+            catch { }
         }
     }
 

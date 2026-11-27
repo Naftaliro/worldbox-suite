@@ -243,57 +243,64 @@ namespace WorldRelics
         [HarmonyPatch(nameof(City.destroyCity))]
         private static void DestroyCityPrefix(City __instance)
         {
-            var zones = InfrastructureBuilder.GetCityZones(__instance);
-            if (__instance == null || zones == null || zones.Count == 0) return;
-            var world = MapBox.instance;
-            if (world == null) return;
-
-            var walls = new List<(int x, int y)>();
-            var roads = new List<(int x, int y)>();
-            var zoneSnapshot = new List<TileZone>(zones);
-
-            foreach (TileZone z in zoneSnapshot)
+            try
             {
-                if (z == null) continue;
-                int x0 = z.x * 8;
-                int y0 = z.y * 8;
-                for (int dy = 0; dy < 8; dy++)
+                var zones = InfrastructureBuilder.GetCityZones(__instance);
+                if (__instance == null || zones == null || zones.Count == 0) return;
+                var world = MapBox.instance;
+                if (world == null) return;
+
+                var walls = new List<(int x, int y)>();
+                var roads = new List<(int x, int y)>();
+                var zoneSnapshot = new List<TileZone>(zones);
+
+                foreach (TileZone z in zoneSnapshot)
                 {
-                    for (int dx = 0; dx < 8; dx++)
+                    if (z == null) continue;
+                    int x0 = z.x * 8;
+                    int y0 = z.y * 8;
+                    for (int dy = 0; dy < 8; dy++)
                     {
-                        WorldTile t = world.GetTile(x0 + dx, y0 + dy);
-                        if (t == null) continue;
-                        if (InfrastructureBuilder.IsWallTile(t.top_type))
+                        for (int dx = 0; dx < 8; dx++)
                         {
-                            walls.Add((t.x, t.y));
-                        }
-                        else if (t.top_type == TopTileLibrary.road)
-                        {
-                            roads.Add((t.x, t.y));
+                            WorldTile t = world.GetTile(x0 + dx, y0 + dy);
+                            if (t == null) continue;
+                            if (InfrastructureBuilder.IsWallTile(t.top_type))
+                            {
+                                walls.Add((t.x, t.y));
+                            }
+                            else if (t.top_type == TopTileLibrary.road)
+                            {
+                                roads.Add((t.x, t.y));
+                            }
                         }
                     }
                 }
+
+                // Only register meaningful territories that left visible walls or extensive roadworks
+                if (walls.Count < 8 && roads.Count < 20) return;
+
+                WorldTile center = __instance.getTile();
+                var site = new FallenRuinSite
+                {
+                    CityName = __instance.name ?? "Ancient City",
+                    KingdomName = InfrastructureBuilder.GetCityKingdom(__instance)?.name ?? "Fallen Realm",
+                    FallYear = CurrentYear(),
+                    CenterX = center != null ? center.x : (walls.Count > 0 ? walls[0].x : roads[0].x),
+                    CenterY = center != null ? center.y : (walls.Count > 0 ? walls[0].y : roads[0].y),
+                    WallTiles = walls,
+                    RoadTiles = roads,
+                    LastWeatheredStage = 0
+                };
+
+                if (RuinSites.Count >= 32) RuinSites.RemoveAt(0);
+                RuinSites.Add(site);
+                Debug.Log($"[WorldRelics] Preserved ruins of {site.CityName} ({walls.Count} wall tiles, {roads.Count} roads).");
             }
-
-            // Only register meaningful territories that left visible walls or extensive roadworks
-            if (walls.Count < 8 && roads.Count < 20) return;
-
-            WorldTile center = __instance.getTile();
-            var site = new FallenRuinSite
+            catch (Exception e)
             {
-                CityName = __instance.name ?? "Ancient City",
-                KingdomName = InfrastructureBuilder.GetCityKingdom(__instance)?.name ?? "Fallen Realm",
-                FallYear = CurrentYear(),
-                CenterX = center != null ? center.x : (walls.Count > 0 ? walls[0].x : roads[0].x),
-                CenterY = center != null ? center.y : (walls.Count > 0 ? walls[0].y : roads[0].y),
-                WallTiles = walls,
-                RoadTiles = roads,
-                LastWeatheredStage = 0
-            };
-
-            if (RuinSites.Count >= 32) RuinSites.RemoveAt(0);
-            RuinSites.Add(site);
-            Debug.Log($"[WorldRelics] Preserved ruins of {site.CityName} ({walls.Count} wall tiles, {roads.Count} roads).");
+                Debug.LogWarning($"[WorldRelics] DestroyCityPrefix skipped: {e.Message}");
+            }
         }
 
         /// <summary>

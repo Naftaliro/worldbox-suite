@@ -20,6 +20,7 @@ namespace WorldRelics
         private GuiOverlayRunner _panelRunner;
         private float _infraTimer = 0f;
         private float _decayTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
         private string _status = "";
         private Vector2 _scroll;
         private Rect _windowRect = new Rect(340, 220, 365, 490);
@@ -169,36 +170,48 @@ namespace WorldRelics
         {
             if (Settings == null) return;
 
-            if (DenseCitiesSystem.NeedsSync(Settings.EnableDenseCities)
-                && AssetManager.buildings?.list != null
-                && AssetManager.buildings.list.Count > 0)
-            {
-                DenseCitiesSystem.Apply(Settings.EnableDenseCities);
-            }
-
             if ((Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)) && Input.GetKeyDown(KeyCode.R))
             {
                 ToggleHud();
             }
 
-            if (Config.paused || MapBox.instance == null) return;
-
-            float dt = Time.deltaTime;
-            TectonicDriftSystem.Tick(dt);
-
-            _infraTimer += dt;
-            if (_infraTimer >= 18f)
+            try
             {
-                _infraTimer = 0f;
-                InfrastructureBuilder.FortifyLargeCities(force: false);
-                InfrastructureBuilder.BuildNarrowSeaBridges(force: false);
+                if (DenseCitiesSystem.NeedsSync(Settings.EnableDenseCities)
+                    && AssetManager.buildings?.list != null
+                    && AssetManager.buildings.list.Count > 0)
+                {
+                    DenseCitiesSystem.Apply(Settings.EnableDenseCities);
+                }
+
+                if (Config.paused || MapBox.instance == null) return;
+
+                float dt = Time.deltaTime;
+                TectonicDriftSystem.Tick(dt);
+
+                _infraTimer += dt;
+                if (_infraTimer >= 18f)
+                {
+                    _infraTimer = 0f;
+                    InfrastructureBuilder.FortifyLargeCities(force: false);
+                    InfrastructureBuilder.BuildNarrowSeaBridges(force: false);
+                }
+
+                _decayTimer += dt;
+                if (_decayTimer >= 12f)
+                {
+                    _decayTimer = 0f;
+                    RuinsDecaySystem.WeatherAllRuins(0);
+                }
             }
-
-            _decayTimer += dt;
-            if (_decayTimer >= 12f)
+            catch (Exception e)
             {
-                _decayTimer = 0f;
-                RuinsDecaySystem.WeatherAllRuins(0);
+                float now = Time.unscaledTime;
+                if (now - _lastUpdateWarnTime >= 30f)
+                {
+                    _lastUpdateWarnTime = now;
+                    Debug.LogWarning($"[WorldRelics] Update tick exception: {e.Message}");
+                }
             }
         }
 

@@ -114,6 +114,7 @@ namespace EraChronicle
         private GuiOverlayRunner _panelRunner;
         private int _lastSnapshotYear = -1;
         private float _pollTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
         private readonly Dictionary<long, int> _kingdomEraTier = new Dictionary<long, int>();
         private readonly List<string> _recentEvents = new List<string>();
         private Rect _windowRect = new Rect(360, 320, 330, 315);
@@ -200,23 +201,35 @@ namespace EraChronicle
             if (_pollTimer < 2.0f) return;
             _pollTimer = 0f;
 
-            var stats = GetMapStats();
-            if (stats == null) return;
-
-            int year = stats.history_current_year;
-
-            if (Settings.EnableEraProgression)
+            try
             {
-                EvaluateKingdomEras(year);
-            }
+                var stats = GetMapStats();
+                if (stats == null) return;
 
-            if (Settings.EnableAutoSnapshots)
-            {
-                int interval = Math.Max(1, Settings.SnapshotIntervalYears);
-                if (_lastSnapshotYear < 0 || year >= _lastSnapshotYear + interval)
+                int year = stats.history_current_year;
+
+                if (Settings.EnableEraProgression)
                 {
-                    RecordSnapshot(stats);
-                    _lastSnapshotYear = year;
+                    EvaluateKingdomEras(year);
+                }
+
+                if (Settings.EnableAutoSnapshots)
+                {
+                    int interval = Math.Max(1, Settings.SnapshotIntervalYears);
+                    if (_lastSnapshotYear < 0 || year >= _lastSnapshotYear + interval)
+                    {
+                        RecordSnapshot(stats);
+                        _lastSnapshotYear = year;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                float now = Time.unscaledTime;
+                if (now - _lastUpdateWarnTime >= 30f)
+                {
+                    _lastUpdateWarnTime = now;
+                    Debug.LogWarning($"[EraChronicle] Update tick exception: {e.Message}");
                 }
             }
         }
@@ -260,12 +273,13 @@ namespace EraChronicle
 
         private static void GrantEraMilestoneBonus(Kingdom k, int tier)
         {
+            var traits = AssetManager.traits;
             // Reward the ruling king and active army soldiers on era advancement
             if (k.king != null && k.king.isAlive())
             {
                 k.king.restoreHealthPercent(1f);
-                if (tier >= 2) k.king.addTrait("wise");
-                if (tier >= 4) k.king.addTrait("blessed");
+                if (tier >= 2 && traits != null && traits.has("wise")) k.king.addTrait("wise");
+                if (tier >= 4 && traits != null && traits.has("blessed")) k.king.addTrait("blessed");
             }
 
             var aliveRaw = MapBox.instance?.units?.units_only_alive;
@@ -278,7 +292,7 @@ namespace EraChronicle
                 if (u != null && u.isAlive() && u.kingdom == k && u.army != null)
                 {
                     u.restoreHealthPercent(0.5f);
-                    if (tier >= 3) u.addTrait("veteran");
+                    if (tier >= 3 && traits != null && traits.has("veteran")) u.addTrait("veteran");
                     buffed++;
                 }
             }

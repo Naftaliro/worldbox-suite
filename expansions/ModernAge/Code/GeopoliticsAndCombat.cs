@@ -51,62 +51,67 @@ namespace ModernAge
             Actor attacker = pAttacker as Actor;
             if (attacker == null) return;
 
-            EquipmentAsset atkW = GetWeapon(attacker);
-            EquipmentAsset defW = GetWeapon(__instance);
-            string atkWeaponId = atkW?.id ?? "";
-            string defAssetId = __instance.asset?.id ?? "";
-
-            bool atkIsGun = attacker.isWeaponFirearm() || ModernIds.FirearmIds.Contains(atkWeaponId);
-            bool defIsTank = ModernIds.ArmorVehicleIds.Contains(defAssetId);
-            bool defIsAir = ModernIds.AircraftIds.Contains(defAssetId);
-
-            // Tier 1 counter-play: Bastion Plate & Aegis Amulet vs firearms; Shock Halberd vs gunners
-            if (atkIsGun)
+            try
             {
-                if (HasSlotId(__instance, EquipmentType.Armor, ModernIds.BastionPlate))
+                EquipmentAsset atkW = GetWeapon(attacker);
+                EquipmentAsset defW = GetWeapon(__instance);
+                string atkWeaponId = atkW?.id ?? "";
+                string defAssetId = __instance.asset?.id ?? "";
+
+                bool atkIsGun = attacker.isWeaponFirearm() || ModernIds.FirearmIds.Contains(atkWeaponId);
+                bool defIsTank = ModernIds.ArmorVehicleIds.Contains(defAssetId);
+                bool defIsAir = ModernIds.AircraftIds.Contains(defAssetId);
+
+                // Tier 1 counter-play: Bastion Plate & Aegis Amulet vs firearms; Shock Halberd vs gunners
+                if (atkIsGun)
                 {
-                    pDamage *= (1f - Mathf.Clamp(Main.Settings.BastionBulletReduction, 0f, 0.85f));
-                    BulletsDeflected++;
-                }
-                if (HasSlotId(__instance, EquipmentType.Amulet, ModernIds.AegisAmulet))
-                {
-                    float now = Time.unscaledTime;
-                    if (!AegisCooldowns.TryGetValue(__instance.id, out float readyAt) || now >= readyAt)
+                    if (HasSlotId(__instance, EquipmentType.Armor, ModernIds.BastionPlate))
                     {
-                        AegisCooldowns[__instance.id] = now + 12f;
-                        AddStatusMethod?.Invoke(__instance, new object[] { "shield", 4.0f, true });
-                        pDamage *= 0.5f;
+                        pDamage *= (1f - Mathf.Clamp(Main.Settings.BastionBulletReduction, 0f, 0.85f));
+                        BulletsDeflected++;
+                    }
+                    if (HasSlotId(__instance, EquipmentType.Amulet, ModernIds.AegisAmulet))
+                    {
+                        float now = Time.unscaledTime;
+                        if (AegisCooldowns.Count > 512) AegisCooldowns.Clear();
+                        if (!AegisCooldowns.TryGetValue(__instance.id, out float readyAt) || now >= readyAt)
+                        {
+                            AegisCooldowns[__instance.id] = now + 12f;
+                            AddStatusMethod?.Invoke(__instance, new object[] { "shield", 4.0f, true });
+                            pDamage *= 0.5f;
+                        }
+                    }
+                }
+                else if (atkWeaponId == ModernIds.ShockHalberd && (defW != null && ModernIds.FirearmIds.Contains(defW.id)))
+                {
+                    pDamage *= (1f + Main.Settings.HalberdVsGunBonus);
+                }
+
+                // Tier 2 & 3 Rock-Paper-Scissors:
+                // Small arms bounce off Tanks; Anti-Tank weapons shred Tanks; Flak/SAM shreds Aircraft!
+                if (defIsTank)
+                {
+                    if (atkWeaponId == ModernIds.AtRifle || atkWeaponId == ModernIds.GuidedAt)
+                    {
+                        pDamage *= (1f + Main.Settings.AntiTankBonus);
+                        ArmorKillsCountered++;
+                    }
+                    else if (atkIsGun || atkWeaponId == "arrow" || atkWeaponId == ModernIds.Warbow)
+                    {
+                        pDamage *= 0.35f; // Heavy tank armor shrugs off small arms
+                    }
+                }
+
+                if (defIsAir)
+                {
+                    if (atkWeaponId == ModernIds.FlakGun || atkWeaponId == ModernIds.SamLauncher)
+                    {
+                        pDamage *= (1f + Main.Settings.AntiAirBonus);
+                        AirIntercepts++;
                     }
                 }
             }
-            else if (atkWeaponId == ModernIds.ShockHalberd && (defW != null && ModernIds.FirearmIds.Contains(defW.id)))
-            {
-                pDamage *= (1f + Main.Settings.HalberdVsGunBonus);
-            }
-
-            // Tier 2 & 3 Rock-Paper-Scissors:
-            // Small arms bounce off Tanks; Anti-Tank weapons shred Tanks; Flak/SAM shreds Aircraft!
-            if (defIsTank)
-            {
-                if (atkWeaponId == ModernIds.AtRifle || atkWeaponId == ModernIds.GuidedAt)
-                {
-                    pDamage *= (1f + Main.Settings.AntiTankBonus);
-                    ArmorKillsCountered++;
-                }
-                else if (atkIsGun || atkWeaponId == "arrow" || atkWeaponId == ModernIds.Warbow)
-                {
-                    pDamage *= 0.35f; // Heavy tank armor shrugs off small arms
-                }
-            }
-
-            if (defIsAir)
-            {
-                if (atkWeaponId == ModernIds.FlakGun || atkWeaponId == ModernIds.SamLauncher)
-                {
-                    pDamage *= (1f + Main.Settings.AntiAirBonus);
-                    AirIntercepts++;
-                }
-            }
+            catch { }
         }
     }
 
@@ -149,8 +154,10 @@ namespace ModernAge
             if (world?.kingdoms == null || cfg == null) return;
 
             var civs = new List<Kingdom>();
-            foreach (Kingdom k in world.kingdoms)
+            var kingdomsSnapshot = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdomsSnapshot.Count; i++)
             {
+                Kingdom k = kingdomsSnapshot[i];
                 if (k != null && k.isCiv() && k.isAlive()) civs.Add(k);
             }
 
@@ -207,7 +214,7 @@ namespace ModernAge
             // Collectivist: empire-wide resource pooling keeps frontline soldiers fed & healthy
             if (st.Government == GovernmentType.Collectivist && world.units?.units_only_alive != null)
             {
-                var alive = world.units.units_only_alive;
+                var alive = new List<Actor>(world.units.units_only_alive);
                 int healed = 0;
                 for (int i = 0; i < alive.Count && healed < 15; i++)
                 {
@@ -250,7 +257,7 @@ namespace ModernAge
         public static int EquipTierInfantry(MapBox world, Kingdom k, int tier, int maxSoldiers)
         {
             if (world?.units?.units_only_alive == null || world.items == null) return 0;
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
             int issued = 0;
 
             for (int i = 0; i < alive.Count && issued < maxSoldiers; i++)
@@ -308,7 +315,7 @@ namespace ModernAge
 
             int capLimit = st.Government == GovernmentType.MilitaryJunta ? 6 : 4;
             int currentVehicles = 0;
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
             for (int i = 0; i < alive.Count; i++)
             {
                 Actor u = alive[i];
@@ -386,7 +393,7 @@ namespace ModernAge
         {
             if (world?.units?.units_only_alive == null) return;
             float rSq = cfg.RadarRangeTiles * cfg.RadarRangeTiles;
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
 
             foreach (Kingdom k in civs)
             {
@@ -441,11 +448,13 @@ namespace ModernAge
                 _radarLabelStyle.normal.textColor = new Color(0.455f, 0.780f, 0.925f);
             }
 
-            foreach (Kingdom k in world.kingdoms)
+            var kingdomsSnapshot = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdomsSnapshot.Count; i++)
             {
+                Kingdom k = kingdomsSnapshot[i];
                 if (k == null || !k.isCiv() || !k.isAlive()) continue;
                 var st = GetOrCreateState(k);
-                if (st.TechTier < 3) continue;
+                if (st == null || st.TechTier < 3) continue;
                 WorldTile cap = k.capital?.getTile();
                 if (cap == null) continue;
 

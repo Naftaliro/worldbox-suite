@@ -486,8 +486,12 @@ namespace ApexFactions
             string raw = k.data?.original_actor_asset;
             if (string.IsNullOrEmpty(raw))
             {
-                Subspecies sub = k.getMainSubspecies();
-                if (sub != null) raw = SpeciesIdGetter?.Invoke(sub, null) as string;
+                try
+                {
+                    Subspecies sub = k.getMainSubspecies();
+                    if (sub != null) raw = SpeciesIdGetter?.Invoke(sub, null) as string;
+                }
+                catch { }
             }
             return NormalizeSpecies(raw);
         }
@@ -673,31 +677,35 @@ namespace ApexFactions
         [HarmonyPatch(typeof(DiplomacyManager), "startWar")]
         private static bool SpeciesStartWarPrefix(Kingdom pAttacker, Kingdom pDefender, WarTypeAsset pAsset)
         {
-            if (pAttacker == null || pDefender == null) return true;
-            if (pAsset != null && pAsset.forced_war) return true; // Never block player Whisper of War / forced wars
-
-            string attackerSp = GetKingdomSpecies(pAttacker);
-            if (!string.IsNullOrEmpty(attackerSp) && IsNeverStartsWars(attackerSp))
+            try
             {
-                return false;
-            }
+                if (pAttacker == null || pDefender == null) return true;
+                if (pAsset != null && pAsset.forced_war) return true; // Never block player Whisper of War / forced wars
 
-            string defenderSp = GetKingdomSpecies(pDefender);
-            if (defenderSp == "penguin")
-            {
-                int opinion = 0;
-                try
+                string attackerSp = GetKingdomSpecies(pAttacker);
+                if (!string.IsNullOrEmpty(attackerSp) && IsNeverStartsWars(attackerSp))
                 {
-                    var op = MapBox.instance?.diplomacy?.getOpinion(pAttacker, pDefender);
-                    if (op != null) opinion = op.total;
+                    return false;
                 }
-                catch { }
 
-                if (opinion >= -120)
+                string defenderSp = GetKingdomSpecies(pDefender);
+                if (defenderSp == "penguin")
                 {
-                    return false; // Tux / Linux Pact shields Penguins from casual AI wars
+                    int opinion = 0;
+                    try
+                    {
+                        var op = MapBox.instance?.diplomacy?.getOpinion(pAttacker, pDefender);
+                        if (op != null) opinion = op.total;
+                    }
+                    catch { }
+
+                    if (opinion >= -120)
+                    {
+                        return false; // Tux / Linux Pact shields Penguins from casual AI wars
+                    }
                 }
             }
+            catch { }
 
             return true;
         }

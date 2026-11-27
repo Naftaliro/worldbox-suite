@@ -17,6 +17,7 @@ namespace CoreScale
         public static int CurrentLodTier { get; private set; }
         public static int EffectiveLodTier { get; private set; }
         public static int LivePopulation { get; private set; }
+        public static int CurrentFrameCount { get; private set; }
 
         private ModDeclare _declare;
         private GameObject _gameObject;
@@ -27,6 +28,7 @@ namespace CoreScale
         private float _fpsSmoothed = 60f;
         private float _statsTimer = 0f;
         private float _battalionTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
         private Rect _windowRect = new Rect(18, 86, 305, 315);
 
         public ModDeclare GetDeclaration() => _declare;
@@ -162,6 +164,7 @@ namespace CoreScale
 
         private void Update()
         {
+            CurrentFrameCount = Time.frameCount;
             if (Settings == null) return;
 
             if (Input.GetKeyDown(Settings.OverlayToggleKey))
@@ -169,26 +172,38 @@ namespace CoreScale
                 ToggleHud();
             }
 
-            float dt = Time.unscaledDeltaTime;
-            if (dt > 0.0001f)
+            try
             {
-                _fpsSmoothed = Mathf.Lerp(_fpsSmoothed, 1f / dt, 0.05f);
-            }
-
-            _statsTimer += dt;
-            if (_statsTimer >= 0.75f)
-            {
-                _statsTimer = 0f;
-                RefreshLodState();
-            }
-
-            if (Settings.EnableBattalionCompression && !Config.paused)
-            {
-                _battalionTimer += Time.deltaTime;
-                if (_battalionTimer >= 8.0f)
+                float dt = Time.unscaledDeltaTime;
+                if (dt > 0.0001f)
                 {
-                    _battalionTimer = 0f;
-                    BattalionCompressionSystem.CompressMegaArmies(force: false);
+                    _fpsSmoothed = Mathf.Lerp(_fpsSmoothed, 1f / dt, 0.05f);
+                }
+
+                _statsTimer += dt;
+                if (_statsTimer >= 0.75f)
+                {
+                    _statsTimer = 0f;
+                    RefreshLodState();
+                }
+
+                if (Settings.EnableBattalionCompression && !Config.paused)
+                {
+                    _battalionTimer += Time.deltaTime;
+                    if (_battalionTimer >= 8.0f)
+                    {
+                        _battalionTimer = 0f;
+                        BattalionCompressionSystem.CompressMegaArmies(force: false);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                float now = Time.unscaledTime;
+                if (now - _lastUpdateWarnTime >= 30f)
+                {
+                    _lastUpdateWarnTime = now;
+                    Debug.LogWarning($"[CoreScale] Update tick exception: {e.Message}");
                 }
             }
         }

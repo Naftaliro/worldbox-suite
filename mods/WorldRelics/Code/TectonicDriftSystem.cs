@@ -48,10 +48,10 @@ namespace WorldRelics
             AccessTools.Method(typeof(Actor), "cancelAllBeh", Type.EmptyTypes);
 
         private static readonly AccessTools.FieldRef<Actor, WorldTile> ActorTileTargetRef =
-            AccessTools.FieldRefAccess<Actor, WorldTile>("tile_target");
+            InitFieldRef<Actor, WorldTile>("tile_target");
 
         private static readonly AccessTools.FieldRef<Actor, BaseSimObject> ActorBehTargetRef =
-            AccessTools.FieldRefAccess<Actor, BaseSimObject>("beh_actor_target");
+            InitFieldRef<Actor, BaseSimObject>("beh_actor_target");
 
         private static readonly FieldInfo ActorDirtyCurrentTileField =
             AccessTools.Field(typeof(Actor), "dirty_current_tile");
@@ -59,16 +59,28 @@ namespace WorldRelics
         private static readonly MethodInfo BuildingStartDestroyMethod =
             AccessTools.Method(typeof(Building), "startDestroyBuilding", Type.EmptyTypes);
 
+        private static AccessTools.FieldRef<T, TField> InitFieldRef<T, TField>(string fieldName)
+        {
+            try { return AccessTools.FieldRefAccess<T, TField>(fieldName); }
+            catch { return null; }
+        }
+
         // Guard against null tile_target or target.current_tile after tectonic unit relocation
         [HarmonyPrefix]
         [HarmonyPatch(typeof(Actor), "checkCalibrateTargetPosition")]
         private static bool CheckCalibrateTargetPositionPrefix(Actor __instance)
         {
             if (__instance == null) return false;
-            if (ActorTileTargetRef(__instance) == null) return false;
-            BaseSimObject target = ActorBehTargetRef(__instance);
-            if (target == null || target.current_tile == null) return false;
-            if (target is Actor targetActor && targetActor.current_tile == null) return false;
+            try
+            {
+                if (ActorTileTargetRef != null && ActorTileTargetRef(__instance) == null) return false;
+                if (ActorBehTargetRef != null)
+                {
+                    BaseSimObject target = ActorBehTargetRef(__instance);
+                    if (target == null || target.current_tile == null) return false;
+                }
+            }
+            catch { }
             return true;
         }
 

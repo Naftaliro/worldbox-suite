@@ -33,16 +33,21 @@ namespace SuiteHub
             if (!Enabled || __instance == null || __instance.current_tile == null) return;
             if (pAttacker == null || __instance.kingdom == null || pAttacker.kingdom == null) return;
             if (__instance.kingdom == pAttacker.kingdom) return;
-            if (!__instance.kingdom.isCiv() && !pAttacker.kingdom.isCiv()) return;
 
-            RecordHit(
-                __instance.current_tile.x,
-                __instance.current_tile.y,
-                pAttacker.kingdom.name ?? "Attackers",
-                __instance.kingdom.name ?? "Defenders",
-                pAttacker.kingdom.id,
-                __instance.kingdom.id
-            );
+            try
+            {
+                if (!__instance.kingdom.isCiv() && !pAttacker.kingdom.isCiv()) return;
+
+                RecordHit(
+                    __instance.current_tile.x,
+                    __instance.current_tile.y,
+                    pAttacker.kingdom.name ?? "Attackers",
+                    __instance.kingdom.name ?? "Defenders",
+                    pAttacker.kingdom.id,
+                    __instance.kingdom.id
+                );
+            }
+            catch { }
         }
 
         public static void RecordHit(float x, float y, string sideA, string sideB)
@@ -112,15 +117,23 @@ namespace SuiteHub
             if (mainAtk != null) atkIds.Add(mainAtk.id);
             if (mainDef != null) defIds.Add(mainDef.id);
 
-            var atkSnapshot = new List<Kingdom>(w.getAttackers());
-            foreach (Kingdom k in atkSnapshot)
+            var rawAtk = w.getAttackers();
+            if (rawAtk != null)
             {
-                if (k != null) atkIds.Add(k.id);
+                var atkSnapshot = new List<Kingdom>(rawAtk);
+                foreach (Kingdom k in atkSnapshot)
+                {
+                    if (k != null) atkIds.Add(k.id);
+                }
             }
-            var defSnapshot = new List<Kingdom>(w.getDefenders());
-            foreach (Kingdom k in defSnapshot)
+            var rawDef = w.getDefenders();
+            if (rawDef != null)
             {
-                if (k != null) defIds.Add(k.id);
+                var defSnapshot = new List<Kingdom>(rawDef);
+                foreach (Kingdom k in defSnapshot)
+                {
+                    if (k != null) defIds.Add(k.id);
+                }
             }
 
             BattleHotspot best = null;

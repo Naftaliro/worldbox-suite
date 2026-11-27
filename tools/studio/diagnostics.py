@@ -220,12 +220,20 @@ def analyze_player_log(log_path_str: str) -> dict[str, Any]:
 
             if err_re.search(stripped):
                 ctx = f"[{source_label}] {stripped}" if source_label else stripped
+                nxt = ""
                 if idx + 1 < len(src_lines):
-                    nxt = src_lines[idx + 1].strip()
-                    if nxt.startswith("at ") or "error CS" in nxt:
+                    cand = src_lines[idx + 1].strip()
+                    if cand.startswith("at ") or "error CS" in cand:
+                        nxt = cand
                         ctx += "\n  " + nxt
                 errors.append(ctx)
-                target_mod = matched_mod or active_mod
+                # Only blame active_mod for compiler/loader errors (not unrelated runtime game exceptions
+                # that merely appeared after an info log from a different mod).
+                nxt_mod = _match_suite_mod(nxt) if nxt else None
+                target_mod = matched_mod or nxt_mod
+                if not target_mod and active_mod and ("error CS" in stripped or "Failed to" in stripped or source_label):
+                    if not nxt.startswith("at ") or nxt_mod == active_mod:
+                        target_mod = active_mod
                 if target_mod:
                     mod_health[target_mod] = "error"
             elif matched_mod and warn_re.search(stripped):

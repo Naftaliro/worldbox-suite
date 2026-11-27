@@ -18,9 +18,10 @@ namespace CoreScale
             var settings = Main.Settings;
             if (world?.units?.units_only_alive == null || settings == null) return 0;
 
-            var alive = world.units.units_only_alive;
-            if (!force && alive.Count < settings.BattalionPopThreshold) return 0;
+            var aliveRaw = world.units.units_only_alive;
+            if (!force && aliveRaw.Count < settings.BattalionPopThreshold) return 0;
 
+            var alive = new List<Actor>(aliveRaw);
             // Group active campaigning soldiers by Army
             var byArmy = new Dictionary<Army, List<Actor>>();
             for (int i = 0; i < alive.Count; i++)
@@ -45,13 +46,14 @@ namespace CoreScale
             {
                 Army army = kv.Key;
                 List<Actor> squad = kv.Value;
-                if (squad.Count < minSize) continue;
+                if (army == null || squad.Count < minSize) continue;
 
                 Actor champion = army.getCaptain();
                 if (champion == null || !champion.isAlive())
                 {
                     champion = squad[0];
                 }
+                if (champion == null || !champion.isAlive()) continue;
 
                 int absorbed = 0;
                 int pooledHealth = 0;
@@ -66,7 +68,7 @@ namespace CoreScale
                     absorbed++;
                 }
 
-                if (absorbed > 0)
+                if (absorbed > 0 && champion.isAlive())
                 {
                     // Reinforce the champion into a heavy Regiment Banner unit
                     champion.addTrait("veteran");

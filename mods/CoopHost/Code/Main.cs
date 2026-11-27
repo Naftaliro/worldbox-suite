@@ -40,6 +40,8 @@ namespace CoopHost
         private GuiOverlayRunner _panelRunner;
         private float _stateTimer = 0f;
         private float _terrainTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
+        private bool? _modernAgeLoadedCache;
         private string _lanIp = "127.0.0.1";
 
         // Live guest cursor overlay inside host's WorldBox view
@@ -131,39 +133,51 @@ namespace CoopHost
 
             if (_server == null || !_server.IsRunning || MapBox.instance == null) return;
 
-            bool guestCursorVisible = Settings.ShowGuestCursorInGame && _guestX >= 0 && Time.unscaledTime - _guestLastSeen < 12f;
-            if (_cursorRunner != null && _cursorRunner.enabled != guestCursorVisible)
+            try
             {
-                _cursorRunner.enabled = guestCursorVisible;
-            }
-
-            // 1. Drain incoming guest actions safely on Unity's main thread
-            int processed = 0;
-            while (processed < 24 && _actionQueue.TryDequeue(out CoopActionRequest req))
-            {
-                ExecuteGuestAction(req);
-                processed++;
-            }
-
-            // Skip main-thread JSON & terrain raster serialization when no co-op browser client is connected
-            if (!_server.HasRecentClient) return;
-
-            // 2. Refresh live state snapshot at ~3 Hz
-            _stateTimer += Time.unscaledDeltaTime;
-            if (_stateTimer >= 0.35f)
-            {
-                _stateTimer = 0f;
-                RefreshStateSnapshot();
-            }
-
-            // 3. Refresh terrain raster when world size changes or terrain was painted
-            _terrainTimer += Time.unscaledDeltaTime;
-            if (_terrainTimer >= 1.5f)
-            {
-                _terrainTimer = 0f;
-                if (_lastBuiltTerrainRev != _terrainRevision || _lastTerrainW != MapBox.width || _lastTerrainH != MapBox.height)
+                bool guestCursorVisible = Settings.ShowGuestCursorInGame && _guestX >= 0 && Time.unscaledTime - _guestLastSeen < 12f;
+                if (_cursorRunner != null && _cursorRunner.enabled != guestCursorVisible)
                 {
-                    RefreshTerrainSnapshot();
+                    _cursorRunner.enabled = guestCursorVisible;
+                }
+
+                // 1. Drain incoming guest actions safely on Unity's main thread
+                int processed = 0;
+                while (processed < 24 && _actionQueue.TryDequeue(out CoopActionRequest req))
+                {
+                    ExecuteGuestAction(req);
+                    processed++;
+                }
+
+                // Skip main-thread JSON & terrain raster serialization when no co-op browser client is connected
+                if (!_server.HasRecentClient) return;
+
+                // 2. Refresh live state snapshot at ~3 Hz
+                _stateTimer += Time.unscaledDeltaTime;
+                if (_stateTimer >= 0.35f)
+                {
+                    _stateTimer = 0f;
+                    RefreshStateSnapshot();
+                }
+
+                // 3. Refresh terrain raster when world size changes or terrain was painted
+                _terrainTimer += Time.unscaledDeltaTime;
+                if (_terrainTimer >= 1.5f)
+                {
+                    _terrainTimer = 0f;
+                    if (_lastBuiltTerrainRev != _terrainRevision || _lastTerrainW != MapBox.width || _lastTerrainH != MapBox.height)
+                    {
+                        RefreshTerrainSnapshot();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                float now = Time.unscaledTime;
+                if (now - _lastUpdateWarnTime >= 30f)
+                {
+                    _lastUpdateWarnTime = now;
+                    Debug.LogWarning($"[CoopHost] Update tick exception: {e.Message}");
                 }
             }
         }
@@ -272,7 +286,11 @@ namespace CoopHost
                             object[] args = ps.Length == 1 ? new object[] { center } : new object[] { center, 1 };
                             try { LightningMethod.Invoke(null, args); } catch { }
                         }
-                        MapAction.damageWorld(center, 2, AssetManager.terraform.get("lightning_normal"));
+                        var lightningOpt = AssetManager.terraform?.get("lightning_normal");
+                        if (lightningOpt != null)
+                        {
+                            MapAction.damageWorld(center, 2, lightningOpt);
+                        }
                         AddLog($"{who} struck Lightning at ({center.x},{center.y})");
                     }
                     break;
@@ -314,7 +332,11 @@ namespace CoopHost
                 case "meteor":
                     if (center != null)
                     {
-                        MapAction.damageWorld(center, Math.Max(4, rad + 2), AssetManager.terraform.get("meteorite"));
+                        var meteorOpt = AssetManager.terraform?.get("meteorite");
+                        if (meteorOpt != null)
+                        {
+                            MapAction.damageWorld(center, Math.Max(4, rad + 2), meteorOpt);
+                        }
                         world.redrawTiles();
                         _terrainRevision++;
                         AddLog($"{who} dropped a Meteor at ({center.x},{center.y})!");
@@ -325,15 +347,20 @@ namespace CoopHost
                     {
                         int rSq = (rad + 4) * (rad + 4);
                         int blessed = 0;
-                        foreach (Actor u in world.units.units_only_alive)
+                        var alive = new List<Actor>(world.units.units_only_alive);
+                        for (int i = 0; i < alive.Count; i++)
                         {
+                            Actor u = alive[i];
                             if (u == null || !u.isAlive() || u.current_tile == null) continue;
                             int dx = u.current_tile.x - center.x;
                             int dy = u.current_tile.y - center.y;
                             if (dx * dx + dy * dy <= rSq)
                             {
                                 u.restoreHealthPercent(1f);
-                                u.addTrait("blessed");
+                                if (AssetManager.traits != null && AssetManager.traits.has("blessed"))
+                                {
+                                    u.addTrait("blessed");
+                                }
                                 blessed++;
                             }
                         }
@@ -358,8 +385,10 @@ namespace CoopHost
         {
             if (world?.kingdoms == null || world.wars == null) return;
             var civs = new List<Kingdom>();
-            foreach (var k in world.kingdoms)
+            var kingdomsSnapshot = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdomsSnapshot.Count; i++)
             {
+                Kingdom k = kingdomsSnapshot[i];
                 if (k != null && k.isCiv() && k.isAlive()) civs.Add(k);
             }
             civs.Sort((a, b) => b.getPopulationPeople().CompareTo(a.getPopulationPeople()));
@@ -443,8 +472,10 @@ namespace CoopHost
 
             if (world.kingdoms != null)
             {
-                foreach (Kingdom k in world.kingdoms)
+                var kingdomsSnapshot = new List<Kingdom>(world.kingdoms);
+                for (int i = 0; i < kingdomsSnapshot.Count; i++)
                 {
+                    Kingdom k = kingdomsSnapshot[i];
                     if (k == null || !k.isCiv() || !k.isAlive()) continue;
                     Color32 col = k.getColor() != null ? k.getColor().getColorMain32() : new Color32(203, 166, 247, 255);
                     kingdomsOut.Add(new
@@ -461,8 +492,10 @@ namespace CoopHost
 
             if (world.cities != null)
             {
-                foreach (City c in world.cities)
+                var citiesSnapshot = new List<City>(world.cities);
+                for (int i = 0; i < citiesSnapshot.Count; i++)
                 {
+                    City c = citiesSnapshot[i];
                     if (c == null || !c.isAlive()) continue;
                     WorldTile ct = c.getTile();
                     if (ct == null) continue;
@@ -480,22 +513,28 @@ namespace CoopHost
 
             if (world.wars != null)
             {
-                foreach (War w in world.wars.getActiveWars())
+                var activeWars = world.wars.getActiveWars();
+                if (activeWars != null)
                 {
-                    if (w == null) continue;
-                    warsOut.Add(new
+                    var warsSnapshot = new List<War>(activeWars);
+                    for (int i = 0; i < warsSnapshot.Count; i++)
                     {
-                        name = w.name,
-                        dead = w.getDeadAttackers() + w.getDeadDefenders(),
-                        atk = w.getMainAttacker()?.name ?? "?",
-                        def = w.getMainDefender()?.name ?? "?"
-                    });
+                        War w = warsSnapshot[i];
+                        if (w == null) continue;
+                        warsOut.Add(new
+                        {
+                            name = w.name,
+                            dead = w.getDeadAttackers() + w.getDeadDefenders(),
+                            atk = w.getMainAttacker()?.name ?? "?",
+                            def = w.getMainDefender()?.name ?? "?"
+                        });
+                    }
                 }
             }
 
             if (world.units?.units_only_alive != null)
             {
-                var alive = world.units.units_only_alive;
+                var alive = new List<Actor>(world.units.units_only_alive);
                 int max = Math.Max(200, Settings.MaxStreamedUnits);
                 int stride = Math.Max(1, alive.Count / max);
                 for (int i = 0; i < alive.Count && unitsOut.Count < max; i += stride)
@@ -515,6 +554,11 @@ namespace CoopHost
                 }
             }
 
+            if (!_modernAgeLoadedCache.HasValue)
+            {
+                _modernAgeLoadedCache = AccessTools.TypeByName("ModernAge.Main") != null;
+            }
+
             var payload = new
             {
                 worldName = stats?.name ?? "WorldBox",
@@ -523,7 +567,7 @@ namespace CoopHost
                 width = MapBox.width,
                 height = MapBox.height,
                 terrainRevision = _terrainRevision,
-                modernAgeLoaded = AccessTools.TypeByName("ModernAge.Main") != null,
+                modernAgeLoaded = _modernAgeLoadedCache.Value,
                 kingdoms = kingdomsOut,
                 cities = citiesOut,
                 wars = warsOut,

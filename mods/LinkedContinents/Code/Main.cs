@@ -28,6 +28,7 @@ namespace LinkedContinents
         private bool _showHud = false;
         private GuiOverlayRunner _panelRunner;
         private float _scanTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
         private int _pendingIncoming = 0;
         private Rect _windowRect = new Rect(18, 320, 330, 330);
 
@@ -172,16 +173,28 @@ namespace LinkedContinents
             if (_scanTimer >= Settings.ScanIntervalSeconds)
             {
                 _scanTimer = 0f;
-                if (Settings.AutoEdgeTransfers)
+                try
                 {
-                    ScanEdgeForDepartingFleets();
-                }
-                if (Settings.AutoReceiveOnLoad)
-                {
-                    RefreshPendingCount();
-                    if (_pendingIncoming > 0)
+                    if (Settings.AutoEdgeTransfers)
                     {
-                        ReceiveIncomingFleets();
+                        ScanEdgeForDepartingFleets();
+                    }
+                    if (Settings.AutoReceiveOnLoad)
+                    {
+                        RefreshPendingCount();
+                        if (_pendingIncoming > 0)
+                        {
+                            ReceiveIncomingFleets();
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    float now = Time.unscaledTime;
+                    if (now - _lastUpdateWarnTime >= 30f)
+                    {
+                        _lastUpdateWarnTime = now;
+                        Debug.LogWarning($"[LinkedContinents] Update tick exception: {e.Message}");
                     }
                 }
             }
@@ -216,7 +229,7 @@ namespace LinkedContinents
             var world = MapBox.instance;
             if (world?.units?.units_only_alive == null) return;
 
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
             var toDispatch = new List<Actor>();
 
             for (int i = 0; i < alive.Count; i++)
@@ -293,12 +306,14 @@ namespace LinkedContinents
         public void LaunchManualExpedition()
         {
             var world = MapBox.instance;
-            if (world?.units?.units_only_alive == null) return;
+            if (world?.kingdoms == null || world.units?.units_only_alive == null) return;
 
             // Gather up to 12 soldiers from the strongest kingdom to dispatch immediately
             Kingdom top = null;
-            foreach (var k in world.kingdoms)
+            var kingdomsSnapshot = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdomsSnapshot.Count; i++)
             {
+                Kingdom k = kingdomsSnapshot[i];
                 if (k != null && k.isCiv() && k.isAlive())
                 {
                     if (top == null || k.getPopulationPeople() > top.getPopulationPeople())
@@ -317,7 +332,7 @@ namespace LinkedContinents
                 TimestampUtc = DateTime.UtcNow.ToString("o")
             };
 
-            var alive = world.units.units_only_alive;
+            var alive = new List<Actor>(world.units.units_only_alive);
             var picked = new List<Actor>();
             for (int i = 0; i < alive.Count && picked.Count < 12; i++)
             {
@@ -385,6 +400,10 @@ namespace LinkedContinents
                 foreach (var rec in packet.Units)
                 {
                     string species = string.IsNullOrEmpty(rec.SpeciesId) ? "human" : rec.SpeciesId;
+                    if (AssetManager.actor_library != null && !AssetManager.actor_library.has(species))
+                    {
+                        species = "human";
+                    }
                     Actor spawned = world.units.spawnNewUnit(species, landing);
                     if (spawned == null) continue;
 
@@ -392,15 +411,18 @@ namespace LinkedContinents
                     {
                         spawned.setName(rec.Name);
                     }
-                    if (matchedKingdom != null && SetKingdomMethod != null)
+                    if (matchedKingdom != null && matchedKingdom.isAlive() && SetKingdomMethod != null)
                     {
                         SetKingdomMethod.Invoke(spawned, new object[] { matchedKingdom });
                     }
-                    if (rec.Traits != null)
+                    if (rec.Traits != null && AssetManager.traits != null)
                     {
                         foreach (string tr in rec.Traits)
                         {
-                            spawned.addTrait(tr);
+                            if (!string.IsNullOrEmpty(tr) && AssetManager.traits.has(tr))
+                            {
+                                spawned.addTrait(tr);
+                            }
                         }
                     }
                 }
@@ -419,8 +441,10 @@ namespace LinkedContinents
         private static Kingdom FindKingdomByName(string name)
         {
             if (string.IsNullOrEmpty(name) || MapBox.instance?.kingdoms == null) return null;
-            foreach (var k in MapBox.instance.kingdoms)
+            var kingdomsSnapshot = new List<Kingdom>(MapBox.instance.kingdoms);
+            for (int i = 0; i < kingdomsSnapshot.Count; i++)
             {
+                Kingdom k = kingdomsSnapshot[i];
                 if (k != null && k.isCiv() && k.isAlive() && string.Equals(k.name, name, StringComparison.OrdinalIgnoreCase))
                     return k;
             }

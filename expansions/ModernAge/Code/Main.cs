@@ -23,6 +23,7 @@ namespace ModernAge
         private GuiOverlayRunner _radarRunner;
         private GuiOverlayRunner _panelRunner;
         private float _tickTimer = 0f;
+        private float _lastUpdateWarnTime = -99f;
         private string _status = "";
         private Vector2 _scroll;
         private Rect _windowRect = new Rect(340, 86, 380, 460);
@@ -163,8 +164,20 @@ namespace ModernAge
             if (_tickTimer >= 9f)
             {
                 _tickTimer = 0f;
-                ModernAssetRegistry.RegisterAll();
-                GeopoliticsAndTradeSystem.TickAll();
+                try
+                {
+                    ModernAssetRegistry.RegisterAll();
+                    GeopoliticsAndTradeSystem.TickAll();
+                }
+                catch (Exception e)
+                {
+                    float now = Time.unscaledTime;
+                    if (now - _lastUpdateWarnTime >= 30f)
+                    {
+                        _lastUpdateWarnTime = now;
+                        Debug.LogWarning($"[ModernAge] Update tick exception: {e.Message}");
+                    }
+                }
             }
         }
 
@@ -208,6 +221,7 @@ namespace ModernAge
             {
                 Settings.ShowRadarRings = !Settings.ShowRadarRings;
                 Settings.Save(_declare.FolderPath);
+                SyncRunners();
             }
 
             GUILayout.Space(6);
@@ -266,9 +280,11 @@ namespace ModernAge
             if (MapBox.instance?.kingdoms != null)
             {
                 int shown = 0;
-                foreach (Kingdom k in MapBox.instance.kingdoms)
+                var kingdomsSnapshot = new List<Kingdom>(MapBox.instance.kingdoms);
+                for (int i = 0; i < kingdomsSnapshot.Count && shown < 8; i++)
                 {
-                    if (k == null || !k.isCiv() || !k.isAlive() || shown >= 8) continue;
+                    Kingdom k = kingdomsSnapshot[i];
+                    if (k == null || !k.isCiv() || !k.isAlive()) continue;
                     var st = GeopoliticsAndTradeSystem.GetOrCreateState(k);
                     GUILayout.BeginHorizontal();
                     GameUiStyle.Label(
@@ -300,8 +316,10 @@ namespace ModernAge
             var world = MapBox.instance;
             if (world?.kingdoms == null) return null;
             Kingdom best = null;
-            foreach (var k in world.kingdoms)
+            var kingdomsSnapshot = new List<Kingdom>(world.kingdoms);
+            for (int i = 0; i < kingdomsSnapshot.Count; i++)
             {
+                Kingdom k = kingdomsSnapshot[i];
                 if (k != null && k.isCiv() && k.isAlive())
                 {
                     if (best == null || k.getPopulationPeople() > best.getPopulationPeople()) best = k;
