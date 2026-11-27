@@ -70,13 +70,14 @@ if (Test-Path $LegacyArsenal) { Remove-Item -Recurse -Force $LegacyArsenal }
 foreach ($mod in $SuiteMods) {
     $Src = Join-Path $RepoRoot "mods\$mod"
     $Dst = Join-Path $ModsDir $mod
-    if (Test-Path $Dst) { Remove-Item -Recurse -Force $Dst }
     New-Item -ItemType Directory -Force -Path $Dst | Out-Null
 
     foreach ($item in @("mod.json", "icon.png", "Code", "Locales", "GameResources", "WebClient")) {
         $SrcItem = Join-Path $Src $item
+        $DstItem = Join-Path $Dst $item
         if (Test-Path $SrcItem) {
-            Copy-Item -Recurse -Force $SrcItem (Join-Path $Dst $item)
+            if ((Test-Path $DstItem) -and (Get-Item $SrcItem).PSIsContainer) { Remove-Item -Recurse -Force $DstItem }
+            Copy-Item -Recurse -Force $SrcItem $DstItem
         }
     }
     Write-Host "Installed $mod -> $Dst" -ForegroundColor Green

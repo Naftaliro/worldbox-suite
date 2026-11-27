@@ -146,7 +146,7 @@ namespace ApexFactions
                     {
                         War w = snapshot[i];
                         if (w == null || !w.isAlive()) continue;
-                        if (w.getAsset() != null && w.getAsset().forced_war) continue;
+                        if (SpeciesPersonalityRegistry.IsNonCancelableWarType(w.getAsset())) continue;
 
                         Kingdom atk = w.getMainAttacker();
                         Kingdom def = w.getMainDefender();
@@ -167,7 +167,7 @@ namespace ApexFactions
             try { WorldTip.showNowTop(msg, false); } catch { }
         }
 
-        // Prevent AI kingdoms from declaring petty civil wars on each other while an Alien threat is active
+        // Prevent AI kingdoms from declaring petty diplomatic wars on each other while an Alien threat is active
         [HarmonyPrefix]
         [HarmonyPatch(typeof(DiplomacyManager), "startWar")]
         private static bool CoalitionStartWarPrefix(Kingdom pAttacker, Kingdom pDefender, WarTypeAsset pAsset)
@@ -176,7 +176,7 @@ namespace ApexFactions
             {
                 if (Main.Settings == null || !Main.Settings.EnableAlienCountermeasures || !IsAlienThreatActive) return true;
                 if (pAttacker == null || pDefender == null) return true;
-                if (pAsset != null && pAsset.forced_war) return true; // Always respect player Whisper of War
+                if (SpeciesPersonalityRegistry.IsNonCancelableWarType(pAsset)) return true; // Never block rebellions, Spite, Inspire, or Whisper of War
 
                 if (!IsAlienKingdom(pAttacker) && !IsAlienKingdom(pDefender))
                 {

@@ -200,7 +200,10 @@
 </head>
 <body>
 <header>
-  <h1>WorldBox <span>Studio</span></h1>
+  <div class="row" style="gap:12px;">
+    <h1>WorldBox <span>Studio</span></h1>
+    <span id="update-badge" class="badge" style="cursor:pointer;" onclick="triggerSuiteUpdate(false)" title="Click to check &amp; update all WorldBox Suite mods from GitHub">Checking updates...</span>
+  </div>
   <nav>
     <button class="tab-btn active" data-tab="inspector">World Inspector</button>
     <button class="tab-btn" data-tab="stitcher">World Stitcher</button>
@@ -414,7 +417,12 @@
           <div class="row">
             <button id="btn-save-cfg" class="btn">Save Paths</button>
             <button id="btn-backup" class="btn secondary">Backup Saves (.zip)</button>
+            <button class="btn green" onclick="triggerSuiteUpdate(true)">Update All Mods Now</button>
           </div>
+          <label class="row" style="margin-top:10px; font-size:13px; color:var(--muted);">
+            <input id="cfg-autoupdate" type="checkbox" checked onchange="toggleAutoUpdateSetting(this.checked)" />
+            Auto-update mods from GitHub when WorldBox Studio starts
+          </label>
           <p id="mod-dir-note" class="muted" style="margin-top:10px;"></p>
         </div>
 
@@ -1262,8 +1270,72 @@ window.runTweak = async (action) => {
   }
 };
 
+window.checkSuiteUpdateStatus = async () => {
+  const badge = document.getElementById("update-badge");
+  try {
+    const st = await api("/api/update/status");
+    const chk = document.getElementById("cfg-autoupdate");
+    if (chk && typeof st.auto_update === "boolean") chk.checked = st.auto_update;
+    if (!badge) return;
+    if (!st.online) {
+      badge.className = "badge";
+      badge.textContent = st.local_sha ? `Offline (${st.local_sha.slice(0, 7)})` : "Offline";
+      return;
+    }
+    if (st.update_available) {
+      badge.className = "badge warn";
+      badge.textContent = `Update Available (${st.remote_sha.slice(0, 7)}) — Click to Install`;
+    } else {
+      badge.className = "badge green";
+      badge.textContent = `Up to Date (${(st.local_sha || st.remote_sha).slice(0, 7)})`;
+    }
+  } catch (_) {
+    if (badge) badge.textContent = "Update Check Idle";
+  }
+};
+
+window.triggerSuiteUpdate = async (force = false) => {
+  const badge = document.getElementById("update-badge");
+  if (badge) {
+    badge.className = "badge warn";
+    badge.textContent = "Updating mods...";
+  }
+  toast("Checking GitHub & updating WorldBox Suite mods...");
+  try {
+    const res = await api("/api/update/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force: Boolean(force) }),
+    });
+    if (res.updated) {
+      toast(`Updated ${(res.updated_mods || []).length} mods to ${(res.sha || "").slice(0, 7)}!`);
+      await loadModManager();
+    } else {
+      toast(res.reason || "Already up to date!");
+    }
+    await checkSuiteUpdateStatus();
+  } catch (err) {
+    toast("Update failed: " + err.message);
+    await checkSuiteUpdateStatus();
+  }
+};
+
+window.toggleAutoUpdateSetting = async (enabled) => {
+  try {
+    await api("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auto_update: Boolean(enabled) }),
+    });
+    toast(`Auto-update on Studio launch: ${enabled ? "ON" : "OFF"}`);
+  } catch (err) {
+    toast("Failed to save setting: " + err.message);
+  }
+};
+
 loadSaves().then(loadChronicles);
 loadModManager();
+checkSuiteUpdateStatus();
 </script>
 </body>
 </html>

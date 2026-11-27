@@ -7,6 +7,7 @@ import base64
 import json
 import re
 import tempfile
+import threading
 import zlib
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -40,6 +41,7 @@ from .mod_manager import (
     save_profile,
     toggle_mod,
 )
+from .updater import check_update_status, download_and_apply_update
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -237,6 +239,10 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self._send_json(analyze_player_log(cfg.get("player_log_path", "")))
                 return
 
+            if path == "/api/update/status":
+                self._send_json(check_update_status(cfg))
+                return
+
             if path == "/api/chronicles":
                 chronicles = []
                 search_dirs = [
@@ -276,8 +282,15 @@ class StudioHandler(BaseHTTPRequestHandler):
                 for key in ("saves_dir", "output_dir", "game_streaming_assets", "worldbox_slots_dir", "player_log_path"):
                     if key in body:
                         cfg[key] = str(body[key]).strip()
+                if "auto_update" in body:
+                    cfg["auto_update"] = bool(body["auto_update"])
                 save_config(cfg)
                 self._send_json(cfg)
+                return
+
+            if path == "/api/update/apply":
+                force = bool(body.get("force", False))
+                self._send_json(download_and_apply_update(cfg, force=force))
                 return
 
             if path == "/api/slots/export":
@@ -470,6 +483,19 @@ def main(argv: list[str] | None = None) -> int:
 
     server = ThreadingHTTPServer((args.host, args.port), StudioHandler)
     print(f"WorldBox Studio running at http://{args.host}:{args.port}")
+
+    def _startup_auto_update() -> None:
+        try:
+            cfg = load_config()
+            if cfg.get("auto_update", True):
+                res = download_and_apply_update(cfg, force=False)
+                if res.get("updated"):
+                    print(f"[Auto-Update] Updated WorldBox Suite to {res.get('sha', '')[:7]}")
+        except Exception:
+            pass
+
+    threading.Thread(target=_startup_auto_update, daemon=True).start()
+
     try:
         server.serve_forever()
     except KeyboardInterrupt:

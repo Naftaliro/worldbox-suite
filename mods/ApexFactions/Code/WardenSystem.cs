@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 
@@ -31,6 +32,9 @@ namespace ApexFactions
 
         // Internal flag so our own Merciful Ceasefire call is never blocked by our endWar guard
         private static bool _allowingMercifulCeasefire = false;
+
+        private static readonly MethodInfo ActorSetCityMethod =
+            AccessTools.Method(typeof(Actor), "setCity", new[] { typeof(City) });
 
         private static WorldTile _pendingWardenSpawnTile;
         private static Actor _pendingWardenLeader;
@@ -263,6 +267,27 @@ namespace ApexFactions
                 }
             }
 
+            // If a Warden's city rebelled or was captured by a non-Warden kingdom, let them step out cleanly on tick
+            var aliveUnitsRaw = world.units?.units_only_alive;
+            if (aliveUnitsRaw != null && aliveUnitsRaw.Count > 0)
+            {
+                var aliveUnits = new List<Actor>(aliveUnitsRaw);
+                for (int i = 0; i < aliveUnits.Count; i++)
+                {
+                    Actor u = aliveUnits[i];
+                    if (u == null || !u.isAlive() || u.asset?.id != WardenSpeciesRegistry.WardenAssetId) continue;
+                    if (u.city != null && u.kingdom != null && u.kingdom.isCiv() && !IsWardenKingdom(u.kingdom))
+                    {
+                        try
+                        {
+                            u.cancelAllBeh();
+                            ActorSetCityMethod?.Invoke(u, new object[] { null });
+                        }
+                        catch { }
+                    }
+                }
+            }
+
             // Auto-anoint freshly founded kingdom from SpawnWardenColonyAtTile
             if (_pendingWardenSpawnTile != null || _pendingWardenLeader != null)
             {
@@ -355,17 +380,18 @@ namespace ApexFactions
             }
         }
 
-        // 1. Wardens NEVER declare offensive wars
+        // 1. Wardens NEVER declare AI offensive wars (never block rebellions, Spite, Inspire, or Whisper of War)
         [HarmonyPrefix]
         [HarmonyPatch(typeof(DiplomacyManager), "startWar")]
-        private static bool StartWarPrefix(Kingdom pAttacker)
+        private static bool StartWarPrefix(Kingdom pAttacker, WarTypeAsset pAsset)
         {
             try
             {
                 if (Main.Settings == null || !Main.Settings.EnableWardenDoctrine || pAttacker == null) return true;
+                if (SpeciesPersonalityRegistry.IsNonCancelableWarType(pAsset)) return true;
                 if (IsWardenKingdom(pAttacker))
                 {
-                    return false; // Peace doctrine: never initiate aggression
+                    return false; // Peace doctrine: never initiate diplomatic aggression
                 }
             }
             catch { }
@@ -421,14 +447,15 @@ namespace ApexFactions
             }
         }
 
-        // 3. Refuse premature peace treaties while aggressor is still above the mercy threshold
+        // 3. Refuse premature AI peace treaties while aggressor is still above the mercy threshold
         [HarmonyPrefix]
         [HarmonyPatch(typeof(WarManager), nameof(WarManager.endWar))]
         private static bool EndWarPrefix(War pWar, WarWinner pWinner)
         {
             try
             {
-                if (_allowingMercifulCeasefire || pWinner == WarWinner.Merged || pWar == null || Main.Settings == null || !Main.Settings.EnableWardenDoctrine)
+                // Never block structural war termination (Attackers, Defenders, Nobody, Merged)
+                if (_allowingMercifulCeasefire || pWinner != WarWinner.Peace || pWar == null || Main.Settings == null || !Main.Settings.EnableWardenDoctrine)
                     return true;
 
                 if (ActiveRetaliations.TryGetValue(pWar.id, out RetaliationTracker tr))
@@ -471,7 +498,7 @@ namespace ApexFactions
             catch { return null; }
         }
 
-        // 4. Warden Tradition Lock: Wardens never join non-Warden civ cities
+        // 4. Warden Tradition Lock: wild/nomad Wardens never migrate into non-Warden civ cities
         [HarmonyPrefix]
         [HarmonyPatch(typeof(Actor), nameof(Actor.joinCity))]
         private static bool JoinCityPrefix(Actor __instance, City pCity)
@@ -480,6 +507,9 @@ namespace ApexFactions
             {
                 if (__instance?.asset?.id == WardenSpeciesRegistry.WardenAssetId && pCity != null)
                 {
+                    // Allow internal city transitions (e.g. rebellion / save load) when already bound to a city
+                    if (__instance.city != null) return true;
+
                     Kingdom cityKingdom = CityKingdomRef != null ? CityKingdomRef(pCity) : null;
                     if (cityKingdom != null && cityKingdom.isCiv() && !IsWardenKingdom(cityKingdom))
                     {
@@ -491,7 +521,7 @@ namespace ApexFactions
             return true;
         }
 
-        // 5. Warden Tradition Lock: Wardens never defect to non-Warden civ kingdoms
+        // 5. Warden Tradition Lock: unaligned Wardens never defect to non-Warden civ kingdoms
         [HarmonyPrefix]
         [HarmonyPatch(typeof(Actor), "setKingdom")]
         private static bool SetKingdomPrefix(Actor __instance, Kingdom pKingdomToSet)
@@ -502,6 +532,11 @@ namespace ApexFactions
                     pKingdomToSet != null && pKingdomToSet.isCiv() &&
                     !IsWardenKingdom(pKingdomToSet))
                 {
+                    // Never desync actor.kingdom from actor.city.kingdom during city capture or rebellion
+                    if (__instance.city != null && CityKingdomRef != null && CityKingdomRef(__instance.city) == pKingdomToSet)
+                    {
+                        return true;
+                    }
                     return false;
                 }
             }

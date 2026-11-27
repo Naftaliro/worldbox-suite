@@ -40,7 +40,7 @@ want the opt-in **ModernAge** expansion too (tier 1–3 firearms, tanks, jets, h
 $env:WORLDBOX_MODERN=1; irm https://raw.githubusercontent.com/Naftaliro/worldbox-suite/main/scripts/install.ps1 | iex
 ```
 
-both auto-detect your Steam WorldBox install across drives, download `NeoModLoader.dll` if you don't have it yet, install the mods cleanly into `Mods/`, install **WorldBox Studio** to `%LOCALAPPDATA%\WorldBoxSuite` (with a portable Python 3 runtime if Python isn't installed), and create a **WorldBox Studio** shortcut on your Desktop & Start Menu.
+both auto-detect your Steam WorldBox install across drives, download `NeoModLoader.dll` if you don't have it yet, install the mods cleanly into `Mods/` (preserving your saved mod configs & chronicles), install **WorldBox Studio** to `%LOCALAPPDATA%\WorldBoxSuite` (with a portable Python 3 runtime if Python isn't installed), create Desktop & Start Menu shortcuts, and enable **automatic background updates** (via a silent Windows background task, on Studio startup, and inside `SuiteHub` `F5` in-game — so you never have to re-run the installer manually).
 
 if you already cloned the repo:
 * **windows:** double-click `install.bat` (or pass `-IncludeModern` to `scripts\install_mods.ps1`)

@@ -98,6 +98,7 @@ def load_config() -> dict[str, Any]:
         "game_streaming_assets": _detect_game_dir(),
         "worldbox_slots_dir": detect_worldbox_saves_dir(),
         "player_log_path": detect_player_log_path(),
+        "auto_update": True,
         "profiles": dict(DEFAULT_PROFILES),
         "world_profiles": {},
     }
@@ -237,17 +238,18 @@ def deploy_suite_mod(cfg: dict[str, Any], folder_name: str) -> dict[str, Any]:
         raise FileNotFoundError(f"Suite module not found: {folder_name}")
     enabled_dir, disabled_dir = _mods_dirs(cfg)
     dst = enabled_dir / folder_name
-    if dst.exists():
-        shutil.rmtree(dst)
     if (disabled_dir / folder_name).exists():
         shutil.rmtree(disabled_dir / folder_name)
     dst.mkdir(parents=True, exist_ok=True)
     for item in ("mod.json", "icon.png", "Code", "Locales", "GameResources", "WebClient"):
         s_item = src / item
+        d_item = dst / item
         if s_item.is_dir():
-            shutil.copytree(s_item, dst / item)
+            if d_item.exists():
+                shutil.rmtree(d_item)
+            shutil.copytree(s_item, d_item)
         elif s_item.is_file():
-            shutil.copy2(s_item, dst / item)
+            shutil.copy2(s_item, d_item)
     return list_mods(cfg)
 
 

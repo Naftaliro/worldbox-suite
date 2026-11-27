@@ -672,7 +672,23 @@ namespace ApexFactions
             }
         }
 
-        // Enforce species peace doctrines & Penguin Tux Pact protection on AI-initiated non-forced wars
+        public static bool IsNonCancelableWarType(WarTypeAsset pAsset)
+        {
+            if (pAsset == null) return false;
+            if (pAsset.forced_war || pAsset.rebellion || pAsset.total_war) return true;
+            if (pAsset == WarTypeLibrary.rebellion ||
+                pAsset == WarTypeLibrary.spite ||
+                pAsset == WarTypeLibrary.whisper_of_war ||
+                pAsset == WarTypeLibrary.inspire)
+            {
+                return true;
+            }
+
+            string id = pAsset.id;
+            return id == "rebellion" || id == "spite" || id == "whisper_of_war" || id == "inspire";
+        }
+
+        // Enforce species peace doctrines & Penguin Tux Pact protection on AI-initiated diplomatic wars only
         [HarmonyPrefix]
         [HarmonyPatch(typeof(DiplomacyManager), "startWar")]
         private static bool SpeciesStartWarPrefix(Kingdom pAttacker, Kingdom pDefender, WarTypeAsset pAsset)
@@ -680,7 +696,7 @@ namespace ApexFactions
             try
             {
                 if (pAttacker == null || pDefender == null) return true;
-                if (pAsset != null && pAsset.forced_war) return true; // Never block player Whisper of War / forced wars
+                if (IsNonCancelableWarType(pAsset)) return true; // Never block rebellions, Spite, Inspire, or Whisper of War
 
                 string attackerSp = GetKingdomSpecies(pAttacker);
                 if (!string.IsNullOrEmpty(attackerSp) && IsNeverStartsWars(attackerSp))

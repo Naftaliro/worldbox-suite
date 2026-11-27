@@ -10,6 +10,7 @@ namespace SuiteHub
     public class Main : MonoBehaviour, IMod
     {
         public static Main Instance { get; private set; }
+        public static SuiteHubConfig Settings { get; private set; }
 
         private ModDeclare _declare;
         private GameObject _gameObject;
@@ -21,11 +22,12 @@ namespace SuiteHub
         private bool _showWarMatrix = false;
         private bool _showWorldBuilder = false;
         private bool _bottomBarTried = false;
+        private bool _autoUpdateChecked = false;
         private float _initDelay = 0f;
         private float _pruneTimer = 0f;
         private float _lastUpdateWarnTime = -99f;
 
-        private Rect _hubRect = new Rect(20, 76, 325, 465);
+        private Rect _hubRect = new Rect(20, 76, 335, 545);
 
         public ModDeclare GetDeclaration() => _declare;
         public GameObject GetGameObject() => _gameObject;
@@ -41,6 +43,7 @@ namespace SuiteHub
             _panelRunner.Configure(true, DrawPanelsGui);
             _tickerRunner = pGameObject.AddComponent<GuiOverlayRunner>();
             _tickerRunner.Configure(true, DrawTickerGui);
+            Settings = SuiteHubConfig.LoadOrCreate(_declare.FolderPath);
 
             try
             {
@@ -297,6 +300,19 @@ namespace SuiteHub
                     }
                 }
 
+                if (!_autoUpdateChecked && _bottomBarTried)
+                {
+                    _autoUpdateChecked = true;
+                    bool checkOnly = Settings != null && !Settings.AutoUpdateMods;
+                    AutoUpdateSystem.CheckAndUpdateAsync(_declare.FolderPath, forceCheckOnly: checkOnly, notifyWhenUpToDate: false);
+                }
+
+                string updateToast = AutoUpdateSystem.PopPendingToast();
+                if (!string.IsNullOrEmpty(updateToast))
+                {
+                    ShowToast(updateToast);
+                }
+
                 _pruneTimer += Time.unscaledDeltaTime;
                 if (_pruneTimer >= 1.0f)
                 {
@@ -381,6 +397,29 @@ namespace SuiteHub
                 _showWorldBuilder,
                 "Multi-Continent World Builder|Sculpt a brand-new multi-continent world right in-game with custom sizes, biomes, and ocean divides.|Hotkey: F2"))
                 ToggleWorldBuilder();
+
+            GUILayout.Space(6);
+            GameUiStyle.Label($"Updates: {AutoUpdateSystem.StatusLabel}", "GitHub Auto-Updater|Checks Naftaliro/worldbox-suite on startup and downloads mod updates in the background while preserving your settings.", isHeader: true);
+            GUILayout.BeginHorizontal();
+            bool autoUpd = Settings == null || Settings.AutoUpdateMods;
+            if (GameUiStyle.ToggleButton(
+                $"Auto-Update: {(autoUpd ? "ON" : "OFF")}",
+                autoUpd,
+                "Automatic Mod Updates|When ON, SuiteHub automatically downloads new mod updates from GitHub in the background so your next game launch is always current."))
+            {
+                if (Settings != null)
+                {
+                    Settings.AutoUpdateMods = !Settings.AutoUpdateMods;
+                    Settings.Save(_declare.FolderPath);
+                }
+            }
+            if (GameUiStyle.Button(
+                "Update Now",
+                "Check & Apply Latest Update|Checks GitHub immediately and downloads any newer mod files into your WorldBox Mods folder."))
+            {
+                AutoUpdateSystem.CheckAndUpdateAsync(_declare.FolderPath, forceCheckOnly: false, notifyWhenUpToDate: true);
+            }
+            GUILayout.EndHorizontal();
 
             GUILayout.Space(8);
             GameUiStyle.Label("Detailed Module Panels:", "Optional Detail Panels|Open a mod's full settings panel if you want fine-grained sliders or live logs.", isHeader: true);

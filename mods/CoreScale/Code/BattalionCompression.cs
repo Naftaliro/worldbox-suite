@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using HarmonyLib;
 using UnityEngine;
 
 namespace CoreScale
@@ -7,6 +9,32 @@ namespace CoreScale
     {
         public static int TotalSoldiersConsolidated { get; private set; }
         public static int RegimentsForged { get; private set; }
+
+        private static readonly AccessTools.FieldRef<Actor, bool> InsideBoatRef = InitInsideBoatRef();
+
+        private static AccessTools.FieldRef<Actor, bool> InitInsideBoatRef()
+        {
+            try { return AccessTools.FieldRefAccess<Actor, bool>("is_inside_boat"); }
+            catch { return null; }
+        }
+
+        private static bool IsSafeToConsolidate(Actor candidate, Actor champion)
+        {
+            if (candidate == null || candidate == champion || !candidate.isAlive()) return false;
+            if (candidate.asset == null || candidate.asset.is_boat) return false;
+            if (candidate.asset.id == "warden" || candidate.asset.id == "ufo" || candidate.asset.id == "alien") return false;
+            if (candidate.isKing() || candidate.isCityLeader() || candidate.isFavorite()) return false;
+            if (candidate.hasPlot()) return false; // Never destroy an actor participating in an active plot
+            if (InsideBoatRef != null && InsideBoatRef(candidate)) return false;
+
+            try
+            {
+                if (candidate.hasTrait("suite_spy")) return false;
+            }
+            catch { }
+
+            return true;
+        }
 
         /// <summary>
         /// Consolidates oversized armies into reinforced Regiment Champions to cut per-tick
@@ -22,7 +50,6 @@ namespace CoreScale
             if (!force && aliveRaw.Count < settings.BattalionPopThreshold) return 0;
 
             var alive = new List<Actor>(aliveRaw);
-            // Group active campaigning soldiers by Army
             var byArmy = new Dictionary<Army, List<Actor>>();
             for (int i = 0; i < alive.Count; i++)
             {
@@ -39,7 +66,7 @@ namespace CoreScale
             }
 
             int consolidatedThisPass = 0;
-            int minSize = Mathf.Max(10, settings.MinArmySizeForCompression);
+            int minSize = Mathf.Max(12, settings.MinArmySizeForCompression);
             int mergeCount = Mathf.Max(2, settings.SoldiersPerRegimentMerge);
 
             foreach (var kv in byArmy)
@@ -60,27 +87,34 @@ namespace CoreScale
                 for (int i = squad.Count - 1; i >= 0 && absorbed < mergeCount; i--)
                 {
                     Actor candidate = squad[i];
-                    if (candidate == null || candidate == champion || !candidate.isAlive()) continue;
-                    if (candidate.isKing() || candidate.isCityLeader()) continue;
+                    if (!IsSafeToConsolidate(candidate, champion)) continue;
 
-                    pooledHealth += Mathf.Max(50, candidate.getHealth());
-                    candidate.dieAndDestroy(AttackType.None);
-                    absorbed++;
+                    try
+                    {
+                        pooledHealth += Mathf.Max(50, candidate.getHealth());
+                        candidate.cancelAllBeh();
+                        candidate.dieAndDestroy(AttackType.None);
+                        absorbed++;
+                    }
+                    catch { }
                 }
 
                 if (absorbed > 0 && champion.isAlive())
                 {
-                    // Reinforce the champion into a heavy Regiment Banner unit
-                    champion.addTrait("veteran");
-                    champion.addTrait("strong");
-                    champion.addTrait("tough");
-                    if (absorbed >= 5)
+                    try
                     {
-                        champion.addTrait("giant");
+                        champion.addTrait("veteran");
+                        champion.addTrait("strong");
+                        champion.addTrait("tough");
+                        if (absorbed >= 5)
+                        {
+                            champion.addTrait("giant");
+                        }
+                        champion.setStatsDirty();
+                        champion.restoreHealth(pooledHealth);
+                        champion.addRenown(absorbed * 2);
                     }
-                    champion.setStatsDirty();
-                    champion.restoreHealth(pooledHealth);
-                    champion.addRenown(absorbed * 2);
+                    catch { }
 
                     consolidatedThisPass += absorbed;
                     TotalSoldiersConsolidated += absorbed;

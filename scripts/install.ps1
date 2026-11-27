@@ -205,6 +205,13 @@ $ZipPath = Join-Path $TmpRoot "suite.zip"
 New-Item -ItemType Directory -Force -Path $TmpRoot | Out-Null
 
 try {
+    $LatestSha = ""
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $commitInfo = Invoke-RestMethod -UseBasicParsing -Uri "https://api.github.com/repos/Naftaliro/worldbox-suite/commits/main" -Headers @{ "User-Agent" = "WorldBoxSuite-Installer" } -TimeoutSec 10
+        $LatestSha = [string]$commitInfo.sha
+    } catch {}
+
     Write-Host "Downloading latest worldbox-suite from GitHub..." -ForegroundColor Cyan
     Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/Naftaliro/worldbox-suite/archive/refs/heads/main.zip" -OutFile $ZipPath
     Expand-Archive -Path $ZipPath -DestinationPath $TmpRoot -Force
@@ -220,29 +227,31 @@ try {
         $Src = Join-Path $Extracted "mods\$mod"
         $Dst = Join-Path $ModsDir $mod
         if (-not (Test-Path $Src)) { continue }
-        if (Test-Path $Dst) { Remove-Item -Recurse -Force $Dst }
         New-Item -ItemType Directory -Force -Path $Dst | Out-Null
 
         foreach ($item in @("mod.json", "icon.png", "Code", "Locales", "GameResources", "WebClient")) {
             $SrcItem = Join-Path $Src $item
+            $DstItem = Join-Path $Dst $item
             if (Test-Path $SrcItem) {
-                Copy-Item -Recurse -Force $SrcItem (Join-Path $Dst $item)
+                if ((Test-Path $DstItem) -and (Get-Item $SrcItem).PSIsContainer) { Remove-Item -Recurse -Force $DstItem }
+                Copy-Item -Recurse -Force $SrcItem $DstItem
             }
         }
         Write-Host "  + Installed $mod" -ForegroundColor Green
     }
 
-    # Opt-in ModernAge expansion (set $env:WORLDBOX_MODERN=1 before running to include)
-    if ($env:WORLDBOX_MODERN -eq "1" -or $env:WORLDBOX_MODERN -eq "true") {
+    # Opt-in ModernAge expansion (set $env:WORLDBOX_MODERN=1 before running, or update if already installed)
+    $DstModern = Join-Path $ModsDir "ModernAge"
+    if ($env:WORLDBOX_MODERN -eq "1" -or $env:WORLDBOX_MODERN -eq "true" -or (Test-Path $DstModern)) {
         $Src = Join-Path $Extracted "expansions\ModernAge"
-        $Dst = Join-Path $ModsDir "ModernAge"
         if (Test-Path $Src) {
-            if (Test-Path $Dst) { Remove-Item -Recurse -Force $Dst }
-            New-Item -ItemType Directory -Force -Path $Dst | Out-Null
+            New-Item -ItemType Directory -Force -Path $DstModern | Out-Null
             foreach ($item in @("mod.json", "icon.png", "Code", "Locales", "GameResources")) {
                 $SrcItem = Join-Path $Src $item
+                $DstItem = Join-Path $DstModern $item
                 if (Test-Path $SrcItem) {
-                    Copy-Item -Recurse -Force $SrcItem (Join-Path $Dst $item)
+                    if ((Test-Path $DstItem) -and (Get-Item $SrcItem).PSIsContainer) { Remove-Item -Recurse -Force $DstItem }
+                    Copy-Item -Recurse -Force $SrcItem $DstItem
                 }
             }
             Write-Host "  + Installed ModernAge Expansion (Tier 1-3)" -ForegroundColor Cyan
@@ -263,6 +272,17 @@ try {
         $srcFile = Join-Path $Extracted $fileName
         if (Test-Path $srcFile) {
             Copy-Item -Force $srcFile (Join-Path $StudioRoot $fileName)
+        }
+    }
+
+    # Stamp installed commit SHA & install metadata for silent background auto-updates
+    $InfoJson = @{ worldbox_dir = $WorldBoxDir; studio_root = $StudioRoot } | ConvertTo-Json
+    Set-Content -Path (Join-Path $StudioRoot "install_info.json") -Value $InfoJson -Encoding UTF8
+    if ($LatestSha) {
+        Set-Content -Path (Join-Path $StudioRoot ".suite_sha") -Value $LatestSha -NoNewline
+        $HubDst = Join-Path $ModsDir "SuiteHub"
+        if (Test-Path $HubDst) {
+            Set-Content -Path (Join-Path $HubDst ".suite_sha") -Value $LatestSha -NoNewline
         }
     }
 } finally {
@@ -298,6 +318,18 @@ if (New-ShortcutFile -LnkPath $DesktopLnk -TargetPath $BatPath -WorkingDir $Stud
 }
 if (New-ShortcutFile -LnkPath $StartMenuLnk -TargetPath $BatPath -WorkingDir $StudioRoot -IconPath $IconUse) {
     Write-Host "  + Created Start Menu shortcut: WorldBox Studio" -ForegroundColor Green
+}
+
+# 6. Register silent background Auto-Updater task (user-level, zero admin required)
+$UpdaterScript = Join-Path $StudioRoot "scripts\auto_update.ps1"
+if (Test-Path $UpdaterScript) {
+    try {
+        $TaskCmd = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$UpdaterScript`""
+        & schtasks.exe /Create /F /SC HOURLY /MO 4 /TN "WorldBoxSuiteAutoUpdater" /TR $TaskCmd *> $null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  + Enabled automatic background mod updates (every 4h + in-game check)" -ForegroundColor Green
+        }
+    } catch {}
 }
 
 Write-Host ""

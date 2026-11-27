@@ -18,9 +18,9 @@ namespace CoreScale
         public bool UnlockParallelism = true;
         public bool ForceDisableShadows = false;
         public bool EnableBattalionCompression = true;
-        public int BattalionPopThreshold = 8000;
-        public int MinArmySizeForCompression = 24;
-        public int SoldiersPerRegimentMerge = 6;
+        public int BattalionPopThreshold = 12000;
+        public int MinArmySizeForCompression = 30;
+        public int SoldiersPerRegimentMerge = 5;
 
         // Population thresholds for progressive batch time-slicing
         public int LodTier1Population = 3000;

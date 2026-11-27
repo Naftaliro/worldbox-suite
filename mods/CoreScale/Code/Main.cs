@@ -207,7 +207,7 @@ namespace CoreScale
                 if (Settings.EnableBattalionCompression && !Config.paused)
                 {
                     _battalionTimer += Time.deltaTime;
-                    if (_battalionTimer >= 8.0f)
+                    if (_battalionTimer >= 25.0f)
                     {
                         _battalionTimer = 0f;
                         BattalionCompressionSystem.CompressMegaArmies(force: false);

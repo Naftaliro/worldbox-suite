@@ -254,6 +254,9 @@ class TestWboxToolkit(unittest.TestCase):
                     [
                         "[CoreScale] Loaded v0.2.0",
                         "[ModernAge] Expansion loaded (6 vehicle sprites)",
+                        "[NeoModLoader] NeoModLoader.api.FeatureLoadException",
+                        "[NeoModLoader] NeoModLoader.api.exceptions.UnrecognizableResourceFileException",
+                        "[NeoModLoader] NeoModLoader.api.exceptions.UnsupportedFileTypeException",
                         "[ApexFactions] NullReferenceException: Object reference not set",
                         "  at ApexFactions.WardenSystem.Tick () [0x00010]",
                     ]
@@ -368,6 +371,39 @@ class TestWboxToolkit(unittest.TestCase):
         self.assertEqual(verify_save(mixed), [])
         self.assertEqual(len(mixed["kingdoms"]), 1)
         self.assertEqual(len(mixed["actors_data"]), 1)
+
+    def test_auto_updater_preserves_user_configs_and_disabled_state(self) -> None:
+        from tools.studio.updater import apply_suite_update_from_extracted
+
+        with tempfile.TemporaryDirectory() as tmp:
+            wb_root = Path(tmp) / "worldbox"
+            mods_dir = wb_root / "Mods"
+            disabled_dir = wb_root / "Mods_Disabled"
+            (wb_root / "worldbox_Data" / "StreamingAssets").mkdir(parents=True, exist_ok=True)
+
+            # Pre-seed user config in CoreScale, disabled CoopHost, and installed ModernAge
+            (mods_dir / "CoreScale").mkdir(parents=True, exist_ok=True)
+            user_cfg_file = mods_dir / "CoreScale" / "corescale_config.json"
+            user_cfg_file.write_text('{"TurboMode": true}', encoding="utf-8")
+
+            (disabled_dir / "CoopHost").mkdir(parents=True, exist_ok=True)
+            (mods_dir / "ModernAge").mkdir(parents=True, exist_ok=True)
+
+            res = apply_suite_update_from_extracted(
+                REPO_ROOT,
+                {"game_streaming_assets": str(wb_root)},
+                sha="abcdef1234567890",
+                update_repo_root=False,
+            )
+            self.assertTrue(res["updated"])
+            self.assertIn("SuiteHub", res["updated_mods"])
+            self.assertIn("ModernAge", res["updated_mods"])
+
+            # User config preserved, disabled state respected, and .suite_sha stamped
+            self.assertEqual(user_cfg_file.read_text(encoding="utf-8"), '{"TurboMode": true}')
+            self.assertTrue((disabled_dir / "CoopHost" / "mod.json").is_file())
+            self.assertFalse((mods_dir / "CoopHost").exists())
+            self.assertEqual((mods_dir / "SuiteHub" / ".suite_sha").read_text(encoding="utf-8"), "abcdef1234567890")
 
 
 if __name__ == "__main__":

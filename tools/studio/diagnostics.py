@@ -200,6 +200,7 @@ def analyze_player_log(log_path_str: str) -> dict[str, Any]:
     suite_lines: list[str] = []
 
     err_re = re.compile(r"(Exception|CS\d{4}|error CS|NullReferenceException|Failed to|HarmonyException|TypeLoadException)", re.IGNORECASE)
+    nml_benign_type_re = re.compile(r"^\[NeoModLoader\]\s+NeoModLoader\.api\.(?:exceptions\.)?\w+Exception\s*$")
     warn_re = re.compile(r"(Warning|skipped|deferred)", re.IGNORECASE)
 
     def _scan_lines(src_lines: list[str], source_label: str = "") -> None:
@@ -208,6 +209,9 @@ def analyze_player_log(log_path_str: str) -> dict[str, Any]:
             stripped = line.strip()
             if not stripped:
                 active_mod = None
+                continue
+
+            if nml_benign_type_re.match(stripped):
                 continue
 
             matched_mod = _match_suite_mod(stripped)
